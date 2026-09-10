@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0 - 2026-09-10
+- Tornado obrigatório o bootstrap de sessão antes do primeiro comando local/remoto de cada chat/agente.
+- Proibido fallback direto para PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito quando bootstrap/gateway bloquear ou estiver indisponível.
+- Adicionada reserva idempotente de worktree por `session_id`, persistida fora do working tree.
+- Adicionada materialização opcional com `git worktree add --detach` no SHA capturado no bootstrap.
+- Alterações de risco 2 passam a exigir worktree reservado/materializado da sessão por regra operacional.
+- Adicionados testes unitários e E2E para idempotência, conflito de sessão, identificador inválido, política desabilitada e worktree isolado.
+- Adicionado gerador determinístico de `MANIFEST.json` para reduzir divergência de hash/tamanho durante evoluções das regras.
+
 ## 1.3.1 - 2026-09-10
 - Corrigida inspeção Git do Command Gateway para separar estado rastreado e não rastreado.
 - Adicionado `git_untracked_excludes` para áreas temporárias explicitamente excluídas, sem reduzir a enumeração dos demais não rastreados.
