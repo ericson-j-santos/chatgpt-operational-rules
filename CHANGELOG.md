@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 - 2026-09-10
+- Tornada obrigatória a validação ponta a ponta para incrementos funcionais criados ou modificados.
+- Adicionados controles explícitos contra falso positivo: pré-condição, marcador único, caso positivo, caso negativo/controle, leitura independente e vínculo com branch/SHA/ambiente.
+- Adicionado teste do próprio teste quando seguro e viável para comprovar que o mecanismo detecta falhas.
+- Proibido declarar conclusão funcional quando a validação E2E aplicável estiver bloqueada ou baseada em evidência residual/ambígua.
+
 ## 1.1.0 - 2026-09-10
 - Adicionada política de execução governada de terminal.
 - Definidos níveis 🟢/🟡/🔴 para observação, alteração reversível e operações críticas.
