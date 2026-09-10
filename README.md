@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.0.0
+Versão: 1.1.0
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -17,6 +17,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 4. Tratar bloqueios e alternativas seguras.
 5. Retornar estado evidenciado, riscos, bloqueios e próximo passo.
 6. Para artefatos, aplicar `rules/artifact-storage.md`.
+7. Para execução de comandos locais ou remotos, aplicar `rules/terminal-execution.md`.
 
 ## Projetos conhecidos
 - ReqSys
