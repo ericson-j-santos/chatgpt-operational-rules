@@ -161,29 +161,28 @@ def run_capture(args: Sequence[str], cwd: Path, timeout: int = 15) -> subprocess
     )
 
 
-def git_state(cwd: Path, require_repo: bool = True) -> GitState | None:
+def git_state(cwd: Path, require_repo: bool = True, policy: dict[str, Any] | None = None) -> GitState | None:
     root = run_capture(["git", "rev-parse", "--show-toplevel"], cwd)
     if root.returncode != 0:
         if require_repo:
             raise GatewayError("diretório não é repositório Git")
         return None
-    repo_root = root.stdout.strip()
-    head = run_capture(["git", "rev-parse", "HEAD"], cwd)
-    branch = run_capture(["git", "branch", "--show-current"], cwd)
-    status = run_capture(["git", "status", "--porcelain=v1", "-z"], cwd)
-    if head.returncode != 0 or status.returncode != 0:
+    if root.stderr.strip():
+        raise GatewayError("estado Git incompleto: rev-parse produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
+    repo_root = Path(root.stdout.strip())
+    head = run_capture(["git", "rev-parse", "HEAD"], repo_root)
+    branch = run_capture(["git", "branch", "--show-current"], repo_root)
+    tracked = run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo_root)
+    pathspec = ["."] + [f":(exclude){item}" for item in (policy or {}).get("git_untracked_excludes", [])]
+    untracked = run_capture(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *pathspec], repo_root)
+    checks = (head, branch, tracked, untracked)
+    if any(item.returncode != 0 for item in checks):
         raise GatewayError("não foi possível obter estado Git")
-    if status.stderr.strip():
-        raise GatewayError("estado Git incompleto: git status produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
-    raw = status.stdout.encode("utf-8", errors="replace")
-    count = len([item for item in status.stdout.split("\x00") if item])
-    return GitState(
-        repo_root=repo_root,
-        branch=branch.stdout.strip() or "DETACHED",
-        head=head.stdout.strip(),
-        status_digest=hashlib.sha256(raw).hexdigest(),
-        status_count=count,
-    )
+    if any(item.stderr.strip() for item in checks):
+        raise GatewayError("estado Git incompleto: comando Git produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
+    raw = ("T\0" + tracked.stdout + "U\0" + untracked.stdout).encode("utf-8", errors="replace")
+    count = sum(len([x for x in item.stdout.split("\x00") if x]) for item in (tracked, untracked))
+    return GitState(repo_root=str(repo_root), branch=branch.stdout.strip() or "DETACHED", head=head.stdout.strip(), status_digest=hashlib.sha256(raw).hexdigest(), status_count=count)
 
 
 def state_key(state: GitState) -> str:
@@ -237,7 +236,7 @@ def event_args(args: Sequence[str]) -> list[str]:
 
 def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str) -> int:
     assert_allowed_path(cwd, policy)
-    before = git_state(cwd, bool(policy.get("require_git_repo", True)))
+    before = git_state(cwd, bool(policy.get("require_git_repo", True)), policy)
     event = {
         "timestamp": utc_now(), "correlation_id": correlation_id,
         "action": "inspect", "cwd": norm(cwd), "risk": 1,
@@ -257,7 +256,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
     if timeout < 1 or timeout > max_timeout:
         raise GatewayError(f"timeout deve estar entre 1 e {max_timeout}s")
 
-    before = git_state(cwd, bool(policy.get("require_git_repo", True)))
+    before = git_state(cwd, bool(policy.get("require_git_repo", True)), policy)
     if before is None:
         raise GatewayError("execução sem repositório não suportada no perfil atual")
     if expected_head and before.head.casefold() != expected_head.casefold():
@@ -267,7 +266,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
 
     started = time.monotonic()
     with repository_lock(before, policy, correlation_id):
-        locked_state = git_state(cwd, True)
+        locked_state = git_state(cwd, True, policy)
         if locked_state != before:
             raise GatewayError("estado mudou antes da execução; possível concorrência", EXIT_STATE_CHANGED)
         try:
@@ -285,7 +284,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             append_event(policy, event)
             raise GatewayError("processo excedeu timeout", EXIT_TIMEOUT) from exc
 
-        after = git_state(cwd, True)
+        after = git_state(cwd, True, policy)
         state_changed = after != before
         duration_ms = int((time.monotonic() - started) * 1000)
         result = "ok" if completed.returncode == 0 else "command_failed"

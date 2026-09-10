@@ -1,136 +1,136 @@
 {
-    "version":  "1.3.0",
-    "generated_at":  "2026-09-10T14:40:20-03:00",
-    "files":  [
-                  {
-                      "path":  ".gitattributes",
-                      "sha256":  "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
-                      "size":  19
-                  },
-                  {
-                      "path":  ".github/workflows/validate-rules.yml",
-                      "sha256":  "334943945291ee20979c96901fca129d9d6377fde2920be15ae6e9972769ef29",
-                      "size":  764
-                  },
-                  {
-                      "path":  "AGENTS.md",
-                      "sha256":  "061a851f78da011d985d9e0f1c603aeb90ba1f96acbb42366a64cd8044932fd3",
-                      "size":  675
-                  },
-                  {
-                      "path":  "CHANGELOG.md",
-                      "sha256":  "44e8296b4b27ae9ff525c30283b365c9a188b7062a26ac366e00cfe3e16472db",
-                      "size":  2425
-                  },
-                  {
-                      "path":  "README.md",
-                      "sha256":  "f574454b4eed8ef52a5197066eca8b253322a5d5ea07c52c773ff5ca79960b74",
-                      "size":  1588
-                  },
-                  {
-                      "path":  "config/command-gateway.policy.json",
-                      "sha256":  "692ee4bdff1d5449dc905c8c9749514b166af6a3094d88fd38ad53c9c7bf46e3",
-                      "size":  896
-                  },
-                  {
-                      "path":  "projects/bacen.md",
-                      "sha256":  "6cfd7dd3223b395dc6fcf9c2899e1afa93b3ae1dbef0a08229c2d6612ad480a4",
-                      "size":  268
-                  },
-                  {
-                      "path":  "projects/ocr-evidencia.md",
-                      "sha256":  "10badf1d1295a390595df04286686d81c9b7dcea1f07899f9f8fe53350761581",
-                      "size":  226
-                  },
-                  {
-                      "path":  "projects/reqsys.md",
-                      "sha256":  "92fab0de79dfd25e96e417ff1efd385fbfe34a717d6c38b80d9106897342a5fc",
-                      "size":  293
-                  },
-                  {
-                      "path":  "rules/artifact-storage.md",
-                      "sha256":  "27103df5169394b39a07eff80cec7012f32f6dcc1064ad29c7545f9297aa454b",
-                      "size":  769
-                  },
-                  {
-                      "path":  "rules/chat-bootstrap.md",
-                      "sha256":  "5f5bb61ef40c5bb243774836c645634f40e4d7c02931bc6cae488d64d80dec29",
-                      "size":  759
-                  },
-                  {
-                      "path":  "rules/coding-standards.md",
-                      "sha256":  "bdfce281d76042ab68179fae2394e56fe1c29e81e6a9928462bb743138f77e60",
-                      "size":  513
-                  },
-                  {
-                      "path":  "rules/command-gateway.md",
-                      "sha256":  "da064904026e78c0cc248eeb962bd3ff1e45c8efd4db5b45bcb57403b104b16d",
-                      "size":  3691
-                  },
-                  {
-                      "path":  "rules/e2e-validation.md",
-                      "sha256":  "1d677bccaf235160a9c294a3748aa028cc1abdadd1f07cc6b4d9e51461a40f1d",
-                      "size":  5625
-                  },
-                  {
-                      "path":  "rules/evidence-validation.md",
-                      "sha256":  "88ad702618877ee9e81b9cd55b4e717d95f77ee1170543e8b8a23b763865ec7d",
-                      "size":  842
-                  },
-                  {
-                      "path":  "rules/github-workflow.md",
-                      "sha256":  "b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7",
-                      "size":  445
-                  },
-                  {
-                      "path":  "rules/reporting.md",
-                      "sha256":  "39fcb1b3abf23230232144d0440adbfbe5244a1159d4312430fa8ed7cf071424",
-                      "size":  293
-                  },
-                  {
-                      "path":  "rules/security-governance.md",
-                      "sha256":  "e271af65fdb27e941de265bccf6cae048ea12c409ae8720b3bcf69eeb68075ce",
-                      "size":  461
-                  },
-                  {
-                      "path":  "rules/terminal-execution.md",
-                      "sha256":  "f600cc917eb9fdc1808e5c5f3fc62ff4c12e29e15899fd2eaebfd1b1fd8c3ad6",
-                      "size":  6023
-                  },
-                  {
-                      "path":  "schemas/artifact-manifest.schema.json",
-                      "sha256":  "e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca",
-                      "size":  745
-                  },
-                  {
-                      "path":  "scripts/command_gateway.py",
-                      "sha256":  "f61068c0d760b0b6e70b9c722ae3897025394ff07734c0c4a90977d1aac5945b",
-                      "size":  15330
-                  },
-                  {
-                      "path":  "scripts/command_gateway_e2e.py",
-                      "sha256":  "b494d66bfdd515e1ed5efd17a52a47e27ea429036f6f158b8c00f464257a9ace",
-                      "size":  5278
-                  },
-                  {
-                      "path":  "scripts/validate_rules.py",
-                      "sha256":  "475757077c79e96cc4fdf9dfd0a5c7ee0ba960d30deb64e3148507f915efa6ba",
-                      "size":  6551
-                  },
-                  {
-                      "path":  "templates/execution-blueprint.md",
-                      "sha256":  "22bcd023fe5c69757f8910e34f3d457047a7d893a04d77c332866003842bfc60",
-                      "size":  162
-                  },
-                  {
-                      "path":  "templates/status-report.md",
-                      "sha256":  "17cabbd4a9092b80b11e69a94ed7d40dd8df875b3147601b6cd9cd73caccbc94",
-                      "size":  147
-                  },
-                  {
-                      "path":  "tests/test_command_gateway.py",
-                      "sha256":  "543c06ebfdfd49b68bb87aef43e058b3512c80f03ebd34219fa4096e16365af8",
-                      "size":  2800
-                  }
-              ]
+  "version": "1.3.1",
+  "generated_at": "2026-09-10T15:00:01-03:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      "size": 19
+    },
+    {
+      "path": ".github/workflows/validate-rules.yml",
+      "sha256": "334943945291ee20979c96901fca129d9d6377fde2920be15ae6e9972769ef29",
+      "size": 764
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "061a851f78da011d985d9e0f1c603aeb90ba1f96acbb42366a64cd8044932fd3",
+      "size": 675
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "330504ef6a7a9ce270a79c51039754cd567f5cde8e258be448963dbb88e42a65",
+      "size": 2891
+    },
+    {
+      "path": "README.md",
+      "sha256": "e829a00c000d7acaace775f777d295cc54a6e3feb9f992d3df2a4b965fa3e02b",
+      "size": 1588
+    },
+    {
+      "path": "config/command-gateway.policy.json",
+      "sha256": "de94f9d66ce5746342c1f12e0967d8ab60b3946f3c4051e7b13e16787a9abcd5",
+      "size": 945
+    },
+    {
+      "path": "projects/bacen.md",
+      "sha256": "6cfd7dd3223b395dc6fcf9c2899e1afa93b3ae1dbef0a08229c2d6612ad480a4",
+      "size": 268
+    },
+    {
+      "path": "projects/ocr-evidencia.md",
+      "sha256": "10badf1d1295a390595df04286686d81c9b7dcea1f07899f9f8fe53350761581",
+      "size": 226
+    },
+    {
+      "path": "projects/reqsys.md",
+      "sha256": "92fab0de79dfd25e96e417ff1efd385fbfe34a717d6c38b80d9106897342a5fc",
+      "size": 293
+    },
+    {
+      "path": "rules/artifact-storage.md",
+      "sha256": "27103df5169394b39a07eff80cec7012f32f6dcc1064ad29c7545f9297aa454b",
+      "size": 769
+    },
+    {
+      "path": "rules/chat-bootstrap.md",
+      "sha256": "5f5bb61ef40c5bb243774836c645634f40e4d7c02931bc6cae488d64d80dec29",
+      "size": 759
+    },
+    {
+      "path": "rules/coding-standards.md",
+      "sha256": "bdfce281d76042ab68179fae2394e56fe1c29e81e6a9928462bb743138f77e60",
+      "size": 513
+    },
+    {
+      "path": "rules/command-gateway.md",
+      "sha256": "da064904026e78c0cc248eeb962bd3ff1e45c8efd4db5b45bcb57403b104b16d",
+      "size": 3691
+    },
+    {
+      "path": "rules/e2e-validation.md",
+      "sha256": "1d677bccaf235160a9c294a3748aa028cc1abdadd1f07cc6b4d9e51461a40f1d",
+      "size": 5625
+    },
+    {
+      "path": "rules/evidence-validation.md",
+      "sha256": "88ad702618877ee9e81b9cd55b4e717d95f77ee1170543e8b8a23b763865ec7d",
+      "size": 842
+    },
+    {
+      "path": "rules/github-workflow.md",
+      "sha256": "b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7",
+      "size": 445
+    },
+    {
+      "path": "rules/reporting.md",
+      "sha256": "39fcb1b3abf23230232144d0440adbfbe5244a1159d4312430fa8ed7cf071424",
+      "size": 293
+    },
+    {
+      "path": "rules/security-governance.md",
+      "sha256": "e271af65fdb27e941de265bccf6cae048ea12c409ae8720b3bcf69eeb68075ce",
+      "size": 461
+    },
+    {
+      "path": "rules/terminal-execution.md",
+      "sha256": "f600cc917eb9fdc1808e5c5f3fc62ff4c12e29e15899fd2eaebfd1b1fd8c3ad6",
+      "size": 6023
+    },
+    {
+      "path": "schemas/artifact-manifest.schema.json",
+      "sha256": "e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca",
+      "size": 745
+    },
+    {
+      "path": "scripts/command_gateway.py",
+      "sha256": "c781c9fed033324624c39208bfc36f28de5ba3f114656ec9fd98e6050b77df3e",
+      "size": 15905
+    },
+    {
+      "path": "scripts/command_gateway_e2e.py",
+      "sha256": "3f5bbb6f1de6d968be4d40d387f31e9d73b9ed22d94210874b0d27a65e76095b",
+      "size": 5415
+    },
+    {
+      "path": "scripts/validate_rules.py",
+      "sha256": "475757077c79e96cc4fdf9dfd0a5c7ee0ba960d30deb64e3148507f915efa6ba",
+      "size": 6551
+    },
+    {
+      "path": "templates/execution-blueprint.md",
+      "sha256": "22bcd023fe5c69757f8910e34f3d457047a7d893a04d77c332866003842bfc60",
+      "size": 162
+    },
+    {
+      "path": "templates/status-report.md",
+      "sha256": "17cabbd4a9092b80b11e69a94ed7d40dd8df875b3147601b6cd9cd73caccbc94",
+      "size": 147
+    },
+    {
+      "path": "tests/test_command_gateway.py",
+      "sha256": "f99a686fe5115825a4beafb16c8f68b5347af9477eee54336ef4d2bff51e9991",
+      "size": 4004
+    }
+  ]
 }

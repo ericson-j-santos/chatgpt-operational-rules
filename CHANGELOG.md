@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 - 2026-09-10
+- Corrigida inspeção Git do Command Gateway para separar estado rastreado e não rastreado.
+- Adicionado `git_untracked_excludes` para áreas temporárias explicitamente excluídas, sem reduzir a enumeração dos demais não rastreados.
+- Mantido bloqueio quando qualquer comando usado na inspeção Git produz aviso/erro em `stderr`.
+- Adicionado teste que prova que alterações não rastreadas fora das exclusões continuam detectáveis.
+
 ## 1.3.0 - 2026-09-10
 - Adicionado Command Gateway local para execução governada de comandos em máquinas autorizadas.
 - Adicionada allowlist explícita para ReqSys e worktrees em `C:\dev`, com bloqueio de perfil do usuário e caminhos sensíveis.
