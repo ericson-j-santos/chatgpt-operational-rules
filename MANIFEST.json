@@ -1,16 +1,21 @@
 {
-  "version": "1.1.0",
-  "generated_at": "2026-09-10T13:31:30-03:00",
+  "version": "1.2.0",
+  "generated_at": "2026-09-10T13:45:44-03:00",
   "files": [
     {
       "path": "AGENTS.md",
-      "sha256": "e420e1c8436036b657917bef4e8bfea08a5257893d01a0355ae4cf1df69511de",
-      "size": 452
+      "sha256": "6f0a558a95654071dfc9a6cf5709a73d96aea844e92a3dbfb01282dc3dc90e15",
+      "size": 576
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "323e694f827e98e4865cd0641a44551a8da52e2afff7233388a0a7de234ac051",
-      "size": 812
+      "sha256": "ea5eb371d922a57fd71ba1d3823d72cdcf038aff2f2e0da16a7a22acdfbd7e9d",
+      "size": 1374
+    },
+    {
+      "path": "README.md",
+      "sha256": "d71abc5393cbb7fcfcc659396653eb4eb6c94bb9f0d7fefb2268ed106768b7f0",
+      "size": 1416
     },
     {
       "path": "projects/bacen.md",
@@ -43,9 +48,14 @@
       "size": 513
     },
     {
+      "path": "rules/e2e-validation.md",
+      "sha256": "1d677bccaf235160a9c294a3748aa028cc1abdadd1f07cc6b4d9e51461a40f1d",
+      "size": 5625
+    },
+    {
       "path": "rules/evidence-validation.md",
-      "sha256": "dfe429a4adb31f68870cd99db12a7a32e0ef5755d1999809f46f2f753a4eed41",
-      "size": 475
+      "sha256": "88ad702618877ee9e81b9cd55b4e717d95f77ee1170543e8b8a23b763865ec7d",
+      "size": 842
     },
     {
       "path": "rules/github-workflow.md",
