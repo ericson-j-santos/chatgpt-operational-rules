@@ -67,6 +67,7 @@ def main() -> int:
         run_cli([*base, "run", "--cwd", str(repo), "--risk", "2", "--expected-head", "0" * 40,
                  "--", "git", "status", "--short"], 20)
         run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", "git", "diff", "--", ".env"], 20)
+        run_cli([*base, "run", "--cwd", str(repo), "--risk", "3", "--", "git", "status", "--short"], 20)
 
         sys.path.insert(0, str(SCRIPT.parent))
         import command_gateway as cg
@@ -99,9 +100,11 @@ def main() -> int:
         lines = [json.loads(line) for line in (state / "events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
         if not lines or not all(item.get("correlation_id") for item in lines):
             raise AssertionError("eventos sem correlation_id")
+        if sum(1 for item in lines if item.get("result") == "blocked") < 5:
+            raise AssertionError("tentativas bloqueadas não foram auditadas")
         if git(repo, "status", "--porcelain"):
             raise AssertionError("estado final divergente do baseline")
-        print("COMMAND_GATEWAY_E2E_OK positive=3 negative=5 false_positive_guard=ok final_state=clean")
+        print("COMMAND_GATEWAY_E2E_OK positive=3 negative=6 false_positive_guard=ok final_state=clean")
         return 0
     finally:
         shutil.rmtree(root, ignore_errors=True)

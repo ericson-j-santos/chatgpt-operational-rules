@@ -333,6 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     ns = build_parser().parse_args()
     correlation_id = ns.correlation_id or str(uuid.uuid4())
+    policy: dict[str, Any] | None = None
     try:
         policy = load_policy(ns.policy)
         if ns.action == "inspect":
@@ -353,6 +354,22 @@ def main() -> int:
             "result": "blocked", "gateway_exit_code": code,
             "error": redact(str(exc)),
         }
+        if policy is not None:
+            blocked_event = dict(error)
+            blocked_event["action"] = getattr(ns, "action", "unknown")
+            if hasattr(ns, "cwd"):
+                blocked_event["cwd"] = norm(ns.cwd)
+            if hasattr(ns, "risk"):
+                blocked_event["risk"] = ns.risk
+            if hasattr(ns, "command"):
+                command = list(ns.command)
+                if command and command[0] == "--":
+                    command = command[1:]
+                blocked_event["command"] = event_args(command)
+            try:
+                append_event(policy, blocked_event)
+            except OSError:
+                pass
         print(json.dumps(error, ensure_ascii=False), file=sys.stderr)
         return code
 
