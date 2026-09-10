@@ -103,7 +103,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):
             if ref not in agents:
                 errors.append(f"AGENTS.md não referencia {ref}.")
-        for required_text in ("scripts/session_bootstrap.py", "BOOTSTRAP_OK", "não usar PowerShell"):
+        for required_text in ("scripts/session_bootstrap.py", "BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
             if required_text not in agents:
                 errors.append(f"AGENTS.md não contém contrato obrigatório: {required_text}")
     if changelog_path.is_file() and isinstance(version, str):
