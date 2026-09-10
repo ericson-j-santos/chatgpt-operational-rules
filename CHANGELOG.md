@@ -5,6 +5,7 @@
 - Adicionados controles explícitos contra falso positivo: pré-condição, marcador único, caso positivo, caso negativo/controle, leitura independente e vínculo com branch/SHA/ambiente.
 - Adicionado teste do próprio teste quando seguro e viável para comprovar que o mecanismo detecta falhas.
 - Proibido declarar conclusão funcional quando a validação E2E aplicável estiver bloqueada ou baseada em evidência residual/ambígua.
+- Adicionado gate automático do repositório com validação de manifesto e autotestes negativos do próprio validador.
 
 ## 1.1.0 - 2026-09-10
 - Adicionada política de execução governada de terminal.
