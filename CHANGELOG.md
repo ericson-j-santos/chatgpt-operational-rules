@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 - 2026-09-10
+- Adicionado Command Gateway local para execução governada de comandos em máquinas autorizadas.
+- Adicionada allowlist explícita para ReqSys e worktrees em `C:\dev`, com bloqueio de perfil do usuário e caminhos sensíveis.
+- Adicionado lock exclusivo por repositório, `correlation_id`, log JSONL mascarado e validação de HEAD/estado Git antes e depois.
+- Operações de risco 3 são bloqueadas pelo gateway; risco 2 exige árvore limpa por padrão e não permite mudança de HEAD sem autorização explícita.
+- Adicionados testes unitários e E2E com casos negativos para diretório bloqueado, lock concorrente, referência sensível, HEAD divergente e mutação indevida em risco 1.
+- Gate do GitHub Actions atualizado para executar validação de regras, testes do gateway e E2E contra falso positivo.
+
 ## 1.2.0 - 2026-09-10
 - Tornada obrigatória a validação ponta a ponta para incrementos funcionais criados ou modificados.
 - Adicionados controles explícitos contra falso positivo: pré-condição, marcador único, caso positivo, caso negativo/controle, leitura independente e vínculo com branch/SHA/ambiente.
