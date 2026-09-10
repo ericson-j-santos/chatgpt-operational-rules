@@ -1,6 +1,6 @@
 {
     "version":  "1.3.0",
-    "generated_at":  "2026-09-10T14:34:32-03:00",
+    "generated_at":  "2026-09-10T14:40:20-03:00",
     "files":  [
                   {
                       "path":  ".gitattributes",
@@ -104,8 +104,8 @@
                   },
                   {
                       "path":  "scripts/command_gateway.py",
-                      "sha256":  "9436b46e213c6864a7de9cd17fae567863b1d3a3d4ef3e08b5b82028e442372d",
-                      "size":  15186
+                      "sha256":  "f61068c0d760b0b6e70b9c722ae3897025394ff07734c0c4a90977d1aac5945b",
+                      "size":  15330
                   },
                   {
                       "path":  "scripts/command_gateway_e2e.py",
@@ -129,8 +129,8 @@
                   },
                   {
                       "path":  "tests/test_command_gateway.py",
-                      "sha256":  "7214a1ff45c4edb8e41101bcb82bd0afadc3eae1143feaef0063b02b43288233",
-                      "size":  1966
+                      "sha256":  "543c06ebfdfd49b68bb87aef43e058b3512c80f03ebd34219fa4096e16365af8",
+                      "size":  2800
                   }
               ]
 }

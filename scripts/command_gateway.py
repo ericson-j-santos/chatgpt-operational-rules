@@ -173,6 +173,8 @@ def git_state(cwd: Path, require_repo: bool = True) -> GitState | None:
     status = run_capture(["git", "status", "--porcelain=v1", "-z"], cwd)
     if head.returncode != 0 or status.returncode != 0:
         raise GatewayError("não foi possível obter estado Git")
+    if status.stderr.strip():
+        raise GatewayError("estado Git incompleto: git status produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
     raw = status.stdout.encode("utf-8", errors="replace")
     count = len([item for item in status.stdout.split("\x00") if item])
     return GitState(
