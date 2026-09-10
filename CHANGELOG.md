@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 - 2026-09-10
+- Adicionado `C:\dev\chatgpt-workers\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
+- Definido o namespace de workers como destino preferencial para OCR, Portal Portabilidade e futuros projetos autorizados.
+- Mantidos bloqueados o perfil do usuário, o volume `D:` e clones existentes fora da allowlist.
+- Proibida a adoção automática de clones com alterações locais preexistentes; workers devem partir de referência canônica limpa.
+- Adicionados testes de política para comprovar que o namespace de workers é permitido sem liberar os clones do Portal no perfil do usuário ou no `D:`.
+- Preservada a lógica `git_untracked_excludes` introduzida na versão 1.3.1.
+
 ## 1.3.1 - 2026-09-10
 - Corrigida inspeção Git do Command Gateway para separar estado rastreado e não rastreado.
 - Adicionado `git_untracked_excludes` para áreas temporárias explicitamente excluídas, sem reduzir a enumeração dos demais não rastreados.
