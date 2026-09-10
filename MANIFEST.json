@@ -1,21 +1,86 @@
 {
-  "version": "1.0.0",
-  "generated_at": "2026-09-09T21:59:00-03:00",
+  "version": "1.1.0",
+  "generated_at": "2026-09-10T13:31:30-03:00",
   "files": [
-    {"path":"AGENTS.md","sha256":"e420e1c8436036b657917bef4e8bfea08a5257893d01a0355ae4cf1df69511de","size":452},
-    {"path":"CHANGELOG.md","sha256":"3b21ef61da1501b47c0173ce01c952c483faaa8ce813b95276c70b74a8a29573","size":423},
-    {"path":"projects/bacen.md","sha256":"6cfd7dd3223b395dc6fcf9c2899e1afa93b3ae1dbef0a08229c2d6612ad480a4","size":268},
-    {"path":"projects/ocr-evidencia.md","sha256":"10badf1d1295a390595df04286686d81c9b7dcea1f07899f9f8fe53350761581","size":226},
-    {"path":"projects/reqsys.md","sha256":"92fab0de79dfd25e96e417ff1efd385fbfe34a717d6c38b80d9106897342a5fc","size":293},
-    {"path":"rules/artifact-storage.md","sha256":"27103df5169394b39a07eff80cec7012f32f6dcc1064ad29c7545f9297aa454b","size":769},
-    {"path":"rules/chat-bootstrap.md","sha256":"5f5bb61ef40c5bb243774836c645634f40e4d7c02931bc6cae488d64d80dec29","size":759},
-    {"path":"rules/coding-standards.md","sha256":"bdfce281d76042ab68179fae2394e56fe1c29e81e6a9928462bb743138f77e60","size":513},
-    {"path":"rules/evidence-validation.md","sha256":"dfe429a4adb31f68870cd99db12a7a32e0ef5755d1999809f46f2f753a4eed41","size":475},
-    {"path":"rules/github-workflow.md","sha256":"b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7","size":445},
-    {"path":"rules/reporting.md","sha256":"39fcb1b3abf23230232144d0440adbfbe5244a1159d4312430fa8ed7cf071424","size":293},
-    {"path":"rules/security-governance.md","sha256":"e271af65fdb27e941de265bccf6cae048ea12c409ae8720b3bcf69eeb68075ce","size":461},
-    {"path":"schemas/artifact-manifest.schema.json","sha256":"e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca","size":745},
-    {"path":"templates/execution-blueprint.md","sha256":"22bcd023fe5c69757f8910e34f3d457047a7d893a04d77c332866003842bfc60","size":162},
-    {"path":"templates/status-report.md","sha256":"17cabbd4a9092b80b11e69a94ed7d40dd8df875b3147601b6cd9cd73caccbc94","size":147}
+    {
+      "path": "AGENTS.md",
+      "sha256": "e420e1c8436036b657917bef4e8bfea08a5257893d01a0355ae4cf1df69511de",
+      "size": 452
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "323e694f827e98e4865cd0641a44551a8da52e2afff7233388a0a7de234ac051",
+      "size": 812
+    },
+    {
+      "path": "projects/bacen.md",
+      "sha256": "6cfd7dd3223b395dc6fcf9c2899e1afa93b3ae1dbef0a08229c2d6612ad480a4",
+      "size": 268
+    },
+    {
+      "path": "projects/ocr-evidencia.md",
+      "sha256": "10badf1d1295a390595df04286686d81c9b7dcea1f07899f9f8fe53350761581",
+      "size": 226
+    },
+    {
+      "path": "projects/reqsys.md",
+      "sha256": "92fab0de79dfd25e96e417ff1efd385fbfe34a717d6c38b80d9106897342a5fc",
+      "size": 293
+    },
+    {
+      "path": "rules/artifact-storage.md",
+      "sha256": "27103df5169394b39a07eff80cec7012f32f6dcc1064ad29c7545f9297aa454b",
+      "size": 769
+    },
+    {
+      "path": "rules/chat-bootstrap.md",
+      "sha256": "5f5bb61ef40c5bb243774836c645634f40e4d7c02931bc6cae488d64d80dec29",
+      "size": 759
+    },
+    {
+      "path": "rules/coding-standards.md",
+      "sha256": "bdfce281d76042ab68179fae2394e56fe1c29e81e6a9928462bb743138f77e60",
+      "size": 513
+    },
+    {
+      "path": "rules/evidence-validation.md",
+      "sha256": "dfe429a4adb31f68870cd99db12a7a32e0ef5755d1999809f46f2f753a4eed41",
+      "size": 475
+    },
+    {
+      "path": "rules/github-workflow.md",
+      "sha256": "b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7",
+      "size": 445
+    },
+    {
+      "path": "rules/reporting.md",
+      "sha256": "39fcb1b3abf23230232144d0440adbfbe5244a1159d4312430fa8ed7cf071424",
+      "size": 293
+    },
+    {
+      "path": "rules/security-governance.md",
+      "sha256": "e271af65fdb27e941de265bccf6cae048ea12c409ae8720b3bcf69eeb68075ce",
+      "size": 461
+    },
+    {
+      "path": "rules/terminal-execution.md",
+      "sha256": "f600cc917eb9fdc1808e5c5f3fc62ff4c12e29e15899fd2eaebfd1b1fd8c3ad6",
+      "size": 6023
+    },
+    {
+      "path": "schemas/artifact-manifest.schema.json",
+      "sha256": "e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca",
+      "size": 745
+    },
+    {
+      "path": "templates/execution-blueprint.md",
+      "sha256": "22bcd023fe5c69757f8910e34f3d457047a7d893a04d77c332866003842bfc60",
+      "size": 162
+    },
+    {
+      "path": "templates/status-report.md",
+      "sha256": "17cabbd4a9092b80b11e69a94ed7d40dd8df875b3147601b6cd9cd73caccbc94",
+      "size": 147
+    }
   ]
 }
