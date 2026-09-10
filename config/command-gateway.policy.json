@@ -2,7 +2,8 @@
   "version": 1,
   "allowed_roots": [
     "C:\\dev\\reqsys-v2-enterprise-real",
-    "C:\\dev\\wt-*"
+    "C:\\dev\\wt-*",
+    "C:\\dev\\chatgpt-workers\\*"
   ],
   "denied_roots": [
     "%USERPROFILE%"

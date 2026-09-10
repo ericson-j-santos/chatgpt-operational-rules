@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 - 2026-09-10
+- Adicionado `C:\dev\chatgpt-workers\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
+- Definido o namespace de workers como destino preferencial para OCR, Portal Portabilidade e futuros projetos autorizados.
+- Mantidos bloqueados o perfil do usuário, o volume `D:` e clones existentes fora da allowlist.
+- Proibida a adoção automática de clones com alterações locais preexistentes; workers devem partir de referência canônica limpa.
+- Adicionados testes de política para comprovar que o namespace de workers é permitido sem liberar os clones do Portal no perfil do usuário ou no `D:`.
+
 ## 1.3.0 - 2026-09-10
 - Adicionado Command Gateway local para execução governada de comandos em máquinas autorizadas.
 - Adicionada allowlist explícita para ReqSys e worktrees em `C:\dev`, com bloqueio de perfil do usuário e caminhos sensíveis.
