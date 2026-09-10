@@ -1,6 +1,6 @@
 {
   "version": "1.4.0",
-  "generated_at": "2026-09-10T18:45:54.856914+00:00",
+  "generated_at": "2026-09-10T18:51:46.214889+00:00",
   "files": [
     {"path": ".gitattributes", "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c", "size": 19},
     {"path": ".github/workflows/validate-rules.yml", "sha256": "0ddc97ccabc2e12b3097b9c460b8fc72cd5409d844040c277a15ad96b6b68ec0", "size": 983},
@@ -27,7 +27,7 @@
     {"path": "scripts/command_gateway_e2e.py", "sha256": "3f5bbb6f1de6d968be4d40d387f31e9d73b9ed22d94210874b0d27a65e76095b", "size": 5415},
     {"path": "scripts/generate_manifest.py", "sha256": "0ad4f47bc7cea7a300214e802f2e8dbc59722da7cdcab1f296777b541876ee86", "size": 1508},
     {"path": "scripts/session_bootstrap.py", "sha256": "8d5e2ab3f7763e389f6c59b42c7f0f1b5ba3a856eadb5437401ae66438b1103f", "size": 7549},
-    {"path": "scripts/session_bootstrap_e2e.py", "sha256": "421aca53ede7005be37fa5c781bed6a421863ce8ffbd5dadaaa60119434f976f", "size": 5282},
+    {"path": "scripts/session_bootstrap_e2e.py", "sha256": "591f23cd5d146a6697d9a65240d3f18b8548405a9856774142ade38754e32280", "size": 5574},
     {"path": "scripts/validate_rules.py", "sha256": "0354928cf97e795e3abd77faab74308f21ce9e9db88a94fbc7d4e694a1d17890", "size": 7532},
     {"path": "templates/execution-blueprint.md", "sha256": "22bcd023fe5c69757f8910e34f3d457047a7d893a04d77c332866003842bfc60", "size": 162},
     {"path": "templates/status-report.md", "sha256": "17cabbd4a9092b80b11e69a94ed7d40dd8df875b3147601b6cd9cd73caccbc94", "size": 147},
