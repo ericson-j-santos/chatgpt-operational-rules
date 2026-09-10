@@ -57,5 +57,8 @@
   "state_dir": "%LOCALAPPDATA%\\ReqSys\\CommandGateway",
   "git_untracked_excludes": [
     ".tmp/**"
-  ]
+  ],
+  "require_session_bootstrap": true,
+  "worktree_root": "C:\\dev",
+  "worktree_prefix": "wt-chat-"
 }
