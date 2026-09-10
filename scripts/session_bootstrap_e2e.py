@@ -19,7 +19,7 @@ def git(cwd: Path, *args: str) -> str:
 
 
 def run_cli(args: list[str], expected: int) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run([sys.executable, str(SCRIPT), *args], text=True, capture_output=True, check=False, timeout=40)
+    result = subprocess.run([sys.executable, "-B", str(SCRIPT), *args], text=True, capture_output=True, check=False, timeout=40)
     if result.returncode != expected:
         raise AssertionError(
             f"retorno inesperado esperado={expected} atual={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
@@ -41,6 +41,9 @@ def make_repo(root: Path, name: str) -> Path:
 
 def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="session-bootstrap-e2e-"))
+    source_pycache = SCRIPT.parent / "__pycache__"
+    if source_pycache.exists():
+        raise AssertionError("baseline inválida: __pycache__ já existe na árvore fonte")
     try:
         repo1 = make_repo(root, "repo1")
         repo2 = make_repo(root, "repo2")
@@ -107,8 +110,10 @@ def main() -> int:
             raise AssertionError("bootstrap positivo não foi auditado")
         if sum(1 for item in events if item.get("result") == "BOOTSTRAP_BLOCKED") < 2:
             raise AssertionError("controles negativos não foram auditados")
+        if source_pycache.exists():
+            raise AssertionError("E2E criou __pycache__ na árvore fonte")
 
-        print("SESSION_BOOTSTRAP_E2E_OK positive=4 negative=3 reservation=idempotent worktree=isolated final_state=clean")
+        print("SESSION_BOOTSTRAP_E2E_OK positive=4 negative=3 reservation=idempotent worktree=isolated source_tree=clean")
         return 0
     finally:
         shutil.rmtree(root, ignore_errors=True)
