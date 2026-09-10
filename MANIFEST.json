@@ -64,8 +64,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "da064904026e78c0cc248eeb962bd3ff1e45c8efd4db5b45bcb57403b104b16d",
-      "size": 3691
+      "sha256": "2802e5f4ad95e39d49498aea1f84df00c41b25af5603955189019a8eaf7a3b90",
+      "size": 4156
     },
     {
       "path": "rules/e2e-validation.md",
