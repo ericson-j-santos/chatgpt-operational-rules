@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "allowed_roots": [
+    "C:\\dev\\reqsys-v2-enterprise-real",
+    "C:\\dev\\wt-*"
+  ],
+  "denied_roots": [
+    "%USERPROFILE%"
+  ],
+  "denied_segments": [
+    ".ssh",
+    ".azure",
+    ".aws",
+    ".gnupg",
+    ".kube"
+  ],
+  "denied_names": [
+    ".env",
+    ".env.*",
+    "id_rsa",
+    "id_ed25519",
+    "*.pem",
+    "*.pfx",
+    "*.p12"
+  ],
+  "allowed_executables": [
+    "git",
+    "python",
+    "python3",
+    "pytest",
+    "node",
+    "npm",
+    "npx",
+    "dotnet",
+    "docker"
+  ],
+  "blocked_executables": [
+    "cmd",
+    "powershell",
+    "pwsh",
+    "bash",
+    "sh",
+    "wsl",
+    "ssh",
+    "scp",
+    "az",
+    "gh",
+    "fly",
+    "vercel",
+    "kubectl",
+    "terraform"
+  ],
+  "deny_inline_code": true,
+  "require_git_repo": true,
+  "risk2_requires_clean_tree": true,
+  "max_timeout_seconds": 900,
+  "state_dir": "%LOCALAPPDATA%\\ReqSys\\CommandGateway"
+}

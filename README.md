@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.2.0
+Versão: 1.3.0
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -19,6 +19,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 6. Para artefatos, aplicar `rules/artifact-storage.md`.
 7. Para execução de comandos locais ou remotos, aplicar `rules/terminal-execution.md`.
 8. Para todo incremento funcional criado ou modificado, aplicar `rules/e2e-validation.md` e não declarar conclusão sem validação ponta a ponta aplicável e controles contra falso positivo.
+9. Para comandos executados na máquina autorizada, aplicar `rules/command-gateway.md` e preferir `scripts/command_gateway.py` quando o executor estiver instalado no alvo.
 
 ## Projetos conhecidos
 - ReqSys
