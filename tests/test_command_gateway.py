@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -35,6 +36,23 @@ class CommandGatewayTests(unittest.TestCase):
             cg.validate_command(["git", "status"], 3, policy)
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(["git", "push"], 2, policy)
+
+    def test_git_status_warning_is_not_accepted_as_complete_state(self) -> None:
+        result = subprocess.CompletedProcess(["git", "status"], 0, "", "warning: permission denied")
+        original = cg.run_capture
+        responses = iter([
+            subprocess.CompletedProcess(["git"], 0, "/tmp/repo\n", ""),
+            subprocess.CompletedProcess(["git"], 0, "a" * 40 + "\n", ""),
+            subprocess.CompletedProcess(["git"], 0, "main\n", ""),
+            result,
+        ])
+        try:
+            cg.run_capture = lambda *args, **kwargs: next(responses)
+            with self.assertRaises(cg.GatewayError) as ctx:
+                cg.git_state(Path("/tmp/repo"), True)
+            self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
+        finally:
+            cg.run_capture = original
 
     def test_load_policy_rejects_wrong_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
