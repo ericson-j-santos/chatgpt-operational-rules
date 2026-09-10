@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+POLICY = ROOT / "config" / "command-gateway.policy.json"
 sys.path.insert(0, str(SCRIPTS))
 
 import command_gateway as cg
@@ -19,6 +21,13 @@ class CommandGatewayTests(unittest.TestCase):
             root = Path(tmp)
             self.assertTrue(cg.pattern_match(str(root / "repo" / "sub"), str(root / "repo")))
             self.assertTrue(cg.pattern_match(str(root / "wt-one" / "sub"), str(root / "wt-*")))
+
+    def test_operational_policy_allows_only_dedicated_worker_namespace(self) -> None:
+        policy = cg.load_policy(POLICY)
+        allowed = policy["allowed_roots"]
+        self.assertIn(r"C:\dev\chatgpt-workers\*", allowed)
+        self.assertNotIn(r"C:\Users\Windows\portal-portabilidade", allowed)
+        self.assertNotIn(r"D:\portal-portabilidade", allowed)
 
     def test_sensitive_reference_blocks_env_and_token(self) -> None:
         policy = {"denied_names": [".env", ".env.*"], "denied_segments": [".ssh"]}

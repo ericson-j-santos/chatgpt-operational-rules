@@ -1,6 +1,12 @@
 # Changelog
 
 ## 1.4.0 - 2026-09-10
+- Adicionado `C:\dev\chatgpt-workers\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
+- Definido o namespace de workers como destino preferencial para OCR, Portal Portabilidade e futuros projetos autorizados.
+- Mantidos bloqueados o perfil do usuário, o volume `D:` e clones existentes fora da allowlist.
+- Proibida a adoção automática de clones com alterações locais preexistentes; workers devem partir de referência canônica limpa.
+- Adicionados testes de política para comprovar que o namespace de workers é permitido sem liberar os clones do Portal no perfil do usuário ou no `D:`.
+- Preservada a lógica `git_untracked_excludes` introduzida na versão 1.3.1.
 - Adicionado `session_preflight.py` para captura automática e estável de host, regras, branch, SHA, digest Git, reserva e worktree.
 - Snapshot de preflight passa a ter SHA-256 próprio e é pré-condição do gateway quando habilitado.
 - Auditoria positiva do gateway passa a carregar `session_id`; risco 2 continua restrito ao worktree materializado da sessão.

@@ -19,20 +19,27 @@ O gateway deve mediar comandos locais sempre que possível, aplicando:
 
 ## Uso exclusivo e sem fallback
 
-- Antes do primeiro comando local/remoto, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`.
-- Remote Desktop Commander é somente transporte para chamar preflight/gateway.
+- Antes do primeiro comando local/remoto, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`; o preflight chama o bootstrap interno de reserva/materialização.
+- Remote Desktop Commander é somente transporte para chamar bootstrap/gateway.
 - Depois do bootstrap, todos os comandos locais/remotos devem passar pelo Command Gateway.
 - Não usar PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito como fallback quando gateway/bootstrap bloquear ou estiver indisponível.
 - Falha de bootstrap, política, reserva, lock ou validação interrompe a execução.
 - Plugins/APIs específicas continuam preferíveis para operações de sistemas externos.
 
-## Escopo inicial
+## Escopo operacional
 
 O perfil padrão autoriza somente:
 - `C:\dev\reqsys-v2-enterprise-real`;
-- worktrees que correspondam a `C:\dev\wt-*`.
+- worktrees legados que correspondam a `C:\dev\wt-*`;
+- repositórios/worktrees isolados sob `C:\dev\chatgpt-workers\*`.
 
-O perfil padrão não autoriza o diretório de usuário nem outros volumes/projetos. Novos diretórios exigem alteração explícita da política e validação.
+O namespace `C:\dev\chatgpt-workers\*` é o local preferencial para múltiplos chats/agentes. Cada frente deve usar diretório e branch próprios; não compartilhar o mesmo working tree entre workers.
+
+Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys. Para Portal Portabilidade, usar clone/worktree isolado do repositório canônico `ericson-j-santos/portal-portabilidade`.
+
+O perfil padrão não autoriza clones existentes no diretório de usuário, o volume `D:` nem outros diretórios fora da allowlist. Um novo projeto só entra no gateway ao ser colocado no namespace de workers ou por alteração explícita desta política.
+
+Clones com alterações locais preexistentes não devem ser adotados como workspace automático. Preservar o trabalho existente e criar um worker limpo a partir da referência canônica.
 
 ## Bloqueios
 
