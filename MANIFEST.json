@@ -1,7 +1,12 @@
 {
   "version": "1.2.0",
-  "generated_at": "2026-09-10T13:45:44-03:00",
+  "generated_at": "2026-09-10T13:48:01-03:00",
   "files": [
+    {
+      "path": ".github/workflows/validate-rules.yml",
+      "sha256": "59f73219ccb24e2567ebb5cb77d6a3522d493948dde3a55a8210309af5cc2013",
+      "size": 558
+    },
     {
       "path": "AGENTS.md",
       "sha256": "6f0a558a95654071dfc9a6cf5709a73d96aea844e92a3dbfb01282dc3dc90e15",
@@ -9,8 +14,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "ea5eb371d922a57fd71ba1d3823d72cdcf038aff2f2e0da16a7a22acdfbd7e9d",
-      "size": 1374
+      "sha256": "5284800072ed2ab024bad6ab735418b736692846cf4295de04a93ec416b74a3d",
+      "size": 1495
     },
     {
       "path": "README.md",
@@ -81,6 +86,11 @@
       "path": "schemas/artifact-manifest.schema.json",
       "sha256": "e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca",
       "size": 745
+    },
+    {
+      "path": "scripts/validate_rules.py",
+      "sha256": "d87a2415b5e7124a4581d2e5d149c515c9d2cb7fb493c3461744f698d8e90f16",
+      "size": 5699
     },
     {
       "path": "templates/execution-blueprint.md",
