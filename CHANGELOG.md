@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 - 2026-09-10
+- Adicionada política de execução governada de terminal.
+- Definidos níveis 🟢/🟡/🔴 para observação, alteração reversível e operações críticas.
+- Adicionadas proteções para segredos, privilégios, comandos destrutivos e execução remota.
+- Definidas evidências mínimas e critérios de conclusão para comandos executados por chats e agentes.
+
 ## 1.0.0 - 2026-09-09
 - Criação da fonte canônica de regras operacionais.
 - Política de armazenamento de artefatos no Google Drive.
