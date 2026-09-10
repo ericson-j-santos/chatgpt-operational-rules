@@ -7,14 +7,14 @@ Antes de trabalho técnico ou geração de artefatos, consulte o repositório `e
 Para qualquer tarefa que possa exigir terminal local/remoto, o chat deve seguir:
 
 ```text
-RULES -> PROJECT -> SESSION_BOOTSTRAP -> GATEWAY -> INSPECT -> EXECUTE -> VALIDATE -> E2E -> EVIDENCE
+RULES -> PROJECT -> SESSION_PREFLIGHT -> GATEWAY -> INSPECT -> EXECUTE -> VALIDATE -> E2E -> EVIDENCE
 ```
 
 Regras:
 - ler `AGENTS.md`, `rules/terminal-execution.md`, `rules/command-gateway.md` e `rules/session-bootstrap.md`;
-- executar `scripts/session_bootstrap.py` antes do primeiro comando local/remoto;
-- exigir `BOOTSTRAP_OK` e registrar `session_id`, `correlation_id`, repositório, SHA e worktree reservado;
-- Remote Desktop Commander é somente transporte para o bootstrap/gateway;
+- executar `scripts/session_preflight.py` antes do primeiro comando local/remoto; o script chama a reserva/materialização necessária e captura o estado automaticamente;
+- exigir `BOOTSTRAP_OK`, `state_validated=true` e snapshot íntegro; registrar `session_id`, `correlation_id`, repositório, SHA, digest de estado e worktree reservado;
+- Remote Desktop Commander é somente transporte para o preflight/gateway;
 - após o bootstrap, todo comando deve passar pelo Command Gateway;
 - não usar PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito como fallback;
 - falhar fechado quando bootstrap, política, gateway, reserva ou validação não estiver disponível;

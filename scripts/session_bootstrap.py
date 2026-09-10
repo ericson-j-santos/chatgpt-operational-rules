@@ -75,6 +75,8 @@ def reserve(repo: Path, policy: dict, session_id: str, correlation_id: str) -> t
         "repo_root": cg.norm(state.repo_root),
         "base_head": state.head,
         "base_branch": state.branch,
+        "base_status_digest": state.status_digest,
+        "base_status_count": state.status_count,
         "reserved_worktree": cg.norm(target),
         "created_at": cg.utc_now(),
         "host": socket.gethostname(),
@@ -114,6 +116,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
         allow_dirty=True,
         allow_head_change=False,
         correlation_id=correlation_id,
+        session_id=reservation["session_id"],
     )
     if rc != 0:
         raise cg.GatewayError("Command Gateway não materializou o worktree", rc)

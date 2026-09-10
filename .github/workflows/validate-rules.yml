@@ -32,3 +32,7 @@ jobs:
         run: python -m unittest -v tests/test_session_bootstrap.py
       - name: Run Session Bootstrap E2E
         run: python scripts/session_bootstrap_e2e.py
+      - name: Run Session Preflight unit tests
+        run: python -m unittest -v tests/test_session_preflight.py
+      - name: Run Session Preflight E2E
+        run: python scripts/session_preflight_e2e.py

@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.4.0 - 2026-09-10
+- Adicionado `session_preflight.py` para captura automática e estável de host, regras, branch, SHA, digest Git, reserva e worktree.
+- Snapshot de preflight passa a ter SHA-256 próprio e é pré-condição do gateway quando habilitado.
+- Auditoria positiva do gateway passa a carregar `session_id`; risco 2 continua restrito ao worktree materializado da sessão.
 - Tornado obrigatório o bootstrap de sessão antes do primeiro comando local/remoto de cada chat/agente.
 - Proibido fallback direto para PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito quando bootstrap/gateway bloquear ou estiver indisponível.
 - Adicionada reserva idempotente de worktree por `session_id`, persistida fora do working tree.

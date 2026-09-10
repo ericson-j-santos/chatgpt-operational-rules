@@ -19,8 +19,8 @@ O gateway deve mediar comandos locais sempre que possível, aplicando:
 
 ## Uso exclusivo e sem fallback
 
-- Antes do primeiro comando local/remoto, executar `scripts/session_bootstrap.py` e exigir `BOOTSTRAP_OK`.
-- Remote Desktop Commander é somente transporte para chamar bootstrap/gateway.
+- Antes do primeiro comando local/remoto, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`.
+- Remote Desktop Commander é somente transporte para chamar preflight/gateway.
 - Depois do bootstrap, todos os comandos locais/remotos devem passar pelo Command Gateway.
 - Não usar PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito como fallback quando gateway/bootstrap bloquear ou estiver indisponível.
 - Falha de bootstrap, política, reserva, lock ou validação interrompe a execução.
@@ -124,3 +124,7 @@ O gateway está operacional somente quando:
 - o fluxo positivo executa com código zero;
 - os testes negativos comprovam que o gate falha quando deve;
 - o estado final do repositório real é revalidado.
+
+## Preflight automático
+
+Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O preflight captura host, versão das regras, branch, SHA, digest/contagem do estado Git, reserva e worktree, grava snapshot com SHA-256 e retorna `BOOTSTRAP_OK` somente após revalidar estado estável. Quando `require_preflight_snapshot=true`, o gateway deve bloquear sessão sem snapshot íntegro.

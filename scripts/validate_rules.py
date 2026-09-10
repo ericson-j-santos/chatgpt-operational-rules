@@ -31,9 +31,12 @@ REQUIRED_PATHS = {
     "scripts/generate_manifest.py",
     "scripts/session_bootstrap.py",
     "scripts/session_bootstrap_e2e.py",
+    "scripts/session_preflight.py",
+    "scripts/session_preflight_e2e.py",
     "scripts/validate_rules.py",
     "tests/test_command_gateway.py",
     "tests/test_session_bootstrap.py",
+    "tests/test_session_preflight.py",
 }
 
 
@@ -98,12 +101,14 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 errors.append(f"README não referencia {ref}.")
         if "BOOTSTRAP_OK" not in readme:
             errors.append("README não exige BOOTSTRAP_OK.")
+        if "scripts/session_preflight.py" not in readme:
+            errors.append("README não define session_preflight.py como ponto de entrada.")
     if agents_path.is_file():
         agents = agents_path.read_text(encoding="utf-8")
         for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):
             if ref not in agents:
                 errors.append(f"AGENTS.md não referencia {ref}.")
-        for required_text in ("scripts/session_bootstrap.py", "BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
+        for required_text in ("scripts/session_preflight.py", "BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
             if required_text not in agents:
                 errors.append(f"AGENTS.md não contém contrato obrigatório: {required_text}")
     if changelog_path.is_file() and isinstance(version, str):
@@ -125,6 +130,10 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 errors.append("Command Gateway sem timeout máximo válido.")
             if policy.get("require_session_bootstrap") is not True:
                 errors.append("Command Gateway deve exigir bootstrap de sessão.")
+            if policy.get("require_preflight_snapshot") is not True:
+                errors.append("Command Gateway deve exigir snapshot de preflight.")
+            if policy.get("rules_version") != version:
+                errors.append("rules_version da política diverge do manifesto.")
             if not policy.get("worktree_root") or not policy.get("worktree_prefix"):
                 errors.append("Command Gateway sem configuração de worktree por sessão.")
     return errors
@@ -141,7 +150,7 @@ def run_self_test(manifest: dict[str, Any]) -> list[str]:
     tampered["files"][0]["sha256"] = "0" * 64
     if not any("sha256 divergente" in item for item in validate(tampered)):
         errors.append("autoteste negativo falhou: hash incorreto não foi detectado.")
-    for required in ("rules/e2e-validation.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py"):
+    for required in ("rules/e2e-validation.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py", "scripts/session_preflight.py"):
         missing = copy.deepcopy(manifest)
         missing["files"] = [item for item in missing["files"] if item.get("path") != required]
         if not any("paths obrigatórios ausentes" in item for item in validate(missing)):

@@ -6,9 +6,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 from validate_rules import REQUIRED_PATHS
 
 ROOT = Path(__file__).resolve().parents[1]

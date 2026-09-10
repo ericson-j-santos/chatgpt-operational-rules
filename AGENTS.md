@@ -9,7 +9,7 @@ Antes de executar trabalho técnico:
 4. respeite a ordem de precedência definida no README;
 5. para incrementos funcionais criados ou modificados, aplique `rules/e2e-validation.md`;
 6. para terminal local/remoto, aplique `rules/terminal-execution.md`, `rules/command-gateway.md` e `rules/session-bootstrap.md`;
-7. antes do primeiro comando local/remoto, execute `scripts/session_bootstrap.py` e exija `BOOTSTRAP_OK`;
+7. antes do primeiro comando local/remoto, execute `scripts/session_preflight.py` e exija `BOOTSTRAP_OK` com `state_validated=true`;
 8. depois do bootstrap, todo comando deve passar pelo Command Gateway; Remote Desktop Commander é apenas transporte;
 9. nunca usar PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito como fallback para contornar bootstrap/gateway;
 10. para alteração de risco 2, use o worktree reservado/materializado para a sessão;

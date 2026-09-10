@@ -15,7 +15,7 @@ SCRIPT = Path(__file__).resolve().with_name("command_gateway.py")
 
 def run_cli(args: list[str], expected: int) -> subprocess.CompletedProcess[str]:
     completed = subprocess.run(
-        [sys.executable, str(SCRIPT), *args], text=True, capture_output=True,
+        [sys.executable, "-B", str(SCRIPT), *args], text=True, capture_output=True,
         check=False, timeout=30,
     )
     if completed.returncode != expected:

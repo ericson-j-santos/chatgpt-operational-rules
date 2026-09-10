@@ -61,3 +61,7 @@ O bootstrap está válido somente quando:
 - repetição idempotente não cria segunda reserva;
 - conflitos e identificadores inválidos falham em testes negativos;
 - E2E comprova que o fluxo não depende de fallback de shell.
+
+## Preflight automático
+
+Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O preflight captura host, versão das regras, branch, SHA, digest/contagem do estado Git, reserva e worktree, grava snapshot com SHA-256 e retorna `BOOTSTRAP_OK` somente após revalidar estado estável. Quando `require_preflight_snapshot=true`, o gateway deve bloquear sessão sem snapshot íntegro.
