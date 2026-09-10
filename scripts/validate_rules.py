@@ -101,8 +101,8 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 errors.append(f"README não referencia {ref}.")
         if "BOOTSTRAP_OK" not in readme:
             errors.append("README não exige BOOTSTRAP_OK.")
-        if "scripts/session_preflight.py" not in readme:
-            errors.append("README não define session_preflight.py como ponto de entrada.")
+        if "scripts/session_preflight.py" not in readme or "state_validated=true" not in readme:
+            errors.append("README não define session_preflight.py como ponto de entrada obrigatório.")
     if agents_path.is_file():
         agents = agents_path.read_text(encoding="utf-8")
         for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):

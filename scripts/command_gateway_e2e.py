@@ -83,7 +83,7 @@ def main() -> int:
             lock_path.unlink(missing_ok=True)
 
         mutation = repo / "mutation.txt"
-        run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-c",
+        run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-B", "-c",
                  "__import__('pathlib').Path('mutation.txt').write_text('x', encoding='utf-8')"], 23)
         if not mutation.exists():
             raise AssertionError("mutação controlada não ocorreu; teste negativo seria inválido")
@@ -93,7 +93,7 @@ def main() -> int:
 
         controlled = repo / "controlled.txt"
         run_cli([*base, "run", "--cwd", str(repo), "--risk", "2", "--expected-head", head, "--",
-                 sys.executable, "-c", "__import__('pathlib').Path('controlled.txt').write_text('ok', encoding='utf-8')"], 0)
+                 sys.executable, "-B", "-c", "__import__('pathlib').Path('controlled.txt').write_text('ok', encoding='utf-8')"], 0)
         if not controlled.exists() or git(repo, "rev-parse", "HEAD") != head:
             raise AssertionError("efeito positivo risco 2 não foi comprovado")
         controlled.unlink()
