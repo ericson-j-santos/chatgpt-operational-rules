@@ -54,6 +54,13 @@ def write_reservation(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True), encoding="utf-8", newline="\n")
 
 
+def tracked_tree_clean(repo: Path) -> bool:
+    result = cg.run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo)
+    if result.returncode != 0 or result.stderr.strip():
+        raise cg.GatewayError("não foi possível validar alterações rastreadas", cg.EXIT_STATE_CHANGED)
+    return not result.stdout
+
+
 def reserve(repo: Path, policy: dict, session_id: str, correlation_id: str) -> tuple[dict, str]:
     if not policy.get("require_session_bootstrap", False):
         raise cg.GatewayError("política não exige bootstrap de sessão", EXIT_SESSION_REQUIRED)
@@ -95,7 +102,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
         return reservation, "already_materialized"
     if target.exists():
         raise cg.GatewayError("caminho reservado já existe sem vínculo válido", EXIT_SESSION_CONFLICT)
-    if not cg.tracked_tree_clean(repo):
+    if not tracked_tree_clean(repo):
         raise cg.GatewayError("base possui alterações rastreadas; materialização bloqueada", cg.EXIT_STATE_CHANGED)
     rc = cg.execute(
         cwd=repo,
