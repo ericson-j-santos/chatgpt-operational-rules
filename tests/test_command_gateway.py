@@ -45,6 +45,7 @@ class CommandGatewayTests(unittest.TestCase):
             subprocess.CompletedProcess(["git"], 0, "a" * 40 + "\n", ""),
             subprocess.CompletedProcess(["git"], 0, "main\n", ""),
             result,
+            subprocess.CompletedProcess(["git"], 0, "", ""),
         ])
         try:
             cg.run_capture = lambda *args, **kwargs: next(responses)
@@ -53,6 +54,21 @@ class CommandGatewayTests(unittest.TestCase):
             self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
         finally:
             cg.run_capture = original
+
+
+    def test_git_untracked_exclude_keeps_other_untracked_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=Path(tmp); subprocess.run(["git","init"],cwd=repo,check=True,capture_output=True)
+            subprocess.run(["git","config","user.email","test@example.invalid"],cwd=repo,check=True)
+            subprocess.run(["git","config","user.name","Test"],cwd=repo,check=True)
+            (repo/".gitignore").write_text(".tmp/\n",encoding="utf-8")
+            (repo/"a.txt").write_text("a",encoding="utf-8")
+            subprocess.run(["git","add","."],cwd=repo,check=True); subprocess.run(["git","commit","-m","base"],cwd=repo,check=True,capture_output=True)
+            policy={"git_untracked_excludes":[".tmp/**"]}
+            before=cg.git_state(repo,True,policy); (repo/".tmp").mkdir(); (repo/".tmp/x").write_text("x")
+            ignored=cg.git_state(repo,True,policy); self.assertEqual(before.status_digest,ignored.status_digest)
+            (repo/"outside.txt").write_text("x"); outside=cg.git_state(repo,True,policy)
+            self.assertNotEqual(ignored.status_digest,outside.status_digest)
 
     def test_load_policy_rejects_wrong_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

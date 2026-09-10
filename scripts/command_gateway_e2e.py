@@ -42,8 +42,9 @@ def main() -> int:
         git(repo, "init")
         git(repo, "config", "user.email", "gateway-e2e@example.invalid")
         git(repo, "config", "user.name", "Gateway E2E")
+        (repo / ".gitignore").write_text(".tmp/\n", encoding="utf-8", newline="\n")
         (repo / "baseline.txt").write_text("baseline\n", encoding="utf-8", newline="\n")
-        git(repo, "add", "baseline.txt"); git(repo, "commit", "-m", "baseline")
+        git(repo, "add", "baseline.txt", ".gitignore"); git(repo, "commit", "-m", "baseline")
         head = git(repo, "rev-parse", "HEAD")
 
         python_name = Path(sys.executable).name
@@ -54,7 +55,7 @@ def main() -> int:
             "allowed_executables": ["git", "python", "python3", python_name],
             "blocked_executables": ["cmd", "powershell", "bash", "sh"],
             "deny_inline_code": False, "require_git_repo": True,
-            "risk2_requires_clean_tree": True, "max_timeout_seconds": 120,
+            "risk2_requires_clean_tree": True, "git_untracked_excludes": [".tmp/**"], "max_timeout_seconds": 120,
             "state_dir": str(state),
         }
         policy_path = root / "policy.json"

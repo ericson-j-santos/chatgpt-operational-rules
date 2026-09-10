@@ -66,6 +66,13 @@ Além do lock, o gateway compara o estado imediatamente antes e depois da aquisi
 
 Mudanças feitas por processos que ignorem o gateway não podem ser atribuídas com certeza ao executor. Se isso ocorrer, registrar bloqueio e não sobrescrever trabalho existente.
 
+## Exclusões de estado não rastreado
+
+- `git_untracked_excludes` pode excluir somente áreas temporárias/descartáveis da enumeração de não rastreados.
+- Os padrões são relativos ao repositório e não reduzem a verificação de arquivos rastreados.
+- Demais arquivos não rastreados continuam enumerados individualmente e participam do digest de estado.
+- Aviso ou erro em qualquer comando usado para compor o estado Git continua bloqueando a execução.
+
 ## Evidência
 
 Cada execução deve produzir evento JSONL contendo, sem segredos:
