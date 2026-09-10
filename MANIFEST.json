@@ -1,7 +1,12 @@
 {
   "version": "1.2.0",
-  "generated_at": "2026-09-10T13:48:01-03:00",
+  "generated_at": "2026-09-10T13:50:16-03:00",
   "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      "size": 19
+    },
     {
       "path": ".github/workflows/validate-rules.yml",
       "sha256": "59f73219ccb24e2567ebb5cb77d6a3522d493948dde3a55a8210309af5cc2013",
@@ -14,8 +19,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "5284800072ed2ab024bad6ab735418b736692846cf4295de04a93ec416b74a3d",
-      "size": 1495
+      "sha256": "5a27e7e7cf67d7fc34e4c3f0e532e3187556e8933714f38dc56ea7bd16007d60",
+      "size": 1589
     },
     {
       "path": "README.md",
