@@ -12,9 +12,9 @@ permissions:
 
 jobs:
   validate:
-    name: Rules, Command Gateway and E2E gate
+    name: Rules, Gateway, Session Bootstrap and E2E gate
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
@@ -28,3 +28,7 @@ jobs:
         run: python -m unittest -v tests/test_command_gateway.py
       - name: Run Command Gateway E2E
         run: python scripts/command_gateway_e2e.py
+      - name: Run Session Bootstrap unit tests
+        run: python -m unittest -v tests/test_session_bootstrap.py
+      - name: Run Session Bootstrap E2E
+        run: python scripts/session_bootstrap_e2e.py
