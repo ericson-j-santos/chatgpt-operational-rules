@@ -15,6 +15,8 @@ Antes de executar trabalho técnico:
 10. para alteração de risco 2, use o worktree reservado/materializado para a sessão;
 11. valide evidências e controles contra falso positivo antes de declarar sucesso.
 
+Exceção única para host novo sem Gateway instalado: usar `scripts/install_command_gateway_host.py` com SHA completo aprovado e hash próprio esperado; exigir `HOST_BOOTSTRAP_OK` e então passar imediatamente ao `session_preflight.py`. Não usar essa exceção como terminal genérico.
+
 Se bootstrap, gateway, política, reserva ou validação falhar, interrompa a execução e reporte o bloqueio. Não contorne o controle.
 
 Nunca registre segredos, tokens, credenciais ou dados confidenciais neste repositório.

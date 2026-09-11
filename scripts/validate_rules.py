@@ -17,25 +17,13 @@ MANIFEST_PATH = ROOT / "MANIFEST.json"
 
 REQUIRED_PATHS = {
     ".github/workflows/validate-rules.yml",
-    "AGENTS.md",
-    "CHANGELOG.md",
-    "README.md",
-    "config/command-gateway.policy.json",
-    "rules/command-gateway.md",
-    "rules/e2e-validation.md",
-    "rules/evidence-validation.md",
-    "rules/session-bootstrap.md",
-    "rules/terminal-execution.md",
-    "scripts/command_gateway.py",
-    "scripts/command_gateway_e2e.py",
-    "scripts/generate_manifest.py",
-    "scripts/session_bootstrap.py",
-    "scripts/session_bootstrap_e2e.py",
-    "scripts/session_preflight.py",
-    "scripts/session_preflight_e2e.py",
-    "scripts/validate_rules.py",
-    "tests/test_command_gateway.py",
-    "tests/test_session_bootstrap.py",
+    "AGENTS.md", "CHANGELOG.md", "README.md", "config/command-gateway.policy.json",
+    "rules/command-gateway.md", "rules/e2e-validation.md", "rules/evidence-validation.md",
+    "rules/session-bootstrap.md", "rules/terminal-execution.md", "scripts/command_gateway.py",
+    "scripts/command_gateway_e2e.py", "scripts/generate_manifest.py", "scripts/host_bootstrap_e2e.py",
+    "scripts/install_command_gateway_host.py", "scripts/session_bootstrap.py", "scripts/session_bootstrap_e2e.py",
+    "scripts/session_preflight.py", "scripts/session_preflight_e2e.py", "scripts/validate_rules.py",
+    "tests/test_command_gateway.py", "tests/test_host_bootstrap.py", "tests/test_session_bootstrap.py",
     "tests/test_session_preflight.py",
 }
 
@@ -60,7 +48,6 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         errors.append("manifest.version ausente ou inválido.")
     if not isinstance(files, list):
         return errors + ["manifest.files ausente ou inválido."]
-
     paths: list[str] = []
     for index, entry in enumerate(files):
         if not isinstance(entry, dict):
@@ -80,14 +67,12 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             errors.append(f"sha256 divergente: {rel}")
         if entry.get("size") != len(payload):
             errors.append(f"tamanho divergente: {rel}")
-
     duplicates = sorted({path for path in paths if paths.count(path) > 1})
     if duplicates:
         errors.append("paths duplicados: " + ", ".join(duplicates))
     missing_required = sorted(REQUIRED_PATHS - set(paths))
     if missing_required:
         errors.append("paths obrigatórios ausentes: " + ", ".join(missing_required))
-
     readme_path, agents_path = root / "README.md", root / "AGENTS.md"
     changelog_path = root / "CHANGELOG.md"
     policy_path = root / "config" / "command-gateway.policy.json"
@@ -108,7 +93,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):
             if ref not in agents:
                 errors.append(f"AGENTS.md não referencia {ref}.")
-        for required_text in ("scripts/session_preflight.py", "BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
+        for required_text in ("scripts/session_preflight.py", "scripts/install_command_gateway_host.py", "BOOTSTRAP_OK", "HOST_BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
             if required_text not in agents:
                 errors.append(f"AGENTS.md não contém contrato obrigatório: {required_text}")
     if changelog_path.is_file() and isinstance(version, str):
@@ -150,7 +135,7 @@ def run_self_test(manifest: dict[str, Any]) -> list[str]:
     tampered["files"][0]["sha256"] = "0" * 64
     if not any("sha256 divergente" in item for item in validate(tampered)):
         errors.append("autoteste negativo falhou: hash incorreto não foi detectado.")
-    for required in ("rules/e2e-validation.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py", "scripts/session_preflight.py"):
+    for required in ("rules/e2e-validation.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py", "scripts/session_preflight.py", "scripts/install_command_gateway_host.py"):
         missing = copy.deepcopy(manifest)
         missing["files"] = [item for item in missing["files"] if item.get("path") != required]
         if not any("paths obrigatórios ausentes" in item for item in validate(missing)):
@@ -160,8 +145,7 @@ def run_self_test(manifest: dict[str, Any]) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--self-test", action="store_true",
-                        help="Executa casos negativos para provar que o validador detecta falhas.")
+    parser.add_argument("--self-test", action="store_true", help="Executa casos negativos para provar que o validador detecta falhas.")
     args = parser.parse_args()
     try:
         manifest = load_manifest()

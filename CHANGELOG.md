@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 - 2026-09-11
+- Adicionado bootstrap inicial de host novo, restrito ao repositório canônico e SHA completo aprovado.
+- Instalador valida SHA-256 do próprio script, `MANIFEST.json`, tamanho e hash dos quatro arquivos de runtime antes da instalação.
+- Instalação gera backup quando aplicável, recibo auditável e cria namespace `C:\\dev\\chatgpt-workers`.
+- Bootstrap cria repositório de validação no commit exato aprovado para permitir o primeiro `session_preflight.py` sem terminal genérico.
+- Adicionados testes unitários e E2E específicos do bootstrap de host.
+
 ## 1.4.1 - 2026-09-11
 - Fingerprint Git passa a incorporar conteúdo efetivo dos arquivos rastreados modificados, além de índice, status e não rastreados.
 - Corrigida decodificação de subprocessos para UTF-8 com substituição segura, evitando falha CP1252 no Windows.
@@ -7,7 +14,7 @@
 - Adicionados testes unitários e E2E para mutação de conteúdo já dirty, UTF-8 e colisões de casing.
 
 ## 1.4.0 - 2026-09-10
-- Adicionado `C:\dev\chatgpt-workers\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
+- Adicionado `C:\\dev\\chatgpt-workers\\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
 - Definido o namespace de workers como destino preferencial para OCR, Portal Portabilidade e futuros projetos autorizados.
 - Mantidos bloqueados o perfil do usuário, o volume `D:` e clones existentes fora da allowlist.
 - Proibida a adoção automática de clones com alterações locais preexistentes; workers devem partir de referência canônica limpa.
@@ -32,7 +39,7 @@
 
 ## 1.3.0 - 2026-09-10
 - Adicionado Command Gateway local para execução governada de comandos em máquinas autorizadas.
-- Adicionada allowlist explícita para ReqSys e worktrees em `C:\dev`, com bloqueio de perfil do usuário e caminhos sensíveis.
+- Adicionada allowlist explícita para ReqSys e worktrees em `C:\\dev`, com bloqueio de perfil do usuário e caminhos sensíveis.
 - Adicionado lock exclusivo por repositório, `correlation_id`, log JSONL mascarado e validação de HEAD/estado Git antes e depois.
 - Operações de risco 3 são bloqueadas pelo gateway; risco 2 exige árvore limpa por padrão e não permite mudança de HEAD sem autorização explícita.
 - Adicionados testes unitários e E2E com casos negativos para diretório bloqueado, lock concorrente, referência sensível, HEAD divergente e mutação indevida em risco 1.

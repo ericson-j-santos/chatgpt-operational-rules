@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.4.1
+Versão: 1.5.0
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -21,9 +21,11 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 8. Para todo incremento funcional criado ou modificado, aplicar `rules/e2e-validation.md` e não declarar conclusão sem validação ponta a ponta aplicável e controles contra falso positivo.
 9. Para comandos executados na máquina autorizada, aplicar `rules/command-gateway.md`.
 10. Antes do primeiro comando local/remoto de cada chat/agente, aplicar `rules/session-bootstrap.md`, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`.
-11. Para múltiplos chats/agentes, usar workspaces isolados sob `C:\dev\chatgpt-workers\*`; nunca compartilhar o mesmo working tree entre workers.
+11. Para múltiplos chats/agentes, usar workspaces isolados sob `C:\\dev\\chatgpt-workers\\*`; nunca compartilhar o mesmo working tree entre workers.
 12. Após o bootstrap, não usar terminal direto como fallback; Remote Desktop Commander é apenas transporte para preflight/gateway.
 13. Para alterações de risco 2, materializar e usar o worktree reservado da sessão.
+
+Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
 ## Projetos conhecidos
 - ReqSys
