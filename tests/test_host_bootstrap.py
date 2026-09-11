@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -14,7 +16,7 @@ import install_command_gateway_host as hb
 
 
 class HostBootstrapTests(unittest.TestCase):
-    def make_bundle(self, root: Path, version: str = "1.5.0") -> Path:
+    def make_bundle(self, root: Path, version: str = "1.5.1") -> Path:
         bundle = root / "bundle"
         entries = []
         for source in hb.RUNTIME_MAP:
@@ -49,7 +51,7 @@ class HostBootstrapTests(unittest.TestCase):
             work_root = root / "workers"
             receipt = hb.install_bundle(bundle, install_root, work_root, "b" * 40)
             self.assertEqual(receipt["result"], "HOST_BOOTSTRAP_OK")
-            self.assertEqual(receipt["rules_version"], "1.5.0")
+            self.assertEqual(receipt["rules_version"], "1.5.1")
             self.assertTrue(work_root.is_dir())
             self.assertTrue((install_root / "install-receipt.json").is_file())
             for dest in hb.RUNTIME_MAP.values():
@@ -79,9 +81,15 @@ class HostBootstrapTests(unittest.TestCase):
             subprocess.run(["git", "add", "README.md"], cwd=source, check=True)
             subprocess.run(["git", "commit", "-m", "base"], cwd=source, check=True, capture_output=True)
             head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source, check=True, text=True, capture_output=True).stdout.strip()
-            target, observed = hb.prepare_validation_repo(root / "workers", head, str(source))
+            git_config = root / "global.gitconfig"
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(git_config)}):
+                target, observed = hb.prepare_validation_repo(root / "workers", head, str(source))
+                listed = subprocess.run(["git", "config", "--global", "--get-all", "safe.directory"],
+                                        check=True, text=True, capture_output=True).stdout.splitlines()
             self.assertEqual(observed, head)
             self.assertTrue((target / ".git").exists())
+            self.assertIn(str(target.resolve()).replace("\\", "/"), listed)
+            self.assertNotIn("*", listed)
 
 
 if __name__ == "__main__":

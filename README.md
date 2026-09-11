@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.5.0
+Versão: 1.5.1
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 

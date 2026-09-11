@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1 - 2026-09-11
+- Bootstrap registra somente diretórios criados e validados como `safe.directory`.
+- Corrigido preflight pós-instalação em hosts Windows com proprietário administrativo.
+- Adicionados testes isolados para comprovar o registro exato sem wildcard.
+
 ## 1.5.0 - 2026-09-11
 - Adicionado bootstrap inicial de host novo, restrito ao repositório canônico e SHA completo aprovado.
 - Instalador valida SHA-256 do próprio script, `MANIFEST.json`, tamanho e hash dos quatro arquivos de runtime antes da instalação.

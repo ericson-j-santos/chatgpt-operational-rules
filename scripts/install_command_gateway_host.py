@@ -199,6 +199,23 @@ def default_install_root() -> Path:
     return Path(local) / "ReqSys" / "CommandGateway"
 
 
+def ensure_safe_directory(target: Path) -> None:
+    git = shutil.which("git")
+    if not git:
+        raise HostBootstrapError("Git não encontrado no host")
+    resolved = str(target.resolve()).replace("\\", "/")
+    listed = subprocess.run([git, "config", "--global", "--get-all", "safe.directory"], text=True,
+                            capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=20)
+    if listed.returncode not in (0, 1):
+        raise HostBootstrapError(f"leitura de safe.directory falhou: {listed.stderr[-1000:]}")
+    existing = {line.strip().replace("\\", "/").casefold() for line in listed.stdout.splitlines() if line.strip()}
+    if resolved.casefold() not in existing:
+        added = subprocess.run([git, "config", "--global", "--add", "safe.directory", resolved], text=True,
+                               capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=20)
+        if added.returncode != 0:
+            raise HostBootstrapError(f"registro de safe.directory falhou: {added.stderr[-1000:]}")
+
+
 def prepare_validation_repo(work_root: Path, commit: str, repository_url: str | None = None) -> tuple[Path, str]:
     commit = validate_commit(commit)
     git = shutil.which("git")
@@ -212,6 +229,7 @@ def prepare_validation_repo(work_root: Path, commit: str, repository_url: str | 
         clone = subprocess.run([git, "clone", "--no-checkout", source, str(target)], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=120)
         if clone.returncode != 0:
             raise HostBootstrapError(f"clone de validação falhou: {clone.stderr[-1000:]}")
+    ensure_safe_directory(target)
     checkout = subprocess.run([git, "-C", str(target), "checkout", "--detach", commit], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=60)
     if checkout.returncode != 0:
         raise HostBootstrapError(f"checkout de validação falhou: {checkout.stderr[-1000:]}")
