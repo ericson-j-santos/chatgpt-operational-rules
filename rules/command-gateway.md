@@ -14,7 +14,17 @@ O gateway deve mediar comandos locais sempre que possível, aplicando:
 - validação do estado Git antes e depois;
 - log estruturado com mascaramento;
 - `timeout`;
-- controles negativos contra falso positivo.
+- controles negativos contra falso positivo;
+- bootstrap obrigatório de sessão e reserva de worktree conforme `rules/session-bootstrap.md`.
+
+## Uso exclusivo e sem fallback
+
+- Antes do primeiro comando local/remoto, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`; o preflight chama o bootstrap interno de reserva/materialização.
+- Remote Desktop Commander é somente transporte para chamar bootstrap/gateway.
+- Depois do bootstrap, todos os comandos locais/remotos devem passar pelo Command Gateway.
+- Não usar PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito como fallback quando gateway/bootstrap bloquear ou estiver indisponível.
+- Falha de bootstrap, política, reserva, lock ou validação interrompe a execução.
+- Plugins/APIs específicas continuam preferíveis para operações de sistemas externos.
 
 ## Escopo operacional
 
@@ -43,10 +53,21 @@ O gateway deve bloquear:
 - código inline (`python -c`, `node -e`) no perfil operacional padrão;
 - comandos destrutivos conhecidos, inclusive `git push`, `git reset --hard`, `git clean -f`, `docker system prune` e equivalentes.
 
+## Bootstrap e worktree por sessão
+
+- `require_session_bootstrap=true` deve permanecer ativo no perfil operacional.
+- `worktree_root` e `worktree_prefix` definem onde a sessão pode reservar o worktree.
+- O bootstrap captura o SHA da base e persiste uma reserva exclusiva fora do working tree.
+- Materialização usa `git worktree add --detach` no SHA reservado por meio do próprio gateway.
+- A materialização é permitida somente quando não existem alterações rastreadas na base.
+- Arquivos não rastreados da base não são copiados para o worktree e não autorizam sobrescrita.
+- O worktree deve terminar limpo e no SHA reservado.
+- Alterações de risco 2 devem ocorrer no worktree da sessão, nunca diretamente na árvore base.
+
 ## Risco 1
 
 Para uma operação declarada como risco 1:
-1. capturar branch, HEAD e digest do `git status --porcelain`;
+1. capturar branch, HEAD e digest do estado Git;
 2. adquirir lock exclusivo;
 3. confirmar novamente o estado após o lock;
 4. executar o comando com `shell=False`;
@@ -93,10 +114,15 @@ Cada execução deve produzir evento JSONL contendo, sem segredos:
 - código de saída;
 - classificação final.
 
+O bootstrap adiciona `session_id`, SHA base, worktree reservado e estado `reserved|materialized`.
+
 ## Critério de conclusão
 
 O gateway está operacional somente quando:
 - política é carregada;
+- bootstrap produz `BOOTSTRAP_OK`;
+- reserva por sessão é idempotente e conflito é bloqueado;
+- worktree materializado está limpo e no SHA reservado;
 - diretórios permitidos e bloqueados são testados;
 - lock concorrente é testado;
 - risco 1 detecta mutação indevida;
@@ -105,3 +131,7 @@ O gateway está operacional somente quando:
 - o fluxo positivo executa com código zero;
 - os testes negativos comprovam que o gate falha quando deve;
 - o estado final do repositório real é revalidado.
+
+## Preflight automático
+
+Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O preflight captura host, versão das regras, branch, SHA, digest/contagem do estado Git, reserva e worktree, grava snapshot com SHA-256 e retorna `BOOTSTRAP_OK` somente após revalidar estado estável. Quando `require_preflight_snapshot=true`, o gateway deve bloquear sessão sem snapshot íntegro.

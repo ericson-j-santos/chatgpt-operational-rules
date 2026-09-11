@@ -7,6 +7,16 @@
 - Proibida a adoção automática de clones com alterações locais preexistentes; workers devem partir de referência canônica limpa.
 - Adicionados testes de política para comprovar que o namespace de workers é permitido sem liberar os clones do Portal no perfil do usuário ou no `D:`.
 - Preservada a lógica `git_untracked_excludes` introduzida na versão 1.3.1.
+- Adicionado `session_preflight.py` para captura automática e estável de host, regras, branch, SHA, digest Git, reserva e worktree.
+- Snapshot de preflight passa a ter SHA-256 próprio e é pré-condição do gateway quando habilitado.
+- Auditoria positiva do gateway passa a carregar `session_id`; risco 2 continua restrito ao worktree materializado da sessão.
+- Tornado obrigatório o bootstrap de sessão antes do primeiro comando local/remoto de cada chat/agente.
+- Proibido fallback direto para PowerShell, CMD, Bash, WSL, SSH ou terminal irrestrito quando bootstrap/gateway bloquear ou estiver indisponível.
+- Adicionada reserva idempotente de worktree por `session_id`, persistida fora do working tree.
+- Adicionada materialização opcional com `git worktree add --detach` no SHA capturado no bootstrap.
+- Alterações de risco 2 passam a exigir worktree reservado/materializado da sessão por regra operacional.
+- Adicionados testes unitários e E2E para idempotência, conflito de sessão, identificador inválido, política desabilitada e worktree isolado.
+- Adicionado gerador determinístico de `MANIFEST.json` para reduzir divergência de hash/tamanho durante evoluções das regras.
 
 ## 1.3.1 - 2026-09-10
 - Corrigida inspeção Git do Command Gateway para separar estado rastreado e não rastreado.

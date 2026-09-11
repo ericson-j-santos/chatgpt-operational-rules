@@ -25,6 +25,7 @@ EXIT_LOCKED = 21
 EXIT_COMMAND = 22
 EXIT_STATE_CHANGED = 23
 EXIT_TIMEOUT = 24
+EXIT_SESSION_REQUIRED = 25
 
 SHELL_META = ("&&", "||", ";", "|", ">", "<")
 GIT_DESTRUCTIVE = {
@@ -46,6 +47,7 @@ SECRET_RE = re.compile(
 )
 BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_|glpat-)[A-Za-z0-9_-]{10,}")
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 
 class GatewayError(RuntimeError):
@@ -198,6 +200,60 @@ def state_dir(policy: dict[str, Any]) -> Path:
     return path
 
 
+def snapshot_sha256(payload: dict[str, Any]) -> str:
+    body = {key: value for key, value in payload.items() if key != "snapshot_sha256"}
+    raw = json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def validate_session_snapshot(policy: dict[str, Any], session_id: str, reservation: dict[str, Any]) -> dict[str, Any] | None:
+    if not policy.get("require_preflight_snapshot", False):
+        return None
+    path = state_dir(policy) / "snapshots" / f"{session_id}.json"
+    if not path.is_file():
+        raise GatewayError("BOOTSTRAP_REQUIRED: snapshot de preflight inexistente", EXIT_SESSION_REQUIRED)
+    try:
+        snapshot = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise GatewayError("BOOTSTRAP_REQUIRED: snapshot de preflight inválido", EXIT_SESSION_REQUIRED) from exc
+    expected = snapshot.get("snapshot_sha256")
+    if not expected or expected != snapshot_sha256(snapshot):
+        raise GatewayError("BOOTSTRAP_REQUIRED: integridade do snapshot inválida", EXIT_SESSION_REQUIRED)
+    if snapshot.get("session_id") != session_id or snapshot.get("result") != "BOOTSTRAP_OK":
+        raise GatewayError("BOOTSTRAP_REQUIRED: snapshot não pertence à sessão", EXIT_SESSION_REQUIRED)
+    for key in ("repo_root", "reserved_worktree"):
+        if norm(str(snapshot.get(key, ""))) != norm(str(reservation.get(key, ""))):
+            raise GatewayError("BOOTSTRAP_REQUIRED: snapshot diverge da reserva", EXIT_SESSION_REQUIRED)
+    if snapshot.get("reservation_status") != reservation.get("status"):
+        raise GatewayError("BOOTSTRAP_REQUIRED: estado da reserva diverge do snapshot", EXIT_SESSION_REQUIRED)
+    return snapshot
+
+
+def enforce_session(policy: dict[str, Any], session_id: str | None, cwd: Path, risk: int | None = None) -> dict[str, Any]:
+    if not policy.get("require_session_bootstrap", False):
+        return {}
+    if not session_id or not SESSION_ID_RE.fullmatch(session_id):
+        raise GatewayError("BOOTSTRAP_REQUIRED: session_id ausente ou inválido", EXIT_SESSION_REQUIRED)
+    reservation = state_dir(policy) / "sessions" / f"{session_id}.json"
+    if not reservation.is_file():
+        raise GatewayError("BOOTSTRAP_REQUIRED: reserva de sessão inexistente", EXIT_SESSION_REQUIRED)
+    try:
+        data = json.loads(reservation.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise GatewayError("BOOTSTRAP_REQUIRED: reserva de sessão inválida", EXIT_SESSION_REQUIRED) from exc
+    if data.get("session_id") != session_id or data.get("status") not in {"reserved", "materialized"}:
+        raise GatewayError("BOOTSTRAP_REQUIRED: reserva de sessão inativa", EXIT_SESSION_REQUIRED)
+    validate_session_snapshot(policy, session_id, data)
+    cwd_norm = norm(cwd)
+    repo_root = data.get("repo_root", "")
+    worktree = data.get("reserved_worktree", "")
+    if not (pattern_match(cwd_norm, repo_root) or pattern_match(cwd_norm, worktree)):
+        raise GatewayError("diretório não pertence à sessão reservada", EXIT_SESSION_REQUIRED)
+    if risk == 2 and (data.get("status") != "materialized" or not pattern_match(cwd_norm, worktree)):
+        raise GatewayError("risco 2 exige worktree materializado da sessão", EXIT_SESSION_REQUIRED)
+    return data
+
+
 @contextmanager
 def repository_lock(state: GitState, policy: dict[str, Any], correlation_id: str) -> Iterator[Path]:
     lock_dir = state_dir(policy) / "locks"
@@ -234,13 +290,13 @@ def event_args(args: Sequence[str]) -> list[str]:
     return [redact(item) for item in args]
 
 
-def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str) -> int:
+def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str, session_id: str | None = None) -> int:
     assert_allowed_path(cwd, policy)
     before = git_state(cwd, bool(policy.get("require_git_repo", True)), policy)
     event = {
         "timestamp": utc_now(), "correlation_id": correlation_id,
         "action": "inspect", "cwd": norm(cwd), "risk": 1,
-        "result": "ok", "before": asdict(before) if before else None,
+        "session_id": session_id, "result": "ok", "before": asdict(before) if before else None,
     }
     append_event(policy, event)
     print(json.dumps(event, ensure_ascii=False))
@@ -249,7 +305,7 @@ def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str) -> int:
 
 def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             timeout: int, expected_head: str | None, allow_dirty: bool,
-            allow_head_change: bool, correlation_id: str) -> int:
+            allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
@@ -278,7 +334,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             event = {
                 "timestamp": utc_now(), "correlation_id": correlation_id,
                 "action": "run", "cwd": norm(cwd), "risk": risk,
-                "command": event_args(args), "result": "timeout",
+                "session_id": session_id, "command": event_args(args), "result": "timeout",
                 "timeout_seconds": timeout, "before": asdict(before),
             }
             append_event(policy, event)
@@ -297,7 +353,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
         event = {
             "timestamp": utc_now(), "correlation_id": correlation_id,
             "action": "run", "cwd": norm(cwd), "risk": risk,
-            "command": event_args(args), "command_exit_code": completed.returncode,
+            "session_id": session_id, "command": event_args(args), "command_exit_code": completed.returncode,
             "gateway_exit_code": exit_code, "duration_ms": duration_ms,
             "state_changed": state_changed, "result": result,
             "before": asdict(before), "after": asdict(after),
@@ -320,8 +376,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="action", required=True)
     inspect_parser = sub.add_parser("inspect")
     inspect_parser.add_argument("--cwd", type=Path, required=True)
+    inspect_parser.add_argument("--session-id")
     run_parser = sub.add_parser("run")
     run_parser.add_argument("--cwd", type=Path, required=True)
+    run_parser.add_argument("--session-id")
     run_parser.add_argument("--risk", type=int, required=True)
     run_parser.add_argument("--timeout", type=int, default=120)
     run_parser.add_argument("--expected-head")
@@ -337,8 +395,10 @@ def main() -> int:
     policy: dict[str, Any] | None = None
     try:
         policy = load_policy(ns.policy)
+        if ns.action in {"inspect", "run"}:
+            enforce_session(policy, getattr(ns, "session_id", None), ns.cwd, getattr(ns, "risk", None))
         if ns.action == "inspect":
-            return inspect(ns.cwd, policy, correlation_id)
+            return inspect(ns.cwd, policy, correlation_id, getattr(ns, "session_id", None))
         command = list(ns.command)
         if command and command[0] == "--":
             command = command[1:]
@@ -346,7 +406,7 @@ def main() -> int:
             cwd=ns.cwd, policy=policy, args=command, risk=ns.risk,
             timeout=ns.timeout, expected_head=ns.expected_head,
             allow_dirty=ns.allow_dirty, allow_head_change=ns.allow_head_change,
-            correlation_id=correlation_id,
+            correlation_id=correlation_id, session_id=getattr(ns, "session_id", None),
         )
     except (GatewayError, json.JSONDecodeError, OSError) as exc:
         code = exc.exit_code if isinstance(exc, GatewayError) else EXIT_POLICY
@@ -362,6 +422,8 @@ def main() -> int:
                 blocked_event["cwd"] = norm(ns.cwd)
             if hasattr(ns, "risk"):
                 blocked_event["risk"] = ns.risk
+            if hasattr(ns, "session_id"):
+                blocked_event["session_id"] = ns.session_id
             if hasattr(ns, "command"):
                 command = list(ns.command)
                 if command and command[0] == "--":

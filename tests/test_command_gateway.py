@@ -64,6 +64,7 @@ class CommandGatewayTests(unittest.TestCase):
         finally:
             cg.run_capture = original
 
+
     def test_git_untracked_exclude_keeps_other_untracked_visible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo=Path(tmp); subprocess.run(["git","init"],cwd=repo,check=True,capture_output=True)

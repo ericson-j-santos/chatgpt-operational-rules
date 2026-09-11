@@ -19,8 +19,11 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 6. Para artefatos, aplicar `rules/artifact-storage.md`.
 7. Para execução de comandos locais ou remotos, aplicar `rules/terminal-execution.md`.
 8. Para todo incremento funcional criado ou modificado, aplicar `rules/e2e-validation.md` e não declarar conclusão sem validação ponta a ponta aplicável e controles contra falso positivo.
-9. Para comandos executados na máquina autorizada, aplicar `rules/command-gateway.md` e preferir `scripts/command_gateway.py` quando o executor estiver instalado no alvo.
-10. Para múltiplos chats/agentes, usar workspaces isolados sob `C:\dev\chatgpt-workers\*`; nunca compartilhar o mesmo working tree entre workers.
+9. Para comandos executados na máquina autorizada, aplicar `rules/command-gateway.md`.
+10. Antes do primeiro comando local/remoto de cada chat/agente, aplicar `rules/session-bootstrap.md`, executar `scripts/session_preflight.py` e exigir `BOOTSTRAP_OK` com `state_validated=true`.
+11. Para múltiplos chats/agentes, usar workspaces isolados sob `C:\dev\chatgpt-workers\*`; nunca compartilhar o mesmo working tree entre workers.
+12. Após o bootstrap, não usar terminal direto como fallback; Remote Desktop Commander é apenas transporte para preflight/gateway.
+13. Para alterações de risco 2, materializar e usar o worktree reservado da sessão.
 
 ## Projetos conhecidos
 - ReqSys
