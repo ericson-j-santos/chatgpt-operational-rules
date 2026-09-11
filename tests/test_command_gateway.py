@@ -55,6 +55,8 @@ class CommandGatewayTests(unittest.TestCase):
             subprocess.CompletedProcess(["git"], 0, "main\n", ""),
             result,
             subprocess.CompletedProcess(["git"], 0, "", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
         ])
         try:
             cg.run_capture = lambda *args, **kwargs: next(responses)
@@ -78,6 +80,36 @@ class CommandGatewayTests(unittest.TestCase):
             ignored=cg.git_state(repo,True,policy); self.assertEqual(before.status_digest,ignored.status_digest)
             (repo/"outside.txt").write_text("x"); outside=cg.git_state(repo,True,policy)
             self.assertNotEqual(ignored.status_digest,outside.status_digest)
+
+    def test_digest_changes_when_already_modified_content_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            tracked = repo / "baseline.txt"
+            tracked.write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "add", "baseline.txt"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True, capture_output=True)
+            tracked.write_text("dirty-one\n", encoding="utf-8")
+            first = cg.git_state(repo, True, {})
+            tracked.write_text("dirty-two\n", encoding="utf-8")
+            second = cg.git_state(repo, True, {})
+            self.assertEqual(first.status_count, second.status_count)
+            self.assertNotEqual(first.status_digest, second.status_digest)
+
+    def test_run_capture_decodes_utf8_output(self) -> None:
+        completed = cg.run_capture([sys.executable, "-c", "import sys;sys.stdout.buffer.write(bytes.fromhex('f09f939d'))"], Path.cwd())
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("📝", completed.stdout)
+
+    def test_tracked_case_collisions_detects_case_only_duplicates(self) -> None:
+        original = cg.run_capture
+        try:
+            cg.run_capture = lambda *args, **kwargs: subprocess.CompletedProcess(["git"], 0, "A.txt\x00a.txt\x00", "")
+            self.assertEqual(cg.tracked_case_collisions(Path(".")), [("A.txt", "a.txt")])
+        finally:
+            cg.run_capture = original
 
     def test_load_policy_rejects_wrong_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

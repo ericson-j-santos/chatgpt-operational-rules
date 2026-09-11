@@ -159,7 +159,7 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> 
 def run_capture(args: Sequence[str], cwd: Path, timeout: int = 15) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(args), cwd=str(cwd), text=True, capture_output=True,
-        shell=False, timeout=timeout, check=False,
+        encoding="utf-8", errors="replace", shell=False, timeout=timeout, check=False,
     )
 
 
@@ -175,16 +175,62 @@ def git_state(cwd: Path, require_repo: bool = True, policy: dict[str, Any] | Non
     head = run_capture(["git", "rev-parse", "HEAD"], repo_root)
     branch = run_capture(["git", "branch", "--show-current"], repo_root)
     tracked = run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo_root)
+    index = run_capture(["git", "ls-files", "-s", "-z"], repo_root)
     pathspec = ["."] + [f":(exclude){item}" for item in (policy or {}).get("git_untracked_excludes", [])]
     untracked = run_capture(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *pathspec], repo_root)
-    checks = (head, branch, tracked, untracked)
+    checks = (head, branch, tracked, index, untracked)
+    modified = run_capture(["git", "ls-files", "-m", "-d", "-z"], repo_root)
+    checks = (head, branch, tracked, index, modified, untracked)
     if any(item.returncode != 0 for item in checks):
         raise GatewayError("não foi possível obter estado Git")
     if any(item.stderr.strip() for item in checks):
         raise GatewayError("estado Git incompleto: comando Git produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
-    raw = ("T\0" + tracked.stdout + "U\0" + untracked.stdout).encode("utf-8", errors="replace")
-    count = sum(len([x for x in item.stdout.split("\x00") if x]) for item in (tracked, untracked))
-    return GitState(repo_root=str(repo_root), branch=branch.stdout.strip() or "DETACHED", head=head.stdout.strip(), status_digest=hashlib.sha256(raw).hexdigest(), status_count=count)
+
+    def add_path_content(digest: Any, rel: str) -> None:
+        candidate = repo_root / rel
+        try:
+            if candidate.is_symlink():
+                payload = ("SYMLINK\0" + os.readlink(candidate)).encode("utf-8", errors="surrogateescape")
+            elif candidate.is_file():
+                file_hash = hashlib.sha256()
+                with candidate.open("rb") as handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        file_hash.update(chunk)
+                payload = ("FILE\0" + file_hash.hexdigest()).encode("ascii")
+            elif candidate.exists():
+                payload = b"DIR"
+            else:
+                payload = b"MISSING"
+        except OSError as exc:
+            raise GatewayError(f"estado Git incompleto: não foi possível ler {rel}", EXIT_STATE_CHANGED) from exc
+        digest.update(rel.encode("utf-8", errors="surrogateescape") + b"\0" + payload + b"\0")
+
+    digest = hashlib.sha256()
+    digest.update(("T\0" + tracked.stdout + "I\0" + index.stdout + "M\0" + modified.stdout + "U\0" + untracked.stdout).encode("utf-8", errors="replace"))
+    modified_paths = [item for item in modified.stdout.split("\x00") if item]
+    for rel in sorted(set(modified_paths)):
+        add_path_content(digest, rel)
+    untracked_paths = [item for item in untracked.stdout.split("\x00") if item]
+    for rel in sorted(untracked_paths):
+        add_path_content(digest, rel)
+    count = len([x for x in tracked.stdout.split("\x00") if x]) + len(untracked_paths)
+    return GitState(repo_root=str(repo_root), branch=branch.stdout.strip() or "DETACHED", head=head.stdout.strip(), status_digest=digest.hexdigest(), status_count=count)
+
+
+def tracked_case_collisions(cwd: Path) -> list[tuple[str, str]]:
+    result = run_capture(["git", "ls-files", "-z"], cwd)
+    if result.returncode != 0 or result.stderr.strip():
+        raise GatewayError("não foi possível validar colisões de caminhos rastreados", EXIT_STATE_CHANGED)
+    seen: dict[str, str] = {}
+    collisions: list[tuple[str, str]] = []
+    for path in (item for item in result.stdout.split("\x00") if item):
+        key = path.casefold()
+        previous = seen.get(key)
+        if previous is not None and previous != path:
+            collisions.append((previous, path))
+        else:
+            seen[key] = path
+    return collisions
 
 
 def state_key(state: GitState) -> str:
@@ -328,7 +374,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
         try:
             completed = subprocess.run(
                 list(args), cwd=str(cwd), text=True, capture_output=True,
-                shell=False, timeout=timeout, check=False,
+                encoding="utf-8", errors="replace", shell=False, timeout=timeout, check=False,
             )
         except subprocess.TimeoutExpired as exc:
             event = {
