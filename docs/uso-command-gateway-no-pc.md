@@ -9,6 +9,8 @@ Fluxo obrigatório:
 
 `session_preflight.py -> BOOTSTRAP_OK -> session_id -> worktree reservado -> command_gateway.py`
 
+Em host novo sem Gateway, a única exceção é `install_command_gateway_host.py`: ele exige SHA completo aprovado e SHA-256 do próprio instalador, valida o manifesto, instala o runtime, cria um repositório de validação no commit exato e então o fluxo volta imediatamente ao preflight.
+
 Se o preflight não retornar `BOOTSTRAP_OK` com `state_validated=true`, interromper a execução.
 
 ## 1. Iniciar uma sessão governada
@@ -16,9 +18,9 @@ Se o preflight não retornar `BOOTSTRAP_OK` com `state_validated=true`, interrom
 Exemplo para ReqSys:
 
 ```bat
-python scripts\session_preflight.py ^
-  --policy config\command-gateway.policy.json ^
-  --repo C:\dev\reqsys-v2-enterprise-real ^
+python scripts\\session_preflight.py ^
+  --policy config\\command-gateway.policy.json ^
+  --repo C:\\dev\\reqsys-v2-enterprise-real ^
   --session-id chat-reqsys-001 ^
   --correlation-id chat-reqsys-001-bootstrap ^
   --materialize
@@ -38,8 +40,8 @@ Use o `target_path` retornado como diretório das operações da sessão.
 ## 2. Inspecionar pelo gateway
 
 ```bat
-python scripts\command_gateway.py ^
-  --policy config\command-gateway.policy.json ^
+python scripts\\command_gateway.py ^
+  --policy config\\command-gateway.policy.json ^
   --correlation-id chat-reqsys-001-inspect ^
   inspect ^
   --cwd <TARGET_PATH> ^
@@ -51,8 +53,8 @@ Sem `session_id`/snapshot válidos, o gateway deve bloquear com código 25 (`BOO
 ## 3. Executar comando de risco 1
 
 ```bat
-python scripts\command_gateway.py ^
-  --policy config\command-gateway.policy.json ^
+python scripts\\command_gateway.py ^
+  --policy config\\command-gateway.policy.json ^
   --correlation-id chat-reqsys-001-read ^
   run ^
   --cwd <TARGET_PATH> ^
@@ -68,8 +70,8 @@ Risco 1 não pode modificar o estado do repositório. Se modificar, o gateway de
 Risco 2 deve ocorrer somente no worktree materializado retornado pelo preflight:
 
 ```bat
-python scripts\command_gateway.py ^
-  --policy config\command-gateway.policy.json ^
+python scripts\\command_gateway.py ^
+  --policy config\\command-gateway.policy.json ^
   --correlation-id chat-reqsys-001-change ^
   run ^
   --cwd <TARGET_PATH> ^
