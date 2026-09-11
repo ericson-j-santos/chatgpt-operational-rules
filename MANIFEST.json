@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "5e5ff553b2c34e6228dc5b9dfed67507d1da7884fdcd3bac4c8b5dd71cd8c217",
-      "size": 1190
+      "sha256": "5a0d50d8d06277cb135e1a18ae57219f553f2e67f97744a2331b5d187d71f18b",
+      "size": 1234
     },
     {
       "path": "AGENTS.md",
