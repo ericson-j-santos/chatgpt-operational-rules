@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -87,8 +89,13 @@ class SessionBootstrapTests(unittest.TestCase):
             repo = self.make_repo(root, "repo")
             policy = self.policy(root)
             reservation, _ = sb.reserve(repo, policy, "chat-003", "corr")
-            updated, result = sb.materialize(reservation, policy, "corr")
+            git_config = root / "global.gitconfig"
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(git_config)}):
+                updated, result = sb.materialize(reservation, policy, "corr")
+                safe = subprocess.run(["git", "config", "--global", "--get-all", "safe.directory"],
+                                      text=True, capture_output=True, check=True).stdout.splitlines()
             target = Path(updated["reserved_worktree"])
+            self.assertIn(str(target.resolve()).replace("\\", "/"), safe)
             self.assertEqual(result, "materialized")
             self.assertTrue(target.is_dir())
             state = cg.git_state(target, True, policy)

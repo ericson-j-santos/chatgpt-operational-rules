@@ -94,10 +94,30 @@ def reserve(repo: Path, policy: dict, session_id: str, correlation_id: str) -> t
     return payload, "reserved"
 
 
+def ensure_safe_directory(repo: Path, target: Path, policy: dict, correlation_id: str, session_id: str, expected_head: str) -> None:
+    resolved = str(target.resolve()).replace("\\", "/")
+    listed = cg.run_capture(["git", "config", "--global", "--get-all", "safe.directory"], repo)
+    if listed.returncode not in (0, 1) or listed.stderr.strip():
+        raise cg.GatewayError("não foi possível consultar safe.directory", cg.EXIT_STATE_CHANGED)
+    existing = {line.strip().replace("\\", "/").casefold() for line in listed.stdout.splitlines() if line.strip()}
+    if resolved.casefold() in existing:
+        return
+    rc = cg.execute(
+        cwd=repo, policy=policy,
+        args=["git", "config", "--global", "--add", "safe.directory", resolved],
+        risk=2, timeout=min(int(policy.get("max_timeout_seconds", 900)), 30),
+        expected_head=expected_head, allow_dirty=True, allow_head_change=False,
+        correlation_id=correlation_id, session_id=session_id,
+    )
+    if rc != 0:
+        raise cg.GatewayError("não foi possível registrar safe.directory do worktree", rc)
+
+
 def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[dict, str]:
     repo = Path(reservation["repo_root"])
     target = Path(reservation["reserved_worktree"])
     if reservation.get("status") == "materialized":
+        ensure_safe_directory(repo, target, policy, correlation_id, reservation["session_id"], reservation["base_head"])
         current = cg.git_state(target, True, policy)
         if current is None or current.head != reservation.get("base_head") or current.status_count:
             raise cg.GatewayError("worktree materializado diverge da reserva", cg.EXIT_STATE_CHANGED)
@@ -124,6 +144,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
     )
     if rc != 0:
         raise cg.GatewayError("Command Gateway não materializou o worktree", rc)
+    ensure_safe_directory(repo, target, policy, correlation_id, reservation["session_id"], reservation["base_head"])
     created = cg.git_state(target, True, policy)
     if created is None or created.head != reservation["base_head"] or created.status_count:
         raise cg.GatewayError("worktree criado não corresponde à reserva", cg.EXIT_STATE_CHANGED)

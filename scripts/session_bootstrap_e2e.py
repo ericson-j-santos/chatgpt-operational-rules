@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -41,6 +42,8 @@ def make_repo(root: Path, name: str) -> Path:
 
 def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="session-bootstrap-e2e-"))
+    previous_git_config = os.environ.get("GIT_CONFIG_GLOBAL")
+    os.environ["GIT_CONFIG_GLOBAL"] = str(root / "global.gitconfig")
     source_pycache = SCRIPT.parent / "__pycache__"
     if source_pycache.exists():
         raise AssertionError("baseline inválida: __pycache__ já existe na árvore fonte")
@@ -116,6 +119,10 @@ def main() -> int:
         print("SESSION_BOOTSTRAP_E2E_OK positive=4 negative=3 reservation=idempotent worktree=isolated source_tree=clean")
         return 0
     finally:
+        if previous_git_config is None:
+            os.environ.pop("GIT_CONFIG_GLOBAL", None)
+        else:
+            os.environ["GIT_CONFIG_GLOBAL"] = previous_git_config
         shutil.rmtree(root, ignore_errors=True)
 
 
