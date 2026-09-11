@@ -15,6 +15,8 @@ jobs:
     name: Rules, Gateway, Session Bootstrap and E2E gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
