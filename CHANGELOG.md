@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 - 2026-09-11
+- Fingerprint Git passa a incorporar conteúdo efetivo dos arquivos rastreados modificados, além de índice, status e não rastreados.
+- Corrigida decodificação de subprocessos para UTF-8 com substituição segura, evitando falha CP1252 no Windows.
+- Bootstrap detecta caminhos rastreados que diferem apenas por maiúsculas/minúsculas e bloqueia materialização com diagnóstico explícito.
+- Adicionados testes unitários e E2E para mutação de conteúdo já dirty, UTF-8 e colisões de casing.
+
 ## 1.4.0 - 2026-09-10
 - Adicionado `C:\dev\chatgpt-workers\*` à allowlist do Command Gateway para múltiplas frentes isoladas.
 - Definido o namespace de workers como destino preferencial para OCR, Portal Portabilidade e futuros projetos autorizados.

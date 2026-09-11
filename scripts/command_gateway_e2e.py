@@ -82,6 +82,17 @@ def main() -> int:
         finally:
             lock_path.unlink(missing_ok=True)
 
+        tracked_mutation = repo / "baseline.txt"
+        tracked_mutation.write_text("dirty-before\n", encoding="utf-8", newline="\n")
+        run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-B", "-c",
+                 "__import__('pathlib').Path('baseline.txt').write_text('dirty-after\\n', encoding='utf-8')"], 23)
+        observed = tracked_mutation.read_text(encoding="utf-8")
+        if "dirty-after" not in observed:
+            raise AssertionError(f"mutação de arquivo já modificado não ocorreu: {observed!r}")
+        subprocess.run(["git", "checkout", "--", "baseline.txt"], cwd=repo, check=True, capture_output=True)
+        if git(repo, "status", "--porcelain"):
+            raise AssertionError("baseline não foi restaurada após fingerprint negativo")
+
         mutation = repo / "mutation.txt"
         run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-B", "-c",
                  "__import__('pathlib').Path('mutation.txt').write_text('x', encoding='utf-8')"], 23)
@@ -105,7 +116,7 @@ def main() -> int:
             raise AssertionError("tentativas bloqueadas não foram auditadas")
         if git(repo, "status", "--porcelain"):
             raise AssertionError("estado final divergente do baseline")
-        print("COMMAND_GATEWAY_E2E_OK positive=3 negative=6 false_positive_guard=ok final_state=clean")
+        print("COMMAND_GATEWAY_E2E_OK positive=3 negative=7 false_positive_guard=content_aware final_state=clean")
         return 0
     finally:
         shutil.rmtree(root, ignore_errors=True)

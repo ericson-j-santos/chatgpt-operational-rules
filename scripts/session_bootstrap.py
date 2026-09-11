@@ -104,6 +104,10 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
         return reservation, "already_materialized"
     if target.exists():
         raise cg.GatewayError("caminho reservado já existe sem vínculo válido", EXIT_SESSION_CONFLICT)
+    collisions = cg.tracked_case_collisions(repo)
+    if collisions:
+        details = "; ".join(f"{left} <-> {right}" for left, right in collisions[:5])
+        raise cg.GatewayError(f"base possui caminhos rastreados que colidem por casing: {details}", cg.EXIT_STATE_CHANGED)
     if not tracked_tree_clean(repo):
         raise cg.GatewayError("base possui alterações rastreadas; materialização bloqueada", cg.EXIT_STATE_CHANGED)
     rc = cg.execute(

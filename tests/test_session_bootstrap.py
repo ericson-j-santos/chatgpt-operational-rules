@@ -97,6 +97,22 @@ class SessionBootstrapTests(unittest.TestCase):
             self.assertEqual(state.branch, "DETACHED")
             self.assertEqual(state.status_count, 0)
 
+    def test_materialize_blocks_case_collision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = self.make_repo(root, "repo")
+            policy = self.policy(root)
+            reservation, _ = sb.reserve(repo, policy, "chat-004", "corr")
+            original = cg.tracked_case_collisions
+            try:
+                cg.tracked_case_collisions = lambda _repo: [("A.txt", "a.txt")]
+                with self.assertRaises(cg.GatewayError) as ctx:
+                    sb.materialize(reservation, policy, "corr")
+                self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
+                self.assertIn("colidem por casing", str(ctx.exception))
+            finally:
+                cg.tracked_case_collisions = original
+
 
 if __name__ == "__main__":
     unittest.main()
