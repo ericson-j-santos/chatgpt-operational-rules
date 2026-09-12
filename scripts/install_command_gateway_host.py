@@ -30,6 +30,7 @@ RUNTIME_MAP = {
     "scripts/command_gateway.py": "bin/command_gateway.py",
     "scripts/session_bootstrap.py": "bin/session_bootstrap.py",
     "scripts/session_preflight.py": "bin/session_preflight.py",
+    "scripts/session_launcher.py": "bin/session_launcher.py",
     "config/command-gateway.policy.json": "config/policy.json",
 }
 

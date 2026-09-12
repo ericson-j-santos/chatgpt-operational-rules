@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +24,9 @@ def main() -> int:
     match = re.search(r"^Versão:\s*(\S+)\s*$", readme, re.MULTILINE)
     if not match:
         raise SystemExit("README sem versão")
-    paths = {item["path"] for item in current.get("files", []) if isinstance(item, dict) and item.get("path")}
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=True)
+    paths = {item.decode("utf-8") for item in listed.stdout.split(b"\0") if item}
+    paths.discard("MANIFEST.json")
     paths.update(REQUIRED_PATHS)
     entries = []
     for rel in sorted(paths):

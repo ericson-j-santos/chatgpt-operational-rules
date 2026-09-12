@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0 - 2026-09-12
+- Adicionado Session Launcher como entrada única para criar sessão, validar SHA opcional e materializar o worktree via preflight.
+- Launcher gera `session_id` seguro quando ausente e retorna `SESSION_LAUNCH_OK` com target, HEAD e snapshot SHA-256.
+- Launcher é fail-closed para versão antiga, HEAD divergente e falhas do preflight; não executa fetch nem comandos arbitrários antes da sessão.
+- Adicionados testes unitários/E2E e adoção operacional inicial no ReqSys.
+
 ## 1.5.2 - 2026-09-11
 - Upgrade do host bootstrap faz fetch explícito do SHA aprovado antes do checkout em repositório de validação já existente.
 - Saída JSON das CLIs usa escapes ASCII para funcionar em consoles Windows CP1252 sem perder a evidência Unicode.
