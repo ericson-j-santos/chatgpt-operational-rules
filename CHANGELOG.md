@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.2 - 2026-09-11
+- Upgrade do host bootstrap faz fetch explícito do SHA aprovado antes do checkout em repositório de validação já existente.
+- Saída JSON das CLIs usa escapes ASCII para funcionar em consoles Windows CP1252 sem perder a evidência Unicode.
+- Adicionados testes de upgrade N→N+1 e execução do Gateway sob CP1252 estrito.
+
 ## 1.5.1 - 2026-09-11
 - Bootstrap registra somente diretórios criados e validados como `safe.directory`.
 - Corrigido preflight pós-instalação em hosts Windows com proprietário administrativo.

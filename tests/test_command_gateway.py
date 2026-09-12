@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
@@ -102,6 +103,14 @@ class CommandGatewayTests(unittest.TestCase):
         completed = cg.run_capture([sys.executable, "-c", "import sys;sys.stdout.buffer.write(bytes.fromhex('f09f939d'))"], Path.cwd())
         self.assertEqual(completed.returncode, 0)
         self.assertIn("📝", completed.stdout)
+
+    def test_emit_json_is_safe_under_cp1252(self) -> None:
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+        cg.emit_json({"text": "📝"}, file=stream)
+        stream.flush()
+        rendered = raw.getvalue().decode("cp1252")
+        self.assertIn("\\ud83d\\udcdd", rendered.lower())
 
     def test_tracked_case_collisions_detects_case_only_duplicates(self) -> None:
         original = cg.run_capture

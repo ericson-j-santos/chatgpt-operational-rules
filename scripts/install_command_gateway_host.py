@@ -46,6 +46,10 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def emit_json(payload: dict[str, Any], *, file=None) -> None:
+    print(json.dumps(payload, ensure_ascii=True, sort_keys=True), file=file)
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -230,6 +234,9 @@ def prepare_validation_repo(work_root: Path, commit: str, repository_url: str | 
         if clone.returncode != 0:
             raise HostBootstrapError(f"clone de validação falhou: {clone.stderr[-1000:]}")
     ensure_safe_directory(target)
+    fetch = subprocess.run([git, "-C", str(target), "fetch", "--no-tags", source, commit], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=120)
+    if fetch.returncode != 0:
+        raise HostBootstrapError(f"fetch da revisão de validação falhou: {fetch.stderr[-1000:]}")
     checkout = subprocess.run([git, "-C", str(target), "checkout", "--detach", commit], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=60)
     if checkout.returncode != 0:
         raise HostBootstrapError(f"checkout de validação falhou: {checkout.stderr[-1000:]}")
@@ -259,11 +266,11 @@ def main() -> int:
         receipt["validation_repo"] = str(validation_repo)
         receipt["validation_head"] = validation_head
         atomic_write(install_root / "install-receipt.json", (json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"))
-        print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+        emit_json(receipt)
         return 0
     except (HostBootstrapError, urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
         error = {"result": "HOST_BOOTSTRAP_BLOCKED", "gateway_exit_code": EXIT_HOST_BOOTSTRAP, "error": str(exc)}
-        print(json.dumps(error, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        emit_json(error, file=sys.stderr)
         return EXIT_HOST_BOOTSTRAP
 
 
