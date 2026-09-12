@@ -19,6 +19,6 @@
   "require_session_bootstrap": true,
   "worktree_root": "C:\\dev",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.5.1",
+  "rules_version": "1.5.2",
   "require_preflight_snapshot": true
 }

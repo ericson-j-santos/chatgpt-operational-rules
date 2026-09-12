@@ -332,6 +332,10 @@ def append_event(policy: dict[str, Any], event: dict[str, Any]) -> None:
         handle.write(json.dumps(safe, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def emit_json(payload: dict[str, Any], *, file=None) -> None:
+    print(json.dumps(payload, ensure_ascii=True), file=file)
+
+
 def event_args(args: Sequence[str]) -> list[str]:
     return [redact(item) for item in args]
 
@@ -345,7 +349,7 @@ def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str, session_id: 
         "session_id": session_id, "result": "ok", "before": asdict(before) if before else None,
     }
     append_event(policy, event)
-    print(json.dumps(event, ensure_ascii=False))
+    emit_json(event)
     return 0
 
 
@@ -407,7 +411,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             "stderr": redact(completed.stderr[-12000:]),
         }
         append_event(policy, event)
-        print(json.dumps(event, ensure_ascii=False))
+        emit_json(event)
         if exit_code == 0:
             return 0
         if exit_code == EXIT_STATE_CHANGED:
@@ -479,7 +483,7 @@ def main() -> int:
                 append_event(policy, blocked_event)
             except OSError:
                 pass
-        print(json.dumps(error, ensure_ascii=False), file=sys.stderr)
+        emit_json(error, file=sys.stderr)
         return code
 
 

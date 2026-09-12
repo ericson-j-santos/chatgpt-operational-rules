@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -13,10 +14,10 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().with_name("command_gateway.py")
 
 
-def run_cli(args: list[str], expected: int) -> subprocess.CompletedProcess[str]:
+def run_cli(args: list[str], expected: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     completed = subprocess.run(
         [sys.executable, "-B", str(SCRIPT), *args], text=True, capture_output=True,
-        check=False, timeout=30,
+        check=False, timeout=30, env=env,
     )
     if completed.returncode != expected:
         raise AssertionError(
@@ -93,6 +94,12 @@ def main() -> int:
         if git(repo, "status", "--porcelain"):
             raise AssertionError("baseline não foi restaurada após fingerprint negativo")
 
+        cp_env = dict(os.environ); cp_env["PYTHONIOENCODING"] = "cp1252:strict"
+        cp = run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-B", "-c",
+                      "__import__('sys').stdout.buffer.write(bytes.fromhex('f09f939d'))"], 0, env=cp_env)
+        if "\\ud83d\\udcdd" not in cp.stdout.lower():
+            raise AssertionError("saída JSON não escapou Unicode sob CP1252")
+
         mutation = repo / "mutation.txt"
         run_cli([*base, "run", "--cwd", str(repo), "--risk", "1", "--", sys.executable, "-B", "-c",
                  "__import__('pathlib').Path('mutation.txt').write_text('x', encoding='utf-8')"], 23)
@@ -116,7 +123,7 @@ def main() -> int:
             raise AssertionError("tentativas bloqueadas não foram auditadas")
         if git(repo, "status", "--porcelain"):
             raise AssertionError("estado final divergente do baseline")
-        print("COMMAND_GATEWAY_E2E_OK positive=3 negative=7 false_positive_guard=content_aware final_state=clean")
+        print("COMMAND_GATEWAY_E2E_OK positive=4 negative=7 false_positive_guard=content_aware final_state=clean")
         return 0
     finally:
         shutil.rmtree(root, ignore_errors=True)

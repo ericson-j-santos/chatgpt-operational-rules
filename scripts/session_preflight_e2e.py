@@ -57,7 +57,7 @@ def main() -> int:
         state = root / "state"
         policy = {
             "version": 1,
-            "rules_version": "1.5.1",
+            "rules_version": "1.5.2",
             "allowed_roots": [str(root)],
             "denied_roots": [str(root / "blocked")],
             "denied_segments": [".ssh"],

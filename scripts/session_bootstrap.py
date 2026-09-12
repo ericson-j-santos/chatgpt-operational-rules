@@ -185,7 +185,7 @@ def main() -> int:
             "state": reservation["status"],
         }
         cg.append_event(policy, event)
-        print(json.dumps(event, ensure_ascii=False))
+        cg.emit_json(event)
         return 0
     except (cg.GatewayError, json.JSONDecodeError, OSError) as exc:
         code = exc.exit_code if isinstance(exc, cg.GatewayError) else EXIT_SESSION_REQUIRED
@@ -203,7 +203,7 @@ def main() -> int:
                 cg.append_event(policy, error)
             except OSError:
                 pass
-        print(json.dumps(error, ensure_ascii=False), file=sys.stderr)
+        cg.emit_json(error, file=sys.stderr)
         return code
 
 

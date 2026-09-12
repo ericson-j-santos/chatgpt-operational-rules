@@ -143,7 +143,7 @@ def preflight(
         "snapshot_sha256": payload["snapshot_sha256"],
     }
     cg.append_event(policy, event)
-    print(json.dumps(payload, ensure_ascii=False))
+    cg.emit_json(payload)
     return payload
 
 
@@ -177,7 +177,7 @@ def main() -> int:
                 cg.append_event(policy, error)
             except OSError:
                 pass
-        print(json.dumps(error, ensure_ascii=False), file=sys.stderr)
+        cg.emit_json(error, file=sys.stderr)
         return code
 
 

@@ -24,7 +24,7 @@ def make_bundle(root: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
         entries.append({"path": source, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
-    (bundle / "MANIFEST.json").write_text(json.dumps({"version": "1.5.1", "files": entries}), encoding="utf-8")
+    (bundle / "MANIFEST.json").write_text(json.dumps({"version": "1.5.2", "files": entries}), encoding="utf-8")
     return bundle
 
 
@@ -61,7 +61,7 @@ def main() -> int:
         else:
             raise AssertionError("commit curto foi aceito")
         receipt = json.loads((install_root / "install-receipt.json").read_text(encoding="utf-8"))
-        if receipt.get("source_commit") != commit or receipt.get("rules_version") != "1.5.1":
+        if receipt.get("source_commit") != commit or receipt.get("rules_version") != "1.5.2":
             raise AssertionError("recibo não comprova revisão instalada")
         source_repo = root / "source-repo"
         source_repo.mkdir()
@@ -77,7 +77,12 @@ def main() -> int:
         previous = os.environ.get("GIT_CONFIG_GLOBAL")
         os.environ["GIT_CONFIG_GLOBAL"] = str(git_config)
         try:
-            validation_repo, observed_head = hb.prepare_validation_repo(root / "verify-workers", source_head, str(source_repo))
+            validation_repo, observed_first = hb.prepare_validation_repo(root / "verify-workers", source_head, str(source_repo))
+            (source_repo / "y.txt").write_text("y\n", encoding="utf-8")
+            subprocess.run(["git", "add", "y.txt"], cwd=source_repo, check=True)
+            subprocess.run(["git", "commit", "-m", "upgrade"], cwd=source_repo, check=True, capture_output=True)
+            upgraded_head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source_repo, check=True, text=True, capture_output=True).stdout.strip()
+            validation_repo2, observed_head = hb.prepare_validation_repo(root / "verify-workers", upgraded_head, str(source_repo))
             safe = subprocess.run(["git", "config", "--global", "--get-all", "safe.directory"], check=True,
                                   text=True, capture_output=True).stdout.splitlines()
         finally:
@@ -85,11 +90,13 @@ def main() -> int:
                 os.environ.pop("GIT_CONFIG_GLOBAL", None)
             else:
                 os.environ["GIT_CONFIG_GLOBAL"] = previous
-        if observed_head != source_head or not (validation_repo / ".git").exists():
+        if observed_first != source_head or observed_head != upgraded_head or validation_repo2 != validation_repo:
+            raise AssertionError("upgrade do clone de validação não comprovado")
+        if not (validation_repo / ".git").exists():
             raise AssertionError("clone de validação não comprovado")
         if str(validation_repo.resolve()).replace("\\", "/") not in safe or "*" in safe:
             raise AssertionError("safe.directory exato não comprovado")
-        print("HOST_BOOTSTRAP_E2E_OK positive=3 negative=2 manifest=sha256 validation_repo=exact_commit")
+        print("HOST_BOOTSTRAP_E2E_OK positive=4 negative=2 manifest=sha256 validation_repo=upgrade_exact_commit")
         return 0
     finally:
         shutil.rmtree(root, ignore_errors=True)

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,7 +18,7 @@ import install_command_gateway_host as hb
 
 
 class HostBootstrapTests(unittest.TestCase):
-    def make_bundle(self, root: Path, version: str = "1.5.1") -> Path:
+    def make_bundle(self, root: Path, version: str = "1.5.2") -> Path:
         bundle = root / "bundle"
         entries = []
         for source in hb.RUNTIME_MAP:
@@ -51,7 +53,7 @@ class HostBootstrapTests(unittest.TestCase):
             work_root = root / "workers"
             receipt = hb.install_bundle(bundle, install_root, work_root, "b" * 40)
             self.assertEqual(receipt["result"], "HOST_BOOTSTRAP_OK")
-            self.assertEqual(receipt["rules_version"], "1.5.1")
+            self.assertEqual(receipt["rules_version"], "1.5.2")
             self.assertTrue(work_root.is_dir())
             self.assertTrue((install_root / "install-receipt.json").is_file())
             for dest in hb.RUNTIME_MAP.values():
@@ -90,6 +92,29 @@ class HostBootstrapTests(unittest.TestCase):
             self.assertTrue((target / ".git").exists())
             self.assertIn(str(target.resolve()).replace("\\", "/"), listed)
             self.assertNotIn("*", listed)
+
+    def test_prepare_validation_repo_fetches_new_commit_on_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = root / "source"; source.mkdir()
+            subprocess.run(["git", "init"], cwd=source, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "upgrade@example.invalid"], cwd=source, check=True)
+            subprocess.run(["git", "config", "user.name", "Upgrade Test"], cwd=source, check=True)
+            (source / "v.txt").write_text("v1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=source, check=True); subprocess.run(["git", "commit", "-m", "v1"], cwd=source, check=True, capture_output=True)
+            head1 = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source, check=True, text=True, capture_output=True).stdout.strip()
+            git_config = root / "global.gitconfig"
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(git_config)}):
+                target, observed1 = hb.prepare_validation_repo(root / "workers", head1, str(source))
+                (source / "v.txt").write_text("v2\n", encoding="utf-8")
+                subprocess.run(["git", "add", "."], cwd=source, check=True); subprocess.run(["git", "commit", "-m", "v2"], cwd=source, check=True, capture_output=True)
+                head2 = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source, check=True, text=True, capture_output=True).stdout.strip()
+                target2, observed2 = hb.prepare_validation_repo(root / "workers", head2, str(source))
+            self.assertEqual(observed1, head1); self.assertEqual(observed2, head2); self.assertEqual(target, target2)
+
+    def test_emit_json_is_safe_under_cp1252(self) -> None:
+        raw = io.BytesIO(); stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+        hb.emit_json({"text": "📝"}, file=stream); stream.flush()
+        self.assertIn("\\ud83d\\udcdd", raw.getvalue().decode("cp1252").lower())
 
 
 if __name__ == "__main__":
