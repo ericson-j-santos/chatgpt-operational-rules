@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,9 +23,10 @@ REQUIRED_PATHS = {
     "rules/session-bootstrap.md", "rules/terminal-execution.md", "scripts/command_gateway.py",
     "scripts/command_gateway_e2e.py", "scripts/generate_manifest.py", "scripts/host_bootstrap_e2e.py",
     "scripts/install_command_gateway_host.py", "scripts/session_bootstrap.py", "scripts/session_bootstrap_e2e.py",
-    "scripts/session_preflight.py", "scripts/session_preflight_e2e.py", "scripts/validate_rules.py",
+    "scripts/session_preflight.py", "scripts/session_preflight_e2e.py", "scripts/session_launcher.py",
+    "scripts/session_launcher_e2e.py", "scripts/validate_rules.py",
     "tests/test_command_gateway.py", "tests/test_host_bootstrap.py", "tests/test_session_bootstrap.py",
-    "tests/test_session_preflight.py",
+    "tests/test_session_preflight.py", "tests/test_session_launcher.py",
 }
 
 
@@ -73,6 +75,11 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
     missing_required = sorted(REQUIRED_PATHS - set(paths))
     if missing_required:
         errors.append("paths obrigatórios ausentes: " + ", ".join(missing_required))
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=False)
+    if listed.returncode == 0:
+        tracked = {item.decode("utf-8") for item in listed.stdout.split(b"\0") if item}; tracked.discard("MANIFEST.json")
+        missing_tracked = sorted(tracked - set(paths))
+        if missing_tracked: errors.append("arquivos rastreados ausentes do manifesto: " + ", ".join(missing_tracked))
     readme_path, agents_path = root / "README.md", root / "AGENTS.md"
     changelog_path = root / "CHANGELOG.md"
     policy_path = root / "config" / "command-gateway.policy.json"

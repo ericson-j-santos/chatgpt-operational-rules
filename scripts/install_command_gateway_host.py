@@ -30,6 +30,7 @@ RUNTIME_MAP = {
     "scripts/command_gateway.py": "bin/command_gateway.py",
     "scripts/session_bootstrap.py": "bin/session_bootstrap.py",
     "scripts/session_preflight.py": "bin/session_preflight.py",
+    "scripts/session_launcher.py": "bin/session_launcher.py",
     "config/command-gateway.policy.json": "config/policy.json",
 }
 
@@ -158,7 +159,7 @@ def install_bundle(bundle_dir: Path, install_root: Path, work_root: Path, source
     source_commit = validate_commit(source_commit)
     manifest, index = verify_bundle(bundle_dir)
     install_root.mkdir(parents=True, exist_ok=True)
-    existing = [install_root / dest for dest in RUNTIME_MAP.values() if (install_root / dest).exists()]
+    existing = [install_root / dest for dest in RUNTIMME_MAP.values() if (install_root / dest).exists()]
     backup_dir: Path | None = None
     if existing:
         backup_dir = install_root / f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -236,14 +237,14 @@ def prepare_validation_repo(work_root: Path, commit: str, repository_url: str | 
     ensure_safe_directory(target)
     fetch = subprocess.run([git, "-C", str(target), "fetch", "--no-tags", source, commit], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=120)
     if fetch.returncode != 0:
-        raise HostBootstrapError(f"fetch da revisão de validação falhou: {fetch.stderr[-1000:]}")
+        raise HostBootstrapError(f"fetch da revisão de validção falhou: {fetch.stderr[-1000:]}")
     checkout = subprocess.run([git, "-C", str(target), "checkout", "--detach", commit], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=60)
     if checkout.returncode != 0:
         raise HostBootstrapError(f"checkout de validação falhou: {checkout.stderr[-1000:]}")
     head = subprocess.run([git, "-C", str(target), "rev-parse", "HEAD"], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=20)
-    status = subprocess.run([git, "-C", str(target), "status", "--porcelain"], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeout=20)
+    status = subprocess.run([git, "-C", str(target), "status", "--porcelain"], text=True, capture_output=True, encoding="utf-8", errors="replace", check=False, timeot=20)
     if head.returncode != 0 or status.returncode != 0 or head.stdout.strip().lower() != commit or status.stdout.strip():
-        raise HostBootstrapError("repositório de validação não corresponde ao SHA aprovado ou não está limpo")
+        raise HostBootstrapError("repositório de validção não corresponde ao SHA aprovado ou não está limpo")
     return target, head.stdout.strip().lower()
 
 
@@ -252,7 +253,7 @@ def main() -> int:
     parser.add_argument("--commit", required=True, help="SHA completo aprovado do repositório canônico")
     parser.add_argument("--expected-self-sha256", required=True, help="SHA-256 esperado deste próprio instalador")
     parser.add_argument("--install-root", type=Path, default=None)
-    parser.add_argument("--work-root", type=Path, default=Path(r"C:\dev\chatgpt-workers"))
+    parser.add_argument("--workroot", type=Path, default=Path(r"C:\dev\chatgpt-workers"))
     ns = parser.parse_args()
     try:
         verify_self(ns.expected_self_sha256)

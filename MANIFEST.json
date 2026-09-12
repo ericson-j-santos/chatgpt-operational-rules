@@ -1,6 +1,6 @@
 {
-  "version": "1.5.2",
-  "generated_at": "2026-09-11T23:01:15.523474+00:00",
+  "version": "1.6.0",
+  "generated_at": "2026-09-12T15:51:58.350047+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "2b59b40103aa8ecc89ec4dec313891f58aa3bfbba3420c1d26fe6e8193c8bc7b",
-      "size": 1429
+      "sha256": "0921082bd710b778984a20fd22e0ab02ff42f5db0334fdf6394f7a8bd98c2e4a",
+      "size": 1632
     },
     {
       "path": "AGENTS.md",
@@ -19,18 +19,23 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "bfd81ee38853fbd725e56c3a2763ff3c00877a3333d5dbe5bcab1150fd2e917b",
-      "size": 6552
+      "sha256": "42d9d7f1c38ccb06ec29fbf70d89aadec9213473832952f541803cfe306504fe",
+      "size": 7052
     },
     {
       "path": "README.md",
-      "sha256": "570f32a29beaabd920c014d1c990d12ff682212ec43c333e60d52f3ecea3caae",
-      "size": 2360
+      "sha256": "296ada488939874376e7feb83d8eb9aa21e10a3b8c3c33e9f17a92564bed30e9",
+      "size": 2392
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "db04fea484acd3b9de7ef0ea8033aa355b8c48ac2c1dc6181d0962f52782a6c3",
+      "sha256": "2d8f4f5df0946f4cd11c240ba0b9d95b34a91f56ecb378995bc7502321b99593",
       "size": 974
+    },
+    {
+      "path": "docs/uso-command-gateway-no-pc.md",
+      "sha256": "2df3f12d4839465d567f35cb2fe9f30f24a20b15d30de86e0014fcb83bb796e1",
+      "size": 3459
     },
     {
       "path": "projects/bacen.md",
@@ -94,8 +99,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "9a5cec551988eb1c18a11a0ac640fdb1cbb9ad6a2004e218535a3b3d04a1fb2e",
-      "size": 3273
+      "sha256": "e5a03a9b2c60fac65c91f977da1bae52d22cdcf4549d88499c024c4d0ddedbfd",
+      "size": 4057
     },
     {
       "path": "rules/terminal-execution.md",
@@ -119,8 +124,8 @@
     },
     {
       "path": "scripts/generate_manifest.py",
-      "sha256": "23c27b47320b5569262c722d19bd127d848bb4e1b9e0e72d11b5c7cea97922b1",
-      "size": 1550
+      "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
+      "size": 1679
     },
     {
       "path": "scripts/host_bootstrap_e2e.py",
@@ -129,8 +134,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "4ca3e1143060752f6672790171618ea1a6fca9a2897da48d1ad1998ff03d3a65",
-      "size": 12634
+      "sha256": "e78c2dcf1c8a97496e49338f6f03921167f0765b0b33876aa78d31c0d8175d2e",
+      "size": 12696
     },
     {
       "path": "scripts/session_bootstrap.py",
@@ -141,6 +146,16 @@
       "path": "scripts/session_bootstrap_e2e.py",
       "sha256": "b24d29445afa738265b65ccdf2959a89b6bea1719d1a2b239dce67c1d0279a1e",
       "size": 5889
+    },
+    {
+      "path": "scripts/session_launcher.py",
+      "sha256": "5cafb5bfd8bedc7cb2c201e68a35da471ed7e392b4bacbb057f3ada45204d33e",
+      "size": 5005
+    },
+    {
+      "path": "scripts/session_launcher_e2e.py",
+      "sha256": "f10205ac8cf29f86be31c3e718e7efd95a71bbda6d66adddb520d8c9d1725b0e",
+      "size": 5213
     },
     {
       "path": "scripts/session_preflight.py",
@@ -154,8 +169,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "317180eef4c60da9a7f19637f3bdc1759420583d8478a7e59f9b693d6c3bf935",
-      "size": 8311
+      "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
+      "size": 8865
     },
     {
       "path": "templates/execution-blueprint.md",
@@ -181,6 +196,11 @@
       "path": "tests/test_session_bootstrap.py",
       "sha256": "b8db8e8ee975ba93ae5c68150c91fcfca0ea499992dbfa28e9c8d0cb5e916b1a",
       "size": 5449
+    },
+    {
+      "path": "tests/test_session_launcher.py",
+      "sha256": "a657f3a5782bd046e77a2a6054ee0b6559a41e7bf0c52356b040648528490943",
+      "size": 1472
     },
     {
       "path": "tests/test_session_preflight.py",
