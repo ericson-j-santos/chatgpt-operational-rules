@@ -134,8 +134,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "f4a2eec574be93742de81d703c5276b6200a13ea67ffdf65b2008cb732ff7341",
-      "size": 20844
+      "sha256": "a062a10b8fb4e325a5e67f66f29a15eda99094fc85a3fd086c30c139265ca17a",
+      "size": 20845
     },
     {
       "path": "scripts/session_bootstrap.py",
