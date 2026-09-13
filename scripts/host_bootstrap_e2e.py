@@ -24,7 +24,7 @@ def make_bundle(root: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
         entries.append({"path": source, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
-    (bundle / "MANIFEST.json").write_text(json.dumps({"version": "1.5.2", "files": entries}), encoding="utf-8")
+    (bundle / "MANIFEST.json").write_text(json.dumps({"version": "1.6.1", "files": entries}), encoding="utf-8")
     return bundle
 
 
@@ -36,8 +36,8 @@ def main() -> int:
         work_root = root / "workers"
         commit = "d" * 40
         first = hb.install_bundle(bundle, install_root, work_root, commit)
-        if first["result"] != "HOST_BOOTSTRAP_OK" or not work_root.is_dir():
-            raise AssertionError("instalação positiva não comprovada")
+        if first["result"] != "HOST_BOOTSTRAP_RUNTIME_INSTALLED" or not work_root.is_dir():
+            raise AssertionError("instalação positiva do runtime não comprovada")
         for dest in hb.RUNTIME_MAP.values():
             if not (install_root / dest).is_file():
                 raise AssertionError(f"runtime ausente: {dest}")
@@ -61,7 +61,7 @@ def main() -> int:
         else:
             raise AssertionError("commit curto foi aceito")
         receipt = json.loads((install_root / "install-receipt.json").read_text(encoding="utf-8"))
-        if receipt.get("source_commit") != commit or receipt.get("rules_version") != "1.5.2":
+        if receipt.get("source_commit") != commit or receipt.get("rules_version") != "1.6.1":
             raise AssertionError("recibo não comprova revisão instalada")
         source_repo = root / "source-repo"
         source_repo.mkdir()

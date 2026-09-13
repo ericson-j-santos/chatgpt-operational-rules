@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.0
+Versão: 1.6.1
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -25,7 +25,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 12. Após o bootstrap, não usar terminal direto como fallback; Remote Desktop Commander é apenas transporte para preflight/gateway.
 13. Para alterações de risco 2, materializar e usar o worktree reservado da sessão.
 
-Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
+Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
 ## Projetos conhecidos
 - ReqSys

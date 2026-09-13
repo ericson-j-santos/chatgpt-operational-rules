@@ -4,12 +4,14 @@ import hashlib
 import io
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
+import zipfile
 from pathlib import Path
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -18,7 +20,7 @@ import install_command_gateway_host as hb
 
 
 class HostBootstrapTests(unittest.TestCase):
-    def make_bundle(self, root: Path, version: str = "1.5.2") -> Path:
+    def make_bundle(self, root: Path, version: str = "1.6.1") -> Path:
         bundle = root / "bundle"
         entries = []
         for source in hb.RUNTIME_MAP:
@@ -52,8 +54,8 @@ class HostBootstrapTests(unittest.TestCase):
             install_root = root / "install"
             work_root = root / "workers"
             receipt = hb.install_bundle(bundle, install_root, work_root, "b" * 40)
-            self.assertEqual(receipt["result"], "HOST_BOOTSTRAP_OK")
-            self.assertEqual(receipt["rules_version"], "1.5.2")
+            self.assertEqual(receipt["result"], "HOST_BOOTSTRAP_RUNTIME_INSTALLED")
+            self.assertEqual(receipt["rules_version"], "1.6.1")
             self.assertTrue(work_root.is_dir())
             self.assertTrue((install_root / "install-receipt.json").is_file())
             for dest in hb.RUNTIME_MAP.values():
@@ -70,12 +72,75 @@ class HostBootstrapTests(unittest.TestCase):
             self.assertIsNotNone(second["backup_dir"])
             self.assertTrue(Path(second["backup_dir"]).is_dir())
 
+    def test_verify_file_rejects_wrong_hash_or_size(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "payload.zip"
+            payload = b"verified-payload"
+            path.write_bytes(payload)
+            hb.verify_file(path, hashlib.sha256(payload).hexdigest(), len(payload))
+            with self.assertRaises(hb.HostBootstrapError):
+                hb.verify_file(path, "0" * 64, len(payload))
+            with self.assertRaises(hb.HostBootstrapError):
+                hb.verify_file(path, hashlib.sha256(payload).hexdigest(), len(payload) + 1)
+
+    def test_safe_extract_zip_rejects_path_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "bad.zip"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("../escape.txt", b"no")
+            with self.assertRaises(hb.HostBootstrapError):
+                hb.safe_extract_zip(archive, root / "out")
+            self.assertFalse((root / "escape.txt").exists())
+
+    def test_safe_extract_zip_rejects_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "symlink.zip"
+            info = zipfile.ZipInfo("cmd/git.exe")
+            info.external_attr = (stat.S_IFLNK | 0o777) << 16
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr(info, "../../escape")
+            with self.assertRaises(hb.HostBootstrapError):
+                hb.safe_extract_zip(archive, root / "out")
+
+    def test_safe_extract_zip_accepts_normal_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "ok.zip"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("cmd/git.exe", b"git")
+            hb.safe_extract_zip(archive, root / "out")
+            self.assertEqual((root / "out" / "cmd" / "git.exe").read_bytes(), b"git")
+
+    def test_resolve_git_prefers_existing_system_git(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fake_git = root / "git.exe"
+            fake_git.write_bytes(b"git")
+            with mock.patch.object(hb.shutil, "which", return_value=str(fake_git)), mock.patch.object(hb, "provision_mingit") as provision:
+                resolved, source = hb.resolve_git(root / "install")
+            self.assertEqual(resolved, fake_git)
+            self.assertEqual(source, "system")
+            provision.assert_not_called()
+
+    def test_resolve_git_uses_mingit_when_system_git_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fake_git = root / "vendor" / "mingit" / "cmd" / "git.exe"
+            fake_git.parent.mkdir(parents=True)
+            fake_git.write_bytes(b"git")
+            with mock.patch.object(hb.shutil, "which", return_value=None), mock.patch.object(hb, "provision_mingit", return_value=fake_git) as provision:
+                resolved, source = hb.resolve_git(root / "install")
+            self.assertEqual(resolved, fake_git)
+            self.assertEqual(source, "mingit")
+            provision.assert_called_once_with(root / "install")
+
     def test_prepare_validation_repo_uses_exact_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "source"
             source.mkdir()
-            import subprocess
             subprocess.run(["git", "init"], cwd=source, check=True, capture_output=True)
             subprocess.run(["git", "config", "user.email", "host-bootstrap@example.invalid"], cwd=source, check=True)
             subprocess.run(["git", "config", "user.name", "Host Bootstrap"], cwd=source, check=True)
