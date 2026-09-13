@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 - 2026-09-13
+- Host bootstrap em Windows passa a provisionar MinGit oficial quando `git` não estiver instalado.
+- MinGit é fixado por versão, tamanho e SHA-256; o ZIP é validado antes da extração e não altera o `PATH` global.
+- Extração do ZIP bloqueia path traversal, caminhos absolutos, drive prefixes, symlinks e limites excessivos de arquivos/tamanho.
+- Bootstrap diferencia runtime instalado de `HOST_BOOTSTRAP_OK`; falhas finais gravam `HOST_BOOTSTRAP_BLOCKED` para evitar recibo enganoso de sucesso.
+- Adicionados testes para Git existente, fallback MinGit, hash/tamanho inválidos e ZIP inseguro.
+
 ## 1.6.0 - 2026-09-12
 - Adicionado Session Launcher como entrada única para criar sessão, validar SHA opcional e materializar o worktree via preflight.
 - Launcher gera `session_id` seguro quando ausente e retorna `SESSION_LAUNCH_OK` com target, HEAD e snapshot SHA-256.
