@@ -24,8 +24,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Diagnose host bootstrap digest
-        run: python -c "from pathlib import Path; import hashlib; p=Path('scripts/install_command_gateway_host.py'); b=p.read_bytes(); print('INSTALLER_SHA256=' + hashlib.sha256(b).hexdigest()); print('INSTALLER_SIZE=' + str(len(b)))"
       - name: Validate rules and negative self-test
         run: python scripts/validate_rules.py --self-test
       - name: Run Command Gateway unit tests
