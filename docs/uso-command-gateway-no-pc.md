@@ -9,7 +9,9 @@ Fluxo obrigatório:
 
 `session_preflight.py -> BOOTSTRAP_OK -> session_id -> worktree reservado -> command_gateway.py`
 
-Em host novo sem Gateway, a única exceção é `install_command_gateway_host.py`: ele exige SHA completo aprovado e SHA-256 do próprio instalador, valida o manifesto, instala o runtime, cria um repositório de validação no commit exato e então o fluxo volta imediatamente ao preflight.
+Em host novo sem Gateway, a única exceção é `install_command_gateway_host.py`: ele exige SHA completo aprovado e SHA-256 do próprio instalador, valida o manifesto, instala o runtime, garante um Git utilizável e cria um repositório de validação no commit exato. Se `git` já existir, ele é reutilizado; em Windows sem Git, o instalador pode provisionar MinGit oficial fixado por versão, tamanho e SHA-256 em diretório privado do Gateway, sem alterar o `PATH` global.
+
+O bootstrap só termina com `HOST_BOOTSTRAP_OK` depois que o repositório de validação estiver no SHA aprovado e limpo. Instalação parcial do runtime usa estado intermediário e falhas finais gravam `HOST_BOOTSTRAP_BLOCKED`, evitando recibo enganoso de sucesso.
 
 Se o preflight não retornar `BOOTSTRAP_OK` com `state_validated=true`, interromper a execução.
 
