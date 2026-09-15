@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-13T19:48:00+00:00",
+  "generated_at": "2026-09-15T02:50:53.780258+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,13 +9,13 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "0921082bd710b778984a20fd22e0ab02ff42f5db0334fdf6394f7a8bd98c2e4a",
-      "size": 1632
+      "sha256": "71890dd57b95b8c35b24472a0755e8d6c3eb3ead527ddc2bbf187f11be3c9bb3",
+      "size": 1817
     },
     {
       "path": "AGENTS.md",
-      "sha256": "76778f6271d760e4c3dee8d281fec5f2c50365e32a19773228c7aa2a2a90ed3f",
-      "size": 1589
+      "sha256": "15187ad4437609d840229e342fc829e9ab320e97251cb248a2305496a1fa769f",
+      "size": 1756
     },
     {
       "path": "CHANGELOG.md",
@@ -24,8 +24,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "1721d3639243ca8c68df2169b47eef3824845eb598830fe217c2732c132fdc67",
-      "size": 2572
+      "sha256": "9c9b1baf1cd1d9d00c7076071309ea603dcb2c05e884327e52b080b31891e942",
+      "size": 2865
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -108,9 +108,19 @@
       "size": 6023
     },
     {
+      "path": "rules/todo-global.md",
+      "sha256": "7b5cfde5f8f8256c240f5f17b14832c594c8bf715e239767b4584779c71caaac",
+      "size": 6244
+    },
+    {
       "path": "schemas/artifact-manifest.schema.json",
       "sha256": "e923e3aa055aac8416684a56896368b00601b217de9099fcd9fef3892458daca",
       "size": 745
+    },
+    {
+      "path": "schemas/todo-event-v1.schema.json",
+      "sha256": "a5547e5d605dfdd8d49c77d3606fe053207213a861893fce3e3c2e2ba9bc7c9a",
+      "size": 3626
     },
     {
       "path": "scripts/command_gateway.py",
@@ -168,6 +178,16 @@
       "size": 6338
     },
     {
+      "path": "scripts/todo_event_bus.py",
+      "sha256": "71c3f3e36753119fa750cbee9e5340ce59934b6af4fb0c904b6bf8f19e39eb5c",
+      "size": 16700
+    },
+    {
+      "path": "scripts/todo_event_bus_e2e.py",
+      "sha256": "199dd6b7778b893f66ad985ded0e0b5326d9ba7ca045679abfb430903e974cef",
+      "size": 3234
+    },
+    {
       "path": "scripts/validate_rules.py",
       "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
       "size": 8865
@@ -206,6 +226,11 @@
       "path": "tests/test_session_preflight.py",
       "sha256": "49a297eb9c0465aea99c7824cc7c5847497adc7b48837b89b4041ea4d777896b",
       "size": 5131
+    },
+    {
+      "path": "tests/test_todo_event_bus.py",
+      "sha256": "328d2c55e4eed990410bec58efcd2f8c69fb136cc9597b6d09ef2bf8d06b88ec",
+      "size": 4056
     }
   ]
 }
