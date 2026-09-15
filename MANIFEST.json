@@ -1,11 +1,16 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T22:51:42.101916+00:00",
+  "generated_at": "2026-09-15T23:11:38.876425+00:00",
   "files": [
     {
       "path": ".gitattributes",
       "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
       "size": 19
+    },
+    {
+      "path": ".github/workflows/refresh-manifest-optional-notion.yml",
+      "sha256": "8f6643dcbafd881d603ade6231b4f26767aa7738b46a98f4d9b60a2984592546",
+      "size": 1169
     },
     {
       "path": ".github/workflows/validate-rules.yml",
@@ -244,8 +249,8 @@
     },
     {
       "path": "services/todo_gateway/service_main.py",
-      "sha256": "6b4ded2e3cef6f4367df05b17616cceeb536e9ff08a9d139ff763aceaa6579ac",
-      "size": 3332
+      "sha256": "1a8cd21afbdf084fbdbc9c82b00cf05e68ae32376df08db5bf3c9382045ea6cd",
+      "size": 4192
     },
     {
       "path": "services/todo_gateway/worker.py",
@@ -314,8 +319,8 @@
     },
     {
       "path": "tests/test_todo_gateway_service_main.py",
-      "sha256": "3493baad10d776aa6640a48e6369045518c4e0ff5c4fc4e6db8c49a5fe4ee651",
-      "size": 3676
+      "sha256": "8ee8889c50166a47e64e35a7e923177d11c7eb56cb0ca8f982ed541be34d0255",
+      "size": 4827
     }
   ]
 }
