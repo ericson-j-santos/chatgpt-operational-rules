@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-PORT = 8091
+PORT = 8094
 COMPOSE = "docker-compose.pc24x7.yml"
 REDACT_PATTERNS = (
     (re.compile(r"postgres(?:ql)?://[^@\s]+@", re.I), "postgresql://[REDACTED]@"),
@@ -36,11 +36,27 @@ def redact(text: str) -> str:
     return text
 
 
+def ensure_port_setting(path: Path) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        if line.startswith("TODO_GATEWAY_PORT="):
+            updated.append(f"TODO_GATEWAY_PORT={PORT}")
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(f"TODO_GATEWAY_PORT={PORT}")
+    path.write_text("\n".join(updated) + "\n", encoding="utf-8", newline="\n")
+
+
 def ensure_runtime_env() -> Path:
     root = runtime_dir()
     root.mkdir(parents=True, exist_ok=True)
     path = root / "runtime.env"
     if path.exists():
+        ensure_port_setting(path)
         return path
     password = secrets.token_urlsafe(32)
     token = secrets.token_urlsafe(40)
