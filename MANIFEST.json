@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T02:50:53.780258+00:00",
+  "generated_at": "2026-09-15T12:27:11.139099+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -191,6 +191,11 @@
       "path": "scripts/validate_rules.py",
       "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
       "size": 8865
+    },
+    {
+      "path": "sql/todo_bus_postgres.sql",
+      "sha256": "182eaac8b61ce03ef290227ecfac5b8d730d928d5e85484b1db155bc73da7f0f",
+      "size": 6166
     },
     {
       "path": "templates/execution-blueprint.md",
