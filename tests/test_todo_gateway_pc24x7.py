@@ -12,7 +12,7 @@ def test_pc24x7_compose_has_persistent_postgres_and_restart_policy():
     assert "postgres:16-alpine" in text
     assert "todo_global_pgdata:/var/lib/postgresql/data" in text
     assert text.count("restart: unless-stopped") == 2
-    assert "127.0.0.1:${TODO_GATEWAY_PORT:-8091}:8000" in text
+    assert "127.0.0.1:${TODO_GATEWAY_PORT:-8094}:8000" in text
     assert "condition: service_healthy" in text
 
 
@@ -26,8 +26,10 @@ def test_pc24x7_gateway_uses_runtime_env_and_does_not_require_notion():
 
 def test_bootstrap_generates_secrets_locally_without_printing_them():
     text = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "PORT = 8094" in text
     assert "secrets.token_urlsafe" in text
     assert 'root / "runtime.env"' in text
+    assert "ensure_port_setting(path)" in text
     assert "TODO_GATEWAY_TOKEN={token}" in text
     assert '"TODO_GATEWAY_TOKEN": token' not in text
     assert '"POSTGRES_PASSWORD": password' not in text
