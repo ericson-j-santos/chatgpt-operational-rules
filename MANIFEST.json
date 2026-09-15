@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T23:11:38.938734+00:00",
+  "generated_at": "2026-09-15T23:38:40.772697+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,6 +11,11 @@
       "path": ".github/workflows/validate-rules.yml",
       "sha256": "83a584cfe7425289fdf0b99811da9aad4f2ecb01cc3593ea64d491fbc2a8a1a6",
       "size": 2325
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "4eb7819e47edd0d53eb8b32b97ad2d488c11d42841e07c58032b5806c0ff5961",
+      "size": 96
     },
     {
       "path": "AGENTS.md",
@@ -31,6 +36,11 @@
       "path": "config/command-gateway.policy.json",
       "sha256": "f2af11e235a2c9dcf4de70a9542010962fc0e65d37b0c7c707d20c089a701c9a",
       "size": 974
+    },
+    {
+      "path": "docker-compose.pc24x7.yml",
+      "sha256": "c8ae3ebfc61c770ca18fff9d48904adb1d39ef71e89e6b022a79de0b240401d6",
+      "size": 1135
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
@@ -198,6 +208,11 @@
       "size": 5483
     },
     {
+      "path": "scripts/todo_gateway_pc24x7.py",
+      "sha256": "ba602edc7307923674ca72dcf100d9a365861bef8dbab0344811e25b3467bb21",
+      "size": 5030
+    },
+    {
       "path": "scripts/validate_rules.py",
       "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
       "size": 8865
@@ -206,6 +221,11 @@
       "path": "services/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size": 0
+    },
+    {
+      "path": "services/todo_gateway/Dockerfile.pc24x7",
+      "sha256": "8c9fea215e3480225638da91817ffa684064a6c2cf5d62cfaf4d5cfcbee292e5",
+      "size": 345
     },
     {
       "path": "services/todo_gateway/README.md",
@@ -306,6 +326,11 @@
       "path": "tests/test_todo_event_bus.py",
       "sha256": "2b4488802467fc792e7c66a9c18ab7f866d401bf9aef65a72ffd411ff797d2f3",
       "size": 5773
+    },
+    {
+      "path": "tests/test_todo_gateway_pc24x7.py",
+      "sha256": "5abc84a0e91b8ba8aee39114cf6b4f06be4cfd9c99f8bde1b9e0cd76aa84b0fb",
+      "size": 1580
     },
     {
       "path": "tests/test_todo_gateway_service.py",
