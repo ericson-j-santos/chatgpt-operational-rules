@@ -1,0 +1,76 @@
+name: Link Render DEV database once
+
+on:
+  push:
+    branches:
+      - ops/render-database-link-20260915
+
+permissions:
+  contents: write
+
+jobs:
+  link-dev-database:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      POSTGRES_ID: dpg-dakr22142hec73ato3hg-a
+      SERVICE_ID: srv-dakr45m7bikc73fm67lg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/render-database-link-20260915
+          fetch-depth: 0
+
+      - name: Link DATABASE_URL securely
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RENDER_API_KEY:-}" ]]; then
+            echo 'RESULT=RENDER_API_KEY_MISSING'
+            exit 20
+          fi
+          echo 'RENDER_API_KEY_PRESENT=true'
+          conn_file="$RUNNER_TEMP/render-connection.json"
+          payload_file="$RUNNER_TEMP/render-env-payload.json"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H 'Accept: application/json' \
+            -o "$conn_file" \
+            "https://api.render.com/v1/postgres/${POSTGRES_ID}/connection-info"
+          db_url="$(python - "$conn_file" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as fh:
+              data = json.load(fh)
+          value = data.get('internalConnectionString', '')
+          if not isinstance(value, str) or not value.strip():
+              raise SystemExit('internalConnectionString missing')
+          print(value)
+          PY
+          )"
+          echo "::add-mask::$db_url"
+          DB_URL="$db_url" python - "$payload_file" <<'PY'
+          import json, os, sys
+          with open(sys.argv[1], 'w', encoding='utf-8') as fh:
+              json.dump({'value': os.environ['DB_URL']}, fh)
+          PY
+          curl --fail --silent --show-error \
+            -X PUT \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            --data-binary "@$payload_file" \
+            -o /dev/null \
+            "https://api.render.com/v1/services/${SERVICE_ID}/env-vars/DATABASE_URL"
+          rm -f "$conn_file" "$payload_file"
+          echo 'RESULT=DATABASE_URL_LINKED'
+
+      - name: Remove one-shot workflow
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/link-render-database-once.yml
+          git commit -m 'chore: remove one-shot Render database linker'
+          git push origin HEAD:ops/render-database-link-20260915
