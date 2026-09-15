@@ -36,7 +36,9 @@ def test_bootstrap_generates_secrets_locally_without_printing_them():
     assert "postgresql://[REDACTED]@" in text
 
 
-def test_pc24x7_image_starts_supervised_gateway():
+def test_pc24x7_image_starts_supervised_gateway_with_required_packages():
     text = DOCKERFILE.read_text(encoding="utf-8")
     assert 'CMD ["python", "-m", "services.todo_gateway.service_main"]' in text
+    assert "COPY services /app/services" in text
+    assert "COPY scripts /app/scripts" in text
     assert "COPY sql /app/sql" in text
