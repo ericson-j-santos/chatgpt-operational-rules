@@ -50,3 +50,9 @@ jobs:
         run: python -m unittest -v tests/test_todo_event_bus.py
       - name: Run TodoEvent E2E
         run: python scripts/todo_event_bus_e2e.py
+      - name: Install TODO Gateway dependencies
+        run: python -m pip install --disable-pip-version-check -r services/todo_gateway/requirements.txt
+      - name: Run TODO Gateway unit tests
+        run: python -m unittest -v tests/test_todo_gateway_service.py
+      - name: Run TODO Gateway E2E
+        run: python -m scripts.todo_gateway_e2e
