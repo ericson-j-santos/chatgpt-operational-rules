@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T20:38:15.943149+00:00",
+  "generated_at": "2026-09-15T22:51:42.101916+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "012d490b15c38fae456e485e6de4243e8d2cc3e8ef2540fececd6c15a25ac760",
-      "size": 2292
+      "sha256": "83a584cfe7425289fdf0b99811da9aad4f2ecb01cc3593ea64d491fbc2a8a1a6",
+      "size": 2325
     },
     {
       "path": "AGENTS.md",
@@ -224,8 +224,8 @@
     },
     {
       "path": "services/todo_gateway/gateway.py",
-      "sha256": "90625a293fc4be34de7e337deee36c2ce5dbb046b5c3f7033f3a056da1ae2c17",
-      "size": 4373
+      "sha256": "0185e2a8a7a8fdb59493204c10cf62b931a149683e5273281f5329bd5d7f5979",
+      "size": 8324
     },
     {
       "path": "services/todo_gateway/notion_sink.py",
@@ -234,8 +234,8 @@
     },
     {
       "path": "services/todo_gateway/repository.py",
-      "sha256": "84b1a960774794bd0fd1a844853a4ce8231e5ecba0554d745a5c7ca47033802f",
-      "size": 3522
+      "sha256": "3edcc1fcbc9c5506e83aedaacad948cd3915ea72eb66d2d96da076579e24ddcf",
+      "size": 10324
     },
     {
       "path": "services/todo_gateway/requirements.txt",
@@ -244,8 +244,8 @@
     },
     {
       "path": "services/todo_gateway/service_main.py",
-      "sha256": "f35fc01d5c3ac78d8d1f5f77b4472550368447568ec0c6e6d673eaeb0fa1c5f6",
-      "size": 3149
+      "sha256": "6b4ded2e3cef6f4367df05b17616cceeb536e9ff08a9d139ff763aceaa6579ac",
+      "size": 3332
     },
     {
       "path": "services/todo_gateway/worker.py",
@@ -256,6 +256,11 @@
       "path": "sql/todo_bus_postgres.sql",
       "sha256": "182eaac8b61ce03ef290227ecfac5b8d730d928d5e85484b1db155bc73da7f0f",
       "size": 6166
+    },
+    {
+      "path": "sql/todo_control_plane_postgres.sql",
+      "sha256": "c4efd116b2eedcbe8d6d5c2c34f96451a4413fd96548f044eb195d07ef564c23",
+      "size": 6626
     },
     {
       "path": "templates/execution-blueprint.md",
@@ -291,6 +296,11 @@
       "path": "tests/test_session_preflight.py",
       "sha256": "49a297eb9c0465aea99c7824cc7c5847497adc7b48837b89b4041ea4d777896b",
       "size": 5131
+    },
+    {
+      "path": "tests/test_todo_control_plane.py",
+      "sha256": "3a6b30177aeb8880e6328b42378b46340e1e571c9c5db0b87a3f7be48a60ef45",
+      "size": 6154
     },
     {
       "path": "tests/test_todo_event_bus.py",
