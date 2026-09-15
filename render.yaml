@@ -1,0 +1,35 @@
+databases:
+  - name: todo-global-bus-dev
+    databaseName: todo_global
+    user: todo_global
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"
+    ipAllowList: []
+
+services:
+  - type: web
+    name: todo-global-gateway-dev
+    runtime: python
+    plan: free
+    region: oregon
+    repo: https://github.com/ericson-j-santos/chatgpt-operational-rules
+    branch: main
+    buildCommand: python -m pip install --disable-pip-version-check -r services/todo_gateway/requirements.txt
+    startCommand: python -m services.todo_gateway.service_main
+    healthCheckPath: /readyz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: todo-global-bus-dev
+          property: connectionString
+      - key: TODO_GATEWAY_TOKEN
+        generateValue: true
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DATA_SOURCE_ID
+        sync: false
+      - key: TODO_WORKER_POLL_SECONDS
+        value: "2"
+      - key: PYTHONUNBUFFERED
+        value: "1"
