@@ -7,11 +7,14 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Sequence
 
 LOGGER = logging.getLogger("todo_gateway_service")
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_PATH = ROOT / "sql" / "todo_bus_postgres.sql"
+SCHEMA_PATHS = (
+    ROOT / "sql" / "todo_bus_postgres.sql",
+    ROOT / "sql" / "todo_control_plane_postgres.sql",
+)
 REQUIRED_ENV = (
     "DATABASE_URL",
     "TODO_GATEWAY_TOKEN",
@@ -26,12 +29,16 @@ def validate_environment(env: Mapping[str, str]) -> None:
         raise RuntimeError("required environment is missing: " + ", ".join(missing))
 
 
-def bootstrap_schema(database_url: str, schema_path: Path = SCHEMA_PATH) -> None:
+def bootstrap_schema(
+    database_url: str,
+    schema_path: Path | Sequence[Path] = SCHEMA_PATHS,
+) -> None:
     import psycopg
 
-    schema_sql = schema_path.read_text(encoding="utf-8")
+    paths = (schema_path,) if isinstance(schema_path, Path) else tuple(schema_path)
     with psycopg.connect(database_url) as conn:
-        conn.execute(schema_sql)
+        for path in paths:
+            conn.execute(path.read_text(encoding="utf-8"))
 
 
 def _terminate(processes: list[subprocess.Popen]) -> None:
