@@ -81,6 +81,16 @@ def validate_event_dict(data: dict[str, Any]) -> None:
         raise ValueError("todo.type inválido")
     if todo["status"] not in VALID_STATUSES:
         raise ValueError("todo.status inválido")
+    if todo["status"] == "CONCLUÍDO":
+        if not str(todo.get("completion_criteria") or "").strip():
+            raise ValueError("CONCLUÍDO exige completion_criteria")
+        if not str(todo.get("evidence") or "").strip():
+            raise ValueError("CONCLUÍDO exige evidence")
+    if todo["status"] == "BLOQUEADO":
+        if not str(todo.get("blocker") or "").strip():
+            raise ValueError("BLOQUEADO exige blocker")
+        if not str(todo.get("next_action") or "").strip():
+            raise ValueError("BLOQUEADO exige next_action")
 
 
 @dataclass(frozen=True)
