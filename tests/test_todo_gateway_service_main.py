@@ -44,12 +44,21 @@ class FakeProcess:
 
 
 class ServiceMainTests(unittest.TestCase):
-    def test_missing_required_environment_fails_before_bootstrap(self):
+    def test_missing_core_environment_fails_before_bootstrap(self):
+        env = dict(VALID_ENV)
+        env.pop("DATABASE_URL")
+
+        with patch.object(service_main, "bootstrap_schema") as bootstrap:
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
+                service_main.run_supervised(env, popen=MagicMock())
+            bootstrap.assert_not_called()
+
+    def test_partial_notion_configuration_fails_before_bootstrap(self):
         env = dict(VALID_ENV)
         env.pop("NOTION_TOKEN")
 
         with patch.object(service_main, "bootstrap_schema") as bootstrap:
-            with self.assertRaisesRegex(RuntimeError, "NOTION_TOKEN"):
+            with self.assertRaisesRegex(RuntimeError, "Notion projection configuration is incomplete"):
                 service_main.run_supervised(env, popen=MagicMock())
             bootstrap.assert_not_called()
 
@@ -91,6 +100,29 @@ class ServiceMainTests(unittest.TestCase):
         self.assertIn("services.todo_gateway.worker", created[0][0])
         self.assertIn("services.todo_gateway.asgi:app", created[1][0])
         self.assertEqual(created[1][0][-1], "8123")
+
+    def test_without_notion_starts_web_only(self):
+        env = dict(VALID_ENV)
+        env.pop("NOTION_TOKEN")
+        env.pop("NOTION_DATA_SOURCE_ID")
+        web = FakeProcess([0])
+        created = []
+
+        def popen(cmd, env):
+            created.append((cmd, env))
+            return web
+
+        with patch.object(service_main, "bootstrap_schema") as bootstrap:
+            rc = service_main.run_supervised(
+                env,
+                popen=popen,
+                sleep=lambda _: None,
+            )
+
+        self.assertEqual(rc, 1)
+        bootstrap.assert_called_once_with(env["DATABASE_URL"])
+        self.assertEqual(len(created), 1)
+        self.assertIn("services.todo_gateway.asgi:app", created[0][0])
 
     def test_clean_child_exit_is_treated_as_failure_and_stops_peer(self):
         worker = FakeProcess([None, None, 0])
