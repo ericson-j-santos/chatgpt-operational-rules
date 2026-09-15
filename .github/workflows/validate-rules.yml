@@ -46,3 +46,7 @@ jobs:
         run: python -m unittest -v tests/test_host_bootstrap.py
       - name: Run Host Bootstrap E2E
         run: python scripts/host_bootstrap_e2e.py
+      - name: Run TodoEvent unit tests
+        run: python -m unittest -v tests/test_todo_event_bus.py
+      - name: Run TodoEvent E2E
+        run: python scripts/todo_event_bus_e2e.py
