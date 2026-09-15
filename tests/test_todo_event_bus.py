@@ -38,6 +38,26 @@ def event(event_id: str, *, status: str = "PENDENTE", key: str | None = None) ->
     )
 
 
+def raw_event(event_id: str, status: str) -> dict:
+    return {
+        "schema_version": "1.0",
+        "event_id": event_id,
+        "event_type": "todo.updated",
+        "occurred_at": utc_now_iso(),
+        "correlation_id": "corr-test-0001",
+        "idempotency_key": make_idempotency_key("Geral", "Automação", "todo-global-async-v1"),
+        "project": "Geral",
+        "producer": "unittest",
+        "todo": {
+            "title": "TODO assíncrono universal",
+            "type": "Automação",
+            "external_id": "todo-global-async-v1",
+            "status": status,
+            "priority": "P1",
+        },
+    }
+
+
 class FailingSink:
     def upsert(self, event: TodoEvent) -> str:
         raise RuntimeError("falha controlada sem segredo")
@@ -56,6 +76,26 @@ class TodoEventBusTests(unittest.TestCase):
     def test_rejects_invalid_contract(self) -> None:
         with self.assertRaises(ValueError):
             validate_event_dict({"schema_version": "1.0"})
+
+    def test_rejects_completed_without_completion_evidence(self) -> None:
+        payload = raw_event("evt-00000006", "CONCLUÍDO")
+        with self.assertRaisesRegex(ValueError, "completion_criteria"):
+            validate_event_dict(payload)
+        payload["todo"]["completion_criteria"] = "Critério objetivo atendido"
+        with self.assertRaisesRegex(ValueError, "evidence"):
+            validate_event_dict(payload)
+        payload["todo"]["evidence"] = "Leitura independente confirmou o estado"
+        validate_event_dict(payload)
+
+    def test_rejects_blocked_without_cause_and_next_action(self) -> None:
+        payload = raw_event("evt-00000007", "BLOQUEADO")
+        with self.assertRaisesRegex(ValueError, "blocker"):
+            validate_event_dict(payload)
+        payload["todo"]["blocker"] = "Credencial externa indisponível"
+        with self.assertRaisesRegex(ValueError, "next_action"):
+            validate_event_dict(payload)
+        payload["todo"]["next_action"] = "Configurar credencial autorizada e revalidar"
+        validate_event_dict(payload)
 
     def test_same_event_id_is_enqueued_once(self) -> None:
         current = event("evt-00000001")

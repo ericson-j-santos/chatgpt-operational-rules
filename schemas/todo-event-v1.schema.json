@@ -175,7 +175,39 @@
           ],
           "maxLength": 100
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {"const": "CONCLUÍDO"}
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["completion_criteria", "evidence"],
+            "properties": {
+              "completion_criteria": {"type": "string", "minLength": 1},
+              "evidence": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"const": "BLOQUEADO"}
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["blocker", "next_action"],
+            "properties": {
+              "blocker": {"type": "string", "minLength": 1},
+              "next_action": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
     }
   }
 }
