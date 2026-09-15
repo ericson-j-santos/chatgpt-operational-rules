@@ -56,5 +56,7 @@ jobs:
         run: python -m unittest -v tests/test_todo_gateway_service.py tests/test_todo_control_plane.py
       - name: Run TODO Gateway Render service tests
         run: python -m unittest -v tests/test_todo_gateway_service_main.py
+      - name: Run Render TODO bootstrap tests
+        run: python -m unittest -v tests/test_render_todo_gateway_bootstrap.py
       - name: Run TODO Gateway E2E
         run: python -m scripts.todo_gateway_e2e

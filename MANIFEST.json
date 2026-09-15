@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T23:11:38.938734+00:00",
+  "generated_at": "2026-09-15T23:31:00.000000+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -8,9 +8,14 @@
       "size": 19
     },
     {
+      "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
+      "sha256": "fed9c59e2f9a7f01aff5e1b07436e3e805233fff89743e65907e323acd1a5232",
+      "size": 1542
+    },
+    {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "83a584cfe7425289fdf0b99811da9aad4f2ecb01cc3593ea64d491fbc2a8a1a6",
-      "size": 2325
+      "sha256": "e65b16fa3cedde87e2af3e456f338e821d1d5a002fd37ef0d68abc7a237c3922",
+      "size": 2450
     },
     {
       "path": "AGENTS.md",
@@ -153,6 +158,11 @@
       "size": 20845
     },
     {
+      "path": "scripts/render_todo_gateway_bootstrap.py",
+      "sha256": "e5b5e961fb92f15035fe63fe386756f8e69ddddd6500c70cbecc8b92984140dc",
+      "size": 6148
+    },
+    {
       "path": "scripts/session_bootstrap.py",
       "sha256": "f05963931b731eb945e24dcce6954c0aa09ca4d4d267263d61022d7cb40f93c4",
       "size": 9252
@@ -281,6 +291,11 @@
       "path": "tests/test_host_bootstrap.py",
       "sha256": "a4edae93fdedddb0d5a8b20e0ecc3158245859e2e010f8d3316675eb9f157f6d",
       "size": 9905
+    },
+    {
+      "path": "tests/test_render_todo_gateway_bootstrap.py",
+      "sha256": "ed0fcb2c4e7c206ffa867e734b1b66ad43c6a6da0501be4d4033d5f0d742575c",
+      "size": 1813
     },
     {
       "path": "tests/test_session_bootstrap.py",
