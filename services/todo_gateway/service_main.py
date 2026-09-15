@@ -18,15 +18,25 @@ SCHEMA_PATHS = (
 REQUIRED_ENV = (
     "DATABASE_URL",
     "TODO_GATEWAY_TOKEN",
-    "NOTION_TOKEN",
-    "NOTION_DATA_SOURCE_ID",
 )
+
+
+def notion_projection_enabled(env: Mapping[str, str]) -> bool:
+    notion_token = str(env.get("NOTION_TOKEN", "")).strip()
+    data_source_id = str(env.get("NOTION_DATA_SOURCE_ID", "")).strip()
+    if bool(notion_token) != bool(data_source_id):
+        raise RuntimeError(
+            "Notion projection configuration is incomplete: "
+            "NOTION_TOKEN and NOTION_DATA_SOURCE_ID must be both set or both unset"
+        )
+    return bool(notion_token)
 
 
 def validate_environment(env: Mapping[str, str]) -> None:
     missing = [key for key in REQUIRED_ENV if not str(env.get(key, "")).strip()]
     if missing:
         raise RuntimeError("required environment is missing: " + ", ".join(missing))
+    notion_projection_enabled(env)
 
 
 def bootstrap_schema(
@@ -73,13 +83,23 @@ def run_supervised(
     port = str(effective_env.get("PORT", "8000"))
     poll_seconds = str(effective_env.get("TODO_WORKER_POLL_SECONDS", "2"))
 
-    worker_cmd = [
-        sys.executable,
-        "-m",
-        "services.todo_gateway.worker",
-        "--poll-seconds",
-        poll_seconds,
-    ]
+    processes: list[tuple[str, subprocess.Popen]] = []
+    if notion_projection_enabled(effective_env):
+        worker_cmd = [
+            sys.executable,
+            "-m",
+            "services.todo_gateway.worker",
+            "--poll-seconds",
+            poll_seconds,
+        ]
+        worker = popen(worker_cmd, env=effective_env)
+        processes.append(("worker", worker))
+    else:
+        LOGGER.warning(
+            "Notion projection disabled: NOTION_TOKEN and NOTION_DATA_SOURCE_ID are unset; "
+            "events remain durable in Postgres until the projection worker is enabled"
+        )
+
     web_cmd = [
         sys.executable,
         "-m",
@@ -90,21 +110,19 @@ def run_supervised(
         "--port",
         port,
     ]
-
-    worker = popen(worker_cmd, env=effective_env)
     web = popen(web_cmd, env=effective_env)
-    processes = [worker, web]
+    processes.append(("web", web))
 
     try:
         while True:
-            for name, process in (("worker", worker), ("web", web)):
+            for name, process in processes:
                 return_code = process.poll()
                 if return_code is not None:
                     LOGGER.error("%s exited unexpectedly rc=%s", name, return_code)
                     return return_code if return_code != 0 else 1
             sleep(0.5)
     finally:
-        _terminate(processes)
+        _terminate([process for _, process in processes])
 
 
 def _install_signal_handlers() -> None:
