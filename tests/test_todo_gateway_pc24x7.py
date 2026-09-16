@@ -4,6 +4,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / "docker-compose.pc24x7.yml"
 BOOTSTRAP = ROOT / "scripts" / "todo_gateway_pc24x7.py"
+LIVE_E2E = ROOT / "scripts" / "todo_gateway_pc24x7_e2e.py"
+RESILIENCE = ROOT / "scripts" / "todo_gateway_pc24x7_resilience.py"
 DOCKERFILE = ROOT / "services" / "todo_gateway" / "Dockerfile.pc24x7"
 
 
@@ -24,16 +26,41 @@ def test_pc24x7_gateway_uses_runtime_env_and_does_not_require_notion():
     assert "NOTION_DATA_SOURCE_ID" not in text
 
 
-def test_bootstrap_generates_secrets_locally_without_printing_them():
+def test_bootstrap_generates_secrets_locally_and_can_start_docker_desktop():
     text = BOOTSTRAP.read_text(encoding="utf-8")
     assert "PORT = 8094" in text
     assert "secrets.token_urlsafe" in text
     assert 'root / "runtime.env"' in text
     assert "ensure_port_setting(path)" in text
+    assert "ensure_docker_ready" in text
+    assert "Docker Desktop.exe" in text
     assert "TODO_GATEWAY_TOKEN={token}" in text
     assert '"TODO_GATEWAY_TOKEN": token' not in text
     assert '"POSTGRES_PASSWORD": password' not in text
     assert "postgresql://[REDACTED]@" in text
+
+
+def test_pc24x7_live_e2e_requires_api_replay_continuation_and_independent_sql():
+    text = LIVE_E2E.read_text(encoding="utf-8")
+    assert '"POST", "/v1/events"' in text
+    assert 'f"/v1/todos/{key}/continue"' in text
+    assert '"/v1/continuations?limit=200"' in text
+    assert "docker\", \"exec" in text
+    assert "sql_event_readback" in text
+    assert "sql_continuation_readback" in text
+    assert "event_replay_idempotent" in text
+    assert "continuation_replay_idempotent" in text
+
+
+def test_pc24x7_resilience_covers_restart_backup_and_restore():
+    text = RESILIENCE.read_text(encoding="utf-8")
+    assert '"restart", "db"' in text
+    assert '"restart", "gateway"' in text
+    assert '"pg_dump"' in text
+    assert '"pg_restore"' in text
+    assert '"createdb"' in text
+    assert '"dropdb"' in text
+    assert "restore_verified" in text
 
 
 def test_pc24x7_image_starts_supervised_gateway_with_required_packages():
