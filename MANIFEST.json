@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-16T18:45:24.885431+00:00",
+  "generated_at": "2026-09-16T19:54:15.817577+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "84f3ebf6c47ab80c82beb5b1f7eb5d17c8acee0cd075a23d437fab41e00bde1d",
-      "size": 2942
+      "sha256": "afe93c25912bdb031654e0cda84c0ff9dc2fa0b9502f8f8298b1a313a97ce242",
+      "size": 2819
     },
     {
       "path": ".gitignore",
@@ -193,11 +193,6 @@
       "size": 20909
     },
     {
-      "path": "scripts/install_owner_reboot_gateway.py",
-      "sha256": "fe91862aabcf86782967cc59f561abfff6a26b8e20dcba784d160a1df10ea52b",
-      "size": 1865
-    },
-    {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
       "sha256": "544f561ba3e0397368121f496ccd8baafee4973e80686d9f8b254f5b18773b8f",
       "size": 6875
@@ -208,14 +203,9 @@
       "size": 1503
     },
     {
-      "path": "scripts/owner_reboot_gateway.py",
-      "sha256": "663f7b518223849c242d87ed979c9cb97d361cb74a6d7a1f64f38fa80afe1741",
-      "size": 8508
-    },
-    {
       "path": "scripts/owner_risk3_gateway.py",
-      "sha256": "0d7d5cffbb770f06154f783797c1ce147e6ec119cbb4b7b16be3594ab2e03839",
-      "size": 10429
+      "sha256": "38d190870783581e5460f8e4a98a48bb7c71a10f079f4456cd6e3b9062f7c9aa",
+      "size": 10862
     },
     {
       "path": "scripts/pr_ci_self_heal.py",
@@ -408,14 +398,9 @@
       "size": 1743
     },
     {
-      "path": "tests/test_owner_reboot_gateway.py",
-      "sha256": "306dad17900974b1c90b8857c181356c756624a285e44ddff26677129d2d64e9",
-      "size": 5666
-    },
-    {
       "path": "tests/test_owner_risk3_gateway.py",
-      "sha256": "5ede84b96c54ac904a3d8a87ec3a77f819fe73dd287d6d9a2e072c0809cb4cac",
-      "size": 5111
+      "sha256": "672abbb6fdceea9b9cc7ebebcd8ba17985c2a4295a1978d68f1fecfaf66fab16",
+      "size": 5655
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
