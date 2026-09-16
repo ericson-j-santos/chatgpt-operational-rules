@@ -20,7 +20,7 @@ def test_headless_runner_is_fail_closed_for_interactive_sessions():
 
 def test_headless_runner_requires_fresh_e2e_before_ready():
     text = RUNNER.read_text(encoding="utf-8")
-    assert '"todo-global-headless-boot-v3"' in text
+    assert '"todo-global-headless-boot-v4"' in text
     assert 'e2e_evidence.unlink(missing_ok=True)' in text
     assert '"e2e_evidence_fresh"' in text
     assert '"-m", "scripts.todo_gateway_pc24x7_e2e"' in text
@@ -38,12 +38,30 @@ def test_s4u_e2e_resolves_docker_without_relying_only_on_path():
     assert '[docker_executable(), "exec", DB_CONTAINER' in text
 
 
-def test_headless_runner_emits_independent_beacon():
+def test_headless_runner_emits_stage_beacons_before_terminal_result():
     text = RUNNER.read_text(encoding="utf-8")
+    ast.parse(text)
+    for stage in (
+        "runner_started",
+        "postboot_started",
+        "postboot_completed",
+        "e2e_started",
+        "e2e_completed",
+    ):
+        assert f'stage="{stage}"' in text
+    assert '"terminal": terminal' in text
     assert "socket.create_connection" in text
-    assert '"ready"' in text
-    assert '"completed_at"' in text
-    assert 'result["beacon_sent"] = True' in text
+
+
+def test_headless_runner_bounds_postboot_and_e2e_runtime():
+    text = RUNNER.read_text(encoding="utf-8")
+    assert 'parser.add_argument("--postboot-timeout", type=int, default=480)' in text
+    assert 'parser.add_argument("--e2e-timeout", type=int, default=180)' in text
+    assert "time.monotonic() + timeout_seconds" in text
+    assert '"postboot_timeout"' in text
+    assert '"e2e_timeout"' in text
+    assert "return 13" in text
+    assert "return 14" in text
 
 
 def test_installer_uses_s4u_at_startup_without_password_and_passes_repo_root():
@@ -57,10 +75,13 @@ def test_installer_uses_s4u_at_startup_without_password_and_passes_repo_root():
     assert '--repo-root "' in text
 
 
-def test_beacon_listener_is_bounded_and_persists_evidence():
+def test_beacon_listener_collects_progress_until_terminal_or_timeout():
     text = LISTENER.read_text(encoding="utf-8")
     ast.parse(text)
-    assert "server.settimeout(args.timeout)" in text
-    assert "out.write_text" in text
-    assert "received_at" in text
-    assert "payload" in text
+    assert "while len(records) < args.max_events" in text
+    assert "time.monotonic() + args.timeout" in text
+    assert 'decoded.get("terminal") is True' in text
+    assert '"terminal_received"' in text
+    assert '"timed_out"' in text
+    assert "persist(out, records" in text
+    assert "return 2 if records else 3" in text
