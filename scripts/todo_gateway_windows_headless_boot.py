@@ -47,6 +47,19 @@ def run_fail_closed(command: list[str], *, cwd: Path | None = None) -> tuple[int
     return int(proc.returncode or 0), stdout, stderr, session_appeared
 
 
+def read_json(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def tail(text: str, limit: int = 500) -> str:
+    return (text or "").strip()[-limit:]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-dir", default=str(Path.home() / "AppData/Local/ReqSys/TodoGlobal24x7"))
@@ -73,37 +86,53 @@ def main() -> int:
         return 12
 
     result["interactive_session_present"] = False
-    postboot_rc, _, _, session_appeared = run_fail_closed([sys.executable, str(postboot)])
+    postboot_rc, postboot_stdout, postboot_stderr, session_appeared = run_fail_closed([sys.executable, str(postboot)])
     if session_appeared:
         result.update({"interactive_session_appeared": True, "ready": False, "status": "interactive_session_appeared"})
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 11
     result["postboot_rc"] = postboot_rc
-    postboot_data = json.loads(postboot_evidence.read_text(encoding="utf-8")) if postboot_evidence.is_file() else {}
+    postboot_data = read_json(postboot_evidence)
     result["postboot_ready"] = bool(postboot_data.get("ready"))
     if postboot_rc != 0 or not result["postboot_ready"]:
-        result.update({"interactive_session_appeared": False, "ready": False, "status": "postboot_failed"})
+        result.update(
+            {
+                "interactive_session_appeared": False,
+                "postboot_stdout_tail": tail(postboot_stdout),
+                "postboot_stderr_tail": tail(postboot_stderr),
+                "ready": False,
+                "status": "postboot_failed",
+            }
+        )
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 1
 
-    e2e_rc, _, _, session_appeared = run_fail_closed(
+    e2e_evidence.unlink(missing_ok=True)
+    e2e_started_at = datetime.now(UTC).isoformat()
+    e2e_rc, e2e_stdout, e2e_stderr, session_appeared = run_fail_closed(
         [sys.executable, "-m", "scripts.todo_gateway_pc24x7_e2e"], cwd=repo_root
     )
     if session_appeared:
         result.update({"interactive_session_appeared": True, "ready": False, "status": "interactive_session_appeared"})
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 11
-    e2e_data = json.loads(e2e_evidence.read_text(encoding="utf-8")) if e2e_evidence.is_file() else {}
+
+    e2e_fresh = e2e_evidence.is_file()
+    e2e_data = read_json(e2e_evidence) if e2e_fresh else {}
     result.update(
         {
+            "e2e_started_at": e2e_started_at,
             "e2e_rc": e2e_rc,
-            "e2e_ready": bool(e2e_data.get("ready")),
+            "e2e_evidence_fresh": e2e_fresh,
+            "e2e_ready": e2e_fresh and bool(e2e_data.get("ready")),
             "e2e_event_id": e2e_data.get("event_id"),
             "e2e_request_id": e2e_data.get("request_id"),
+            "e2e_stdout_tail": tail(e2e_stdout),
+            "e2e_stderr_tail": tail(e2e_stderr),
             "interactive_session_appeared": False,
         }
     )
-    result["ready"] = e2e_rc == 0 and result["e2e_ready"]
+    result["ready"] = e2e_rc == 0 and result["e2e_evidence_fresh"] and result["e2e_ready"]
     result["status"] = "ready" if result["ready"] else "e2e_failed"
     result["completed_at"] = datetime.now(UTC).isoformat()
     publish(result, evidence_path, args.beacon_host, args.beacon_port)
