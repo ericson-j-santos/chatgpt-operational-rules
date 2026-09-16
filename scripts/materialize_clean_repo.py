@@ -47,10 +47,12 @@ def validate_sha(value: str) -> str:
     return value.lower()
 
 
-def validate_self(expected: str) -> None:
+def validate_self(expected: str) -> str:
     expected = expected.strip().lower()
-    if len(expected) != 64 or sha256_file(Path(__file__).resolve()) != expected:
+    actual = sha256_file(Path(__file__).resolve())
+    if len(expected) != 64 or actual != expected:
         raise MaterializeError("SHA-256 do materializador divergente")
+    return actual
 
 
 def resolve_git() -> str:
@@ -75,9 +77,12 @@ def ensure_destination(destination: Path, work_root: Path) -> tuple[Path, Path]:
 
 
 def run_git(git: str, args: list[str], *, cwd: Path | None = None) -> str:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GCM_INTERACTIVE"] = "never"
     completed = subprocess.run(
         [git, *args], cwd=cwd, capture_output=True, text=True,
-        encoding="utf-8", errors="replace", timeout=180, check=False,
+        encoding="utf-8", errors="replace", timeout=180, check=False, env=env,
     )
     if completed.returncode != 0:
         stderr = completed.stderr.strip().replace("\r", " ").replace("\n", " ")
@@ -85,7 +90,21 @@ def run_git(git: str, args: list[str], *, cwd: Path | None = None) -> str:
     return completed.stdout.strip()
 
 
-def materialize(repository: str, commit: str, destination: Path, work_root: Path) -> dict:
+def rollback_target(target: Path) -> None:
+    if not target.exists():
+        return
+    shutil.rmtree(target, ignore_errors=False)
+    if target.exists():
+        raise MaterializeError("rollback incompleto: destino parcial permaneceu no disco")
+
+
+def materialize(
+    repository: str,
+    commit: str,
+    destination: Path,
+    work_root: Path,
+    correlation_id: str,
+) -> dict:
     if repository not in REPOSITORIES:
         raise MaterializeError("repositório não permitido para materialização")
     expected = validate_sha(commit)
@@ -96,6 +115,9 @@ def materialize(repository: str, commit: str, destination: Path, work_root: Path
         target.mkdir(parents=True, exist_ok=False)
         created = True
         run_git(git, ["init", "--quiet"], cwd=target)
+        hooks_disabled = target / ".git" / "hooks-disabled"
+        hooks_disabled.mkdir(parents=True, exist_ok=True)
+        run_git(git, ["config", "core.hooksPath", str(hooks_disabled)], cwd=target)
         run_git(git, ["remote", "add", "origin", REPOSITORIES[repository]], cwd=target)
         run_git(git, ["fetch", "--quiet", "--depth=1", "origin", expected], cwd=target)
         run_git(git, ["checkout", "--quiet", "--detach", expected], cwd=target)
@@ -111,15 +133,21 @@ def materialize(repository: str, commit: str, destination: Path, work_root: Path
         return {
             "result": "CLEAN_REPO_MATERIALIZED",
             "timestamp": utc_now(),
+            "correlation_id": correlation_id,
             "repository": repository,
             "origin": origin,
             "commit": head,
             "destination": str(target),
             "clean": True,
         }
-    except Exception:
-        if created and target.exists():
-            shutil.rmtree(target, ignore_errors=True)
+    except Exception as exc:
+        if created:
+            try:
+                rollback_target(target)
+            except Exception as cleanup_exc:
+                raise MaterializeError(
+                    f"materialização falhou e rollback também falhou: {cleanup_exc}"
+                ) from exc
         raise
 
 
@@ -130,16 +158,25 @@ def main() -> int:
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--work-root", type=Path, default=Path(r"C:\dev\chatgpt-workers"))
     parser.add_argument("--expected-self-sha256", required=True)
+    parser.add_argument("--correlation-id", default=f"clean-repo-{os.getpid()}")
     ns = parser.parse_args()
     try:
-        validate_self(ns.expected_self_sha256)
-        payload = materialize(ns.repository, ns.commit, ns.destination, ns.work_root)
+        self_sha256 = validate_self(ns.expected_self_sha256)
+        payload = materialize(
+            ns.repository,
+            ns.commit,
+            ns.destination,
+            ns.work_root,
+            ns.correlation_id,
+        )
+        payload["materializer_sha256"] = self_sha256
         print(json.dumps(payload, ensure_ascii=True, sort_keys=True))
         return 0
     except Exception as exc:
         print(json.dumps({
             "result": "CLEAN_REPO_MATERIALIZE_BLOCKED",
             "timestamp": utc_now(),
+            "correlation_id": ns.correlation_id,
             "gateway_exit_code": EXIT_MATERIALIZE,
             "error": str(exc),
         }, ensure_ascii=True, sort_keys=True), file=sys.stderr)
