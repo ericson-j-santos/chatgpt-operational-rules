@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +24,8 @@ set "RDC_MAX_RETRIES=5"
 set "RDC_RETRY_SECONDS=15"
 set /a RDC_ATTEMPT=0
 
+if /I "%~1"=="--self-test" goto :selftest
+
 :run
 set /a RDC_ATTEMPT+=1
 echo [%date% %time%] Iniciando Remote Desktop Commander tentativa %RDC_ATTEMPT%/%RDC_MAX_RETRIES%... >> "%RDC_LOG%"
@@ -38,6 +41,12 @@ if %RDC_ATTEMPT% GEQ %RDC_MAX_RETRIES% exit /b %RDC_EXIT%
 echo [%date% %time%] Reinicio controlado em %RDC_RETRY_SECONDS%s. >> "%RDC_LOG%"
 timeout /t %RDC_RETRY_SECONDS% /nobreak >nul
 goto :run
+
+:selftest
+call npx --version >> "%RDC_LOG%" 2>&1
+set "RDC_EXIT=%ERRORLEVEL%"
+echo [%date% %time%] RDC_SELF_TEST terminou com codigo %RDC_EXIT%. >> "%RDC_LOG%"
+exit /b %RDC_EXIT%
 '''.replace("\n", "\r\n")
 
 
@@ -63,6 +72,7 @@ def inspect(path: Path) -> dict[str, object]:
         "size": len(payload),
         "already_fixed": MARKER in text,
         "contains_call_npx": "call npx " in text.casefold(),
+        "contains_self_test": "rdc_self_test" in text.casefold(),
     }
 
 
@@ -81,10 +91,32 @@ def apply(path: Path, expected_sha256: str) -> dict[str, object]:
     temp.write_bytes(NEW_CONTENT.encode("utf-8"))
     os.replace(temp, path)
     after = inspect(path)
-    if not after["already_fixed"] or not after["contains_call_npx"]:
+    if not after["already_fixed"] or not after["contains_call_npx"] or not after["contains_self_test"]:
         shutil.copy2(backup, path)
         raise RuntimeError("post-write validation failed; backup restored")
     return {"result": "fixed", "before": before, "after": after, "backup": str(backup)}
+
+
+def self_test(path: Path) -> dict[str, object]:
+    state = inspect(path)
+    if not state["already_fixed"] or not state["contains_self_test"]:
+        raise ValueError("launcher does not contain governed self-test")
+    comspec = os.environ.get("COMSPEC", "cmd.exe")
+    completed = subprocess.run(
+        [comspec, "/d", "/c", str(path), "--self-test"],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        shell=False,
+        timeout=60,
+        check=False,
+    )
+    return {
+        "result": "self_test_passed" if completed.returncode == 0 else "self_test_failed",
+        "exit_code": completed.returncode,
+        "state": state,
+    }
 
 
 def main() -> int:
@@ -92,13 +124,21 @@ def main() -> int:
     parser.add_argument("--launcher", required=True)
     parser.add_argument("--expected-sha256", default=EXPECTED_OLD_SHA256)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     ns = parser.parse_args()
     try:
         target = validate_target(ns.launcher)
-        result = apply(target, ns.expected_sha256) if ns.apply else {"result": "dry_run", "state": inspect(target)}
+        if ns.apply and ns.self_test:
+            raise ValueError("choose only one action: --apply or --self-test")
+        if ns.apply:
+            result = apply(target, ns.expected_sha256)
+        elif ns.self_test:
+            result = self_test(target)
+        else:
+            result = {"result": "dry_run", "state": inspect(target)}
         print(json.dumps(result, ensure_ascii=True, sort_keys=True))
-        return 0
-    except (OSError, ValueError, RuntimeError) as exc:
+        return 0 if result.get("result") != "self_test_failed" else 3
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         print(json.dumps({"result": "blocked", "error": str(exc)}, ensure_ascii=True, sort_keys=True))
         return 2
 
