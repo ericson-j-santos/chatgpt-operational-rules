@@ -1,0 +1,36 @@
+name: Refresh Debian systemd manifest once
+
+on:
+  push:
+    branches:
+      - feat/todo-global-debian-systemd-20260916
+    paths:
+      - .github/workflows/refresh-manifest-debian-systemd-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/todo-global-debian-systemd-20260916
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Debian runtime tests
+        run: python -m pytest tests/test_todo_gateway_debian_systemd.py -q -p no:cacheprovider
+      - name: Refresh canonical manifest and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/refresh-manifest-debian-systemd-once.yml
+          python scripts/generate_manifest.py
+          git add MANIFEST.json
+          git commit -m 'chore: refresh manifest for Debian systemd runtime'
+          git push origin HEAD:feat/todo-global-debian-systemd-20260916
