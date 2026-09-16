@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T13:47:12.139944+00:00",
+  "generated_at": "2026-09-16T13:54:15.485812+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "9c9b1baf1cd1d9d00c7076071309ea603dcb2c05e884327e52b080b31891e942",
-      "size": 2865
+      "sha256": "ceda02e01053bd19e991f96f5a0ca8fb432fe6c85b67f0977b9f670c38f1b30c",
+      "size": 2991
     },
     {
       "path": "config/command-gateway.policy.json",
