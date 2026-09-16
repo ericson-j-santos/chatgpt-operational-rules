@@ -40,6 +40,16 @@ def test_bootstrap_generates_secrets_locally_and_can_start_docker_desktop():
     assert "postgresql://[REDACTED]@" in text
 
 
+def test_bootstrap_propagates_programdata_to_docker_children():
+    text = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "def windows_child_env" in text
+    assert 'env.get("ProgramData")' in text
+    assert 'env.get("ALLUSERSPROFILE")' in text
+    assert 'r"C:\\ProgramData"' in text
+    assert 'env["ProgramData"] = program_data' in text
+    assert text.count("env=windows_child_env()") >= 3
+
+
 def test_pc24x7_live_e2e_requires_api_replay_continuation_and_independent_sql():
     text = LIVE_E2E.read_text(encoding="utf-8")
     assert '"POST", "/v1/events"' in text
