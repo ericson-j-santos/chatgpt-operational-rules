@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T14:29:36.167857+00:00",
+  "generated_at": "2026-09-16T14:40:11.033525+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -119,8 +119,8 @@
     },
     {
       "path": "rules/github-workflow.md",
-      "sha256": "b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7",
-      "size": 445
+      "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
+      "size": 975
     },
     {
       "path": "rules/reporting.md",
