@@ -47,6 +47,20 @@ def run_fail_closed(command: list[str], *, cwd: Path | None = None) -> tuple[int
     return int(proc.returncode or 0), stdout, stderr, session_appeared
 
 
+def last_json(stdout: str) -> dict:
+    for line in reversed(stdout.splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    return {}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-dir", default=str(Path.home() / "AppData/Local/ReqSys/TodoGlobal24x7"))
@@ -57,11 +71,13 @@ def main() -> int:
 
     base = Path(args.runtime_dir)
     repo_root = Path(args.repo_root)
-    postboot = base / "postboot_runner.py"
-    postboot_evidence = base / "evidence" / "postboot-last.json"
     e2e_evidence = base / "evidence" / "e2e-last.json"
     evidence_path = base / "evidence" / "headless-boot-last.json"
-    result = {"generated_at": datetime.now(UTC).isoformat(), "contract": "todo-global-headless-boot-v3"}
+    result = {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "contract": "todo-global-headless-boot-v4",
+        "resilience_proof_mode": "separate",
+    }
 
     if interactive_session_present():
         result.update({"interactive_session_present": True, "ready": False, "status": "blocked_interactive_session"})
@@ -73,16 +89,33 @@ def main() -> int:
         return 12
 
     result["interactive_session_present"] = False
-    postboot_rc, _, _, session_appeared = run_fail_closed([sys.executable, str(postboot)])
+    runtime_rc, runtime_stdout, _, session_appeared = run_fail_closed(
+        [
+            sys.executable,
+            "scripts/todo_gateway_pc24x7.py",
+            "up",
+            "--wait-seconds",
+            "45",
+            "--docker-wait-seconds",
+            "90",
+        ],
+        cwd=repo_root,
+    )
     if session_appeared:
         result.update({"interactive_session_appeared": True, "ready": False, "status": "interactive_session_appeared"})
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 11
-    result["postboot_rc"] = postboot_rc
-    postboot_data = json.loads(postboot_evidence.read_text(encoding="utf-8")) if postboot_evidence.is_file() else {}
-    result["postboot_ready"] = bool(postboot_data.get("ready"))
-    if postboot_rc != 0 or not result["postboot_ready"]:
-        result.update({"interactive_session_appeared": False, "ready": False, "status": "postboot_failed"})
+
+    runtime_data = last_json(runtime_stdout)
+    result.update(
+        {
+            "runtime_rc": runtime_rc,
+            "docker_ready": bool(runtime_data.get("docker_ready")),
+            "runtime_ready": bool(runtime_data.get("ready")),
+        }
+    )
+    if runtime_rc != 0 or not result["docker_ready"] or not result["runtime_ready"]:
+        result.update({"interactive_session_appeared": False, "ready": False, "status": "runtime_failed"})
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 1
 
@@ -93,6 +126,7 @@ def main() -> int:
         result.update({"interactive_session_appeared": True, "ready": False, "status": "interactive_session_appeared"})
         publish(result, evidence_path, args.beacon_host, args.beacon_port)
         return 11
+
     e2e_data = json.loads(e2e_evidence.read_text(encoding="utf-8")) if e2e_evidence.is_file() else {}
     result.update(
         {
