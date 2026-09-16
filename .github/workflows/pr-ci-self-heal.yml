@@ -145,7 +145,7 @@ jobs:
           HEAD_SHA: ${{ steps.context.outputs.head_sha }}
         run: |
           set -euo pipefail
-          gh workflow run validate-rules.yml --ref "$HEAD_REF"
+          gh workflow run validate-rules.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_REF"
           echo "action=validation_dispatched_without_code_change" >> "$GITHUB_OUTPUT"
           echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
@@ -208,7 +208,7 @@ jobs:
           git -C target commit -m "fix(ci): regenerate manifest after validation failure"
           git -C target push origin "HEAD:${HEAD_REF}"
           NEW_SHA="$(git -C target rev-parse HEAD)"
-          gh workflow run validate-rules.yml --ref "$HEAD_REF"
+          gh workflow run validate-rules.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_REF"
           echo "action=manifest_regenerated_and_validation_dispatched" >> "$GITHUB_OUTPUT"
           echo "result_sha=$NEW_SHA" >> "$GITHUB_OUTPUT"
 
