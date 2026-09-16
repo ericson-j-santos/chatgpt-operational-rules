@@ -79,6 +79,16 @@ def test_denies_destructive_tokens(token):
         m.validate_action("azure.resource.dev", a["scope"], a)
 
 
+def test_denies_host_reboot_scope_and_command():
+    scope = "host://DESKTOP-PDQK954/reboot"
+    a = action(environment="local", scope=scope, command=["python", r"C:\ReqSys\reboot_guarded.py"])
+    with pytest.raises(m.Risk3Error, match="reinicialização/desligamento"):
+        m.validate_action("host.reboot.desktop_primary", scope, a)
+    b = action(command=["python", r"C:\ReqSys\reboot_guarded.py"])
+    with pytest.raises(m.Risk3Error, match="reinicialização/desligamento"):
+        m.validate_action("tool.safe.dev", b["scope"], b)
+
+
 def test_denies_direct_secret_operation():
     a = action(command=["az", "keyvault", "secret", "show", "--vault-name", "kv"])
     with pytest.raises(m.Risk3Error, match="segredos"):

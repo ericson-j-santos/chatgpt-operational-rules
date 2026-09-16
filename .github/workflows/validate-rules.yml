@@ -32,8 +32,6 @@ jobs:
         run: python -m unittest -v tests/test_command_gateway.py
       - name: Run restricted host health unit tests
         run: python -m unittest -v tests/test_host_health_check.py
-      - name: Run one-shot reboot gateway unit tests
-        run: python -m unittest -v tests/test_owner_reboot_gateway.py
       - name: Run Command Gateway E2E
         run: python scripts/command_gateway_e2e.py
       - name: Run Session Bootstrap unit tests

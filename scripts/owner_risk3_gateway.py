@@ -44,6 +44,7 @@ SECRET_VALUE_RE = re.compile(
     r"(?i)\b(token|secret|password|passwd|api[_-]?key|authorization)\b\s*[:=]\s*\S+"
 )
 PRODUCTION_MARKER_RE = re.compile(r"(?i)(^|[/:._-])(prod|production)([/:._-]|$)")
+HOST_POWER_MARKER_RE = re.compile(r"(?i)(?:^|[\\/:._-])(reboot|shutdown|poweroff)(?:$|[\\/:._-])")
 
 
 class Risk3Error(RuntimeError):
@@ -126,6 +127,8 @@ def validate_action(action_id: str, requested_scope: str, action: dict[str, Any]
         raise Risk3Error("escopo não corresponde à allowlist local")
     if PRODUCTION_MARKER_RE.search(action_id) or PRODUCTION_MARKER_RE.search(requested_scope):
         raise Risk3Error("produção permanece bloqueada")
+    if HOST_POWER_MARKER_RE.search(action_id) or HOST_POWER_MARKER_RE.search(requested_scope):
+        raise Risk3Error("reinicialização/desligamento de host permanece bloqueado")
     expires_at = action.get("expires_at")
     if not isinstance(expires_at, str) or parse_utc(expires_at) <= datetime.now(timezone.utc):
         raise Risk3Error("exceção risco 3 expirada", EXIT_EXPIRED)
@@ -138,6 +141,8 @@ def validate_action(action_id: str, requested_scope: str, action: dict[str, Any]
         raise Risk3Error(f"executável proibido mesmo em risco 3: {exe}")
     if any(meta in arg for arg in command for meta in SHELL_META):
         raise Risk3Error("metacaractere/composição de shell proibido")
+    if any(HOST_POWER_MARKER_RE.search(arg) for arg in command):
+        raise Risk3Error("reinicialização/desligamento de host permanece bloqueado")
     lowered = [arg.casefold() for arg in command[1:]]
     if any(PRODUCTION_MARKER_RE.search(arg) for arg in command):
         raise Risk3Error("produção permanece bloqueada")
