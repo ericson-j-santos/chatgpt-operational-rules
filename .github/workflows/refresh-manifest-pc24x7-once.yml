@@ -1,0 +1,31 @@
+name: Refresh PC24x7 manifest once
+
+on:
+  push:
+    branches:
+      - feat/todo-global-pc24x7-runtime
+    paths:
+      - .github/workflows/refresh-manifest-pc24x7-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/todo-global-pc24x7-runtime
+          fetch-depth: 0
+      - name: Regenerate canonical manifest and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/refresh-manifest-pc24x7-once.yml
+          python scripts/generate_manifest.py
+          git add MANIFEST.json
+          git commit -m 'chore: refresh manifest for Desktop PC24x7 runtime'
+          git push origin HEAD:feat/todo-global-pc24x7-runtime
