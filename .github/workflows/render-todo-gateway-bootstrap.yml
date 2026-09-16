@@ -1,0 +1,60 @@
+name: Render TODO Gateway Bootstrap
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "render.yaml"
+      - "services/todo_gateway/**"
+      - "scripts/render_todo_gateway_bootstrap.py"
+      - ".github/workflows/render-todo-gateway-bootstrap.yml"
+  workflow_dispatch:
+    inputs:
+      service_id:
+        description: Render web service ID
+        required: true
+        default: srv-dakr45m7bikc73fm67lg
+      postgres_id:
+        description: Render Postgres ID
+        required: true
+        default: dpg-dakr22142hec73ato3hg-a
+      notion_data_source_id:
+        description: Notion TODO Global data source ID
+        required: true
+        default: 663a8805-d9a6-48dc-92a0-308d7a9e87ac
+      gateway_url:
+        description: Public TODO Gateway URL
+        required: true
+        default: https://todo-global-gateway-dev.onrender.com
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-todo-gateway-bootstrap-dev
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: todo-gateway-dev
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      RENDER_SERVICE_ID: ${{ inputs.service_id || 'srv-dakr45m7bikc73fm67lg' }}
+      RENDER_POSTGRES_ID: ${{ inputs.postgres_id || 'dpg-dakr22142hec73ato3hg-a' }}
+      NOTION_DATA_SOURCE_ID: ${{ inputs.notion_data_source_id || '663a8805-d9a6-48dc-92a0-308d7a9e87ac' }}
+      TODO_GATEWAY_URL: ${{ inputs.gateway_url || 'https://todo-global-gateway-dev.onrender.com' }}
+      RENDER_DEPLOY_TIMEOUT_SECONDS: "900"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate bootstrap implementation
+        run: python -m unittest -v tests.test_render_todo_gateway_bootstrap
+
+      - name: Bootstrap Render secrets and database binding
+        run: python scripts/render_todo_gateway_bootstrap.py
