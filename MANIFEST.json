@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-15T23:31:00.000000+00:00",
+  "generated_at": "2026-09-16T12:10:39.993175+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
-      "sha256": "fed9c59e2f9a7f01aff5e1b07436e3e805233fff89743e65907e323acd1a5232",
-      "size": 1542
+      "sha256": "453c85a95600a3c1dacbe9f595daabfdfbe27a82b246bd13c6f3f666c65f9b12",
+      "size": 1912
     },
     {
       "path": ".github/workflows/validate-rules.yml",
