@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T14:40:11.033525+00:00",
+  "generated_at": "2026-09-16T15:38:43.394369+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -193,6 +193,11 @@
       "size": 20909
     },
     {
+      "path": "scripts/install_todo_gateway_debian_systemd.py",
+      "sha256": "544f561ba3e0397368121f496ccd8baafee4973e80686d9f8b254f5b18773b8f",
+      "size": 6875
+    },
+    {
       "path": "scripts/owner_risk3_gateway.py",
       "sha256": "0d7d5cffbb770f06154f783797c1ce147e6ec119cbb4b7b16be3594ab2e03839",
       "size": 10429
@@ -246,6 +251,16 @@
       "path": "scripts/todo_event_bus_e2e.py",
       "sha256": "199dd6b7778b893f66ad985ded0e0b5326d9ba7ca045679abfb430903e974cef",
       "size": 3234
+    },
+    {
+      "path": "scripts/todo_gateway_debian_e2e.py",
+      "sha256": "42007468d7358ecb08dae94502f57601a61612feefb10f7af2568bef308235ef",
+      "size": 6539
+    },
+    {
+      "path": "scripts/todo_gateway_debian_resilience.py",
+      "sha256": "4e5b55d4ada649ab8c462c3baf77cdbf07632b117768092143e7a173924327f4",
+      "size": 4965
     },
     {
       "path": "scripts/todo_gateway_e2e.py",
@@ -401,6 +416,11 @@
       "path": "tests/test_todo_event_bus.py",
       "sha256": "2b4488802467fc792e7c66a9c18ab7f866d401bf9aef65a72ffd411ff797d2f3",
       "size": 5773
+    },
+    {
+      "path": "tests/test_todo_gateway_debian_systemd.py",
+      "sha256": "40d69d4d51b032b546c09ad6313828b76b1b5b82cc9dc286496270e1f61d19c1",
+      "size": 1953
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
