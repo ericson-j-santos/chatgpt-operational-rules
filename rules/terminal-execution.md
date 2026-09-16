@@ -73,6 +73,22 @@ Requisitos:
 - validar o estado após a operação;
 - registrar evidência sem expor informação sensível.
 
+### Modo temporário de desenvolvimento Risk 3
+
+Quando houver instrução explícita do proprietário para acelerar o ciclo até **padrão ouro**, o requisito de cadastrar individualmente cada `action_id` Risk 3 pode ser suspenso somente em `local/DEV` pelo `owner_risk3_gateway.py`.
+
+O modo não equivale a terminal irrestrito. São obrigatórios:
+
+- configuração privada vinculada ao usuário + máquina;
+- `reason=standard_gold_development`;
+- expiração de no máximo 30 dias por ativação;
+- script Python versionado e dentro da raiz Git;
+- worktree Git limpo;
+- auditoria com `correlation_id`, HEAD e SHA-256 do script;
+- permanência dos bloqueios de HML/STG/PROD, shell, metacaracteres, operações destrutivas, reboot/shutdown, billing, privilégios amplos e valores/opções explícitas de segredo.
+
+Ao atingir padrão ouro, ou antes de qualquer HML/STG/PROD, executar `scripts/set_owner_risk3_development_mode.py --disable` e comprovar por teste negativo que uma ação não allowlisted volta a ser recusada. Essa reativação integra o critério de conclusão da solução.
+
 ## Proteções obrigatórias
 
 - Não executar comandos obfuscados, codificados ou construídos para ocultar efeito destrutivo sem necessidade técnica justificada e validação prévia.
