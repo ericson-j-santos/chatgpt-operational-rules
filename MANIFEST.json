@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-16T18:16:16.226924+00:00",
+  "generated_at": "2026-09-16T18:17:07.973289+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,11 +11,6 @@
       "path": ".github/workflows/pr-ci-self-heal.yml",
       "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
       "size": 10821
-    },
-    {
-      "path": ".github/workflows/refresh-manifest-s4u-e2e-hotfix-once.yml",
-      "sha256": "0991f492bb8eb1603d0b6199e841a4e2ee6e61484408c2f8726e833df91ce180",
-      "size": 1178
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
