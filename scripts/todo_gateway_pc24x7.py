@@ -49,14 +49,20 @@ def docker_ready() -> bool:
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
+def docker_desktop_candidates() -> list[Path]:
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+    program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+    return [
+        program_files / "Docker" / "Docker" / "Docker Desktop.exe",
+        local / "Programs" / "DockerDesktop" / "Docker Desktop.exe",
+        local / "Docker" / "Docker Desktop.exe",
+    ]
+
+
 def start_docker_desktop() -> bool:
     if os.name != "nt":
         return False
-    candidates = [
-        Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Docker" / "Docker" / "Docker Desktop.exe",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Docker" / "Docker Desktop.exe",
-    ]
-    target = next((item for item in candidates if item.is_file()), None)
+    target = next((item for item in docker_desktop_candidates() if item.is_file()), None)
     if target is None:
         return False
     flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
