@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T14:25:31.402015+00:00",
+  "generated_at": "2026-09-16T17:09:14.520919+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "e9bc3a5c259cac685290841b02f93f47c6a172b5ce7c705d35aed06a1b849d9a",
-      "size": 10820
+      "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
+      "size": 10821
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -119,8 +119,8 @@
     },
     {
       "path": "rules/github-workflow.md",
-      "sha256": "b7ce2631eb89a8410f1324330a44eb8e49d468632a9215183b1ef22088dd86e7",
-      "size": 445
+      "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
+      "size": 975
     },
     {
       "path": "rules/reporting.md",
@@ -193,6 +193,16 @@
       "size": 20909
     },
     {
+      "path": "scripts/install_todo_gateway_debian_systemd.py",
+      "sha256": "544f561ba3e0397368121f496ccd8baafee4973e80686d9f8b254f5b18773b8f",
+      "size": 6875
+    },
+    {
+      "path": "scripts/install_todo_gateway_windows_s4u.ps1",
+      "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
+      "size": 1503
+    },
+    {
       "path": "scripts/owner_risk3_gateway.py",
       "sha256": "0d7d5cffbb770f06154f783797c1ce147e6ec119cbb4b7b16be3594ab2e03839",
       "size": 10429
@@ -248,9 +258,24 @@
       "size": 3234
     },
     {
+      "path": "scripts/todo_gateway_debian_e2e.py",
+      "sha256": "42007468d7358ecb08dae94502f57601a61612feefb10f7af2568bef308235ef",
+      "size": 6539
+    },
+    {
+      "path": "scripts/todo_gateway_debian_resilience.py",
+      "sha256": "4e5b55d4ada649ab8c462c3baf77cdbf07632b117768092143e7a173924327f4",
+      "size": 4965
+    },
+    {
       "path": "scripts/todo_gateway_e2e.py",
       "sha256": "7787269f057a1cf606dd5a450697ee30bcc3910a0b93827abf988b54d752298f",
       "size": 5483
+    },
+    {
+      "path": "scripts/todo_gateway_headless_beacon_listener.py",
+      "sha256": "fdc8151cab5c92a1e38c0deffb14bfc33ab130512084cf72bebda3b5c176d54b",
+      "size": 1235
     },
     {
       "path": "scripts/todo_gateway_pc24x7.py",
@@ -268,9 +293,9 @@
       "size": 5930
     },
     {
-      "path": "scripts/update_command_gateway_host.py",
-      "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
-      "size": 4462
+      "path": "scripts/todo_gateway_windows_headless_boot.py",
+      "sha256": "6084e6387ec0ce4a86229296c51605f2782fbb098698efbbefc059b0b6edc031",
+      "size": 4983
     },
     {
       "path": "scripts/validate_rules.py",
@@ -408,6 +433,11 @@
       "size": 5773
     },
     {
+      "path": "tests/test_todo_gateway_debian_systemd.py",
+      "sha256": "40d69d4d51b032b546c09ad6313828b76b1b5b82cc9dc286496270e1f61d19c1",
+      "size": 1953
+    },
+    {
       "path": "tests/test_todo_gateway_pc24x7.py",
       "sha256": "f68927bd30c4c82cf8e04500b47d578ea4765982623fa71142c882c321ed9a09",
       "size": 4664
@@ -423,9 +453,9 @@
       "size": 4827
     },
     {
-      "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "2b822ff6a9f278a064e1f43fe4cd5dcb29eddb1c2acc54f13f230023e8743636",
-      "size": 2152
+      "path": "tests/test_todo_gateway_windows_s4u.py",
+      "sha256": "9bd75d74356216baba71e9c88650b395c399d46676f2a0e6ed78fd6ade0d1af2",
+      "size": 2013
     }
   ]
 }
