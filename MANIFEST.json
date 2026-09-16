@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T13:47:12.139944+00:00",
+  "generated_at": "2026-09-16T13:54:41.515930+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -14,13 +14,13 @@
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
-      "sha256": "453c85a95600a3c1dacbe9f595daabfdfbe27a82b246bd13c6f3f666c65f9b12",
-      "size": 1912
+      "sha256": "a7beb73d4b975bb201cc5a10902e74b1f107c81b5a0cd45a1a6ec8264f482ea8",
+      "size": 1532
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "2fc3fd468e092ca432e574640762aa14ec346ef1b05a967c42c3336eb55ea34e",
-      "size": 2679
+      "sha256": "afe93c25912bdb031654e0cda84c0ff9dc2fa0b9502f8f8298b1a313a97ce242",
+      "size": 2819
     },
     {
       "path": ".gitignore",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "9c9b1baf1cd1d9d00c7076071309ea603dcb2c05e884327e52b080b31891e942",
-      "size": 2865
+      "sha256": "f92aa55e57efa0c13e3f2ceacca318e3ef8b11be0484eac7935f533ea5442a40",
+      "size": 3108
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -126,6 +126,11 @@
       "path": "rules/reporting.md",
       "sha256": "39fcb1b3abf23230232144d0440adbfbe5244a1159d4312430fa8ed7cf071424",
       "size": 293
+    },
+    {
+      "path": "rules/runtime-routing.md",
+      "sha256": "0bae4e68acdb3f13268d03579709fa85a0a5fff3146651600899ceb0a056680e",
+      "size": 1933
     },
     {
       "path": "rules/security-governance.md",
@@ -399,8 +404,8 @@
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
-      "sha256": "ad1ba21a6c1a6579238ccd7208bbe3ab7dfa4e851a29f1f86a777e1da5ce2f83",
-      "size": 3248
+      "sha256": "f68927bd30c4c82cf8e04500b47d578ea4765982623fa71142c882c321ed9a09",
+      "size": 4664
     },
     {
       "path": "tests/test_todo_gateway_service.py",
