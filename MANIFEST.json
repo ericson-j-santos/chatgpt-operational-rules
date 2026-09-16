@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T17:03:22.923622+00:00",
+  "generated_at": "2026-09-16T17:08:27.845309+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,6 +11,11 @@
       "path": ".github/workflows/pr-ci-self-heal.yml",
       "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
       "size": 10821
+    },
+    {
+      "path": ".github/workflows/refresh-manifest-windows-s4u-e2e-once.yml",
+      "sha256": "335c87e54b061e15501d86f0e77f7bab525022b8d69e73056b312e63a7463faf",
+      "size": 1250
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -199,8 +204,8 @@
     },
     {
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
-      "sha256": "0949dd6654739e43d2bf4d5d668c67d9572cdbae480b682ca9ef889b9d290158",
-      "size": 1342
+      "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
+      "size": 1503
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
@@ -294,8 +299,8 @@
     },
     {
       "path": "scripts/todo_gateway_windows_headless_boot.py",
-      "sha256": "2f66c4c8012e7ed000bff5edf6478c73354c06a5a45b2e72d59c2a2f6d3251fb",
-      "size": 3261
+      "sha256": "6084e6387ec0ce4a86229296c51605f2782fbb098698efbbefc059b0b6edc031",
+      "size": 4983
     },
     {
       "path": "scripts/validate_rules.py",
@@ -454,8 +459,8 @@
     },
     {
       "path": "tests/test_todo_gateway_windows_s4u.py",
-      "sha256": "14ee4c8ed7ec4aa7fa8fe4b5f03fb339494511624752a27254989bdd875f6d22",
-      "size": 1486
+      "sha256": "9bd75d74356216baba71e9c88650b395c399d46676f2a0e6ed78fd6ade0d1af2",
+      "size": 2013
     }
   ]
 }
