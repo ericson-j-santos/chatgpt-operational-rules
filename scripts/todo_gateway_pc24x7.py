@@ -35,6 +35,20 @@ def redact(text: str) -> str:
     return text
 
 
+def windows_child_env() -> dict[str, str]:
+    env = os.environ.copy()
+    if os.name == "nt":
+        program_data = (
+            env.get("ProgramData")
+            or env.get("PROGRAMDATA")
+            or env.get("ALLUSERSPROFILE")
+            or r"C:\ProgramData"
+        )
+        env["ProgramData"] = program_data
+        env["PROGRAMDATA"] = program_data
+    return env
+
+
 def docker_ready() -> bool:
     try:
         result = subprocess.run(
@@ -43,6 +57,7 @@ def docker_ready() -> bool:
             capture_output=True,
             timeout=12,
             check=False,
+            env=windows_child_env(),
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
@@ -74,6 +89,7 @@ def start_docker_desktop() -> bool:
             stderr=subprocess.DEVNULL,
             close_fds=True,
             creationflags=flags,
+            env=windows_child_env(),
         )
     except OSError:
         return False
@@ -145,6 +161,7 @@ def compose(repo_root: Path, env_file: Path, *args: str, timeout: int = 300) -> 
         errors="replace",
         timeout=timeout,
         check=False,
+        env=windows_child_env(),
     )
 
 
