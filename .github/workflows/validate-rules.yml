@@ -26,6 +26,8 @@ jobs:
           python-version: "3.12"
       - name: Validate rules and negative self-test
         run: python scripts/validate_rules.py --self-test
+      - name: Run PR CI Self Heal unit tests
+        run: python -m unittest -v tests/test_pr_ci_self_heal.py
       - name: Run Command Gateway unit tests
         run: python -m unittest -v tests/test_command_gateway.py
       - name: Run restricted host health unit tests

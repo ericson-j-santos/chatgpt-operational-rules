@@ -1,0 +1,262 @@
+name: PR CI Self Heal
+
+on:
+  workflow_run:
+    workflows:
+      - Validate Operational Rules
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR a reavaliar"
+        required: true
+        type: string
+      conclusion:
+        description: "Classe da falha a simular/reavaliar"
+        required: true
+        default: failure
+        type: choice
+        options:
+          - failure
+          - timed_out
+          - action_required
+
+permissions: {}
+
+concurrency:
+  group: pr-ci-self-heal-${{ github.event.workflow_run.head_sha || github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  self-heal:
+    name: PR CI Self Heal governado
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out' ||
+      github.event.workflow_run.conclusion == 'action_required'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: read
+      issues: write
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Resolve immutable PR context
+        id: context
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL_PR: ${{ github.event.inputs.pr_number }}
+          MANUAL_CONCLUSION: ${{ github.event.inputs.conclusion }}
+          EVENT_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+          EVENT_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            PR_NUMBER="${MANUAL_PR}"
+            CONCLUSION="${MANUAL_CONCLUSION}"
+            TRIGGER_SHA=""
+            RUN_ID=""
+            RUN_ATTEMPT="0"
+          else
+            PR_NUMBER="${EVENT_PR}"
+            CONCLUSION="${EVENT_CONCLUSION}"
+            TRIGGER_SHA="${EVENT_SHA}"
+            RUN_ID="${EVENT_RUN_ID}"
+            RUN_ATTEMPT="${EVENT_RUN_ATTEMPT:-1}"
+          fi
+
+          if [ -z "${PR_NUMBER}" ] || [ "${PR_NUMBER}" = "null" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no_pull_request_context" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "$RUNNER_TEMP/pr.json"
+          STATE="$(jq -r '.state' "$RUNNER_TEMP/pr.json")"
+          HEAD_SHA="$(jq -r '.head.sha' "$RUNNER_TEMP/pr.json")"
+          HEAD_REF="$(jq -r '.head.ref' "$RUNNER_TEMP/pr.json")"
+          HEAD_REPO="$(jq -r '.head.repo.full_name' "$RUNNER_TEMP/pr.json")"
+
+          if [ "$STATE" != "open" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=pr_not_open" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=cross_repository_pr_not_mutated" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$TRIGGER_SHA" ] && [ "$TRIGGER_SHA" != "$HEAD_SHA" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "reason=stale_workflow_run" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "reason=eligible_same_repository_pr" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "run_attempt=$RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Retry one timed-out run
+        id: retry
+        if: >-
+          steps.context.outputs.enabled == 'true' &&
+          steps.context.outputs.conclusion == 'timed_out' &&
+          steps.context.outputs.run_id != '' &&
+          steps.context.outputs.run_attempt == '1'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.context.outputs.run_id }}
+          HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"
+          echo "action=rerun_failed_jobs_once" >> "$GITHUB_OUTPUT"
+          echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch validation for action-required run
+        id: revalidate
+        if: >-
+          steps.context.outputs.enabled == 'true' &&
+          steps.context.outputs.conclusion == 'action_required'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ steps.context.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run validate-rules.yml --ref "$HEAD_REF"
+          echo "action=validation_dispatched_without_code_change" >> "$GITHUB_OUTPUT"
+          echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact failing PR head
+        if: >-
+          steps.context.outputs.enabled == 'true' &&
+          steps.context.outputs.conclusion == 'failure'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.context.outputs.head_sha }}
+          path: target
+          fetch-depth: 0
+
+      - name: Apply allowlisted manifest repair only
+        id: repair
+        if: >-
+          steps.context.outputs.enabled == 'true' &&
+          steps.context.outputs.conclusion == 'failure'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+          HEAD_REF: ${{ steps.context.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          set +e
+          python trusted/scripts/pr_ci_self_heal.py \
+            --target-root target \
+            --expected-head "$HEAD_SHA" \
+            --report "$RUNNER_TEMP/self-heal.json" > "$RUNNER_TEMP/self-heal.stdout"
+          RC=$?
+          set -e
+
+          if [ "$RC" -ne 0 ]; then
+            echo "action=blocked_by_self_heal_safety_gate" >> "$GITHUB_OUTPUT"
+            echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          STATUS="$(jq -r '.status' "$RUNNER_TEMP/self-heal.json")"
+          if [ "$STATUS" != "changed" ]; then
+            echo "action=escalate_no_allowlisted_manifest_fix" >> "$GITHUB_OUTPUT"
+            echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          test "$(git -C target diff --name-only)" = "MANIFEST.json"
+          CURRENT_REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          if [ "$CURRENT_REMOTE_SHA" != "$HEAD_SHA" ]; then
+            echo "action=blocked_concurrent_pr_update" >> "$GITHUB_OUTPUT"
+            echo "result_sha=$CURRENT_REMOTE_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git -C target config user.name "github-actions[bot]"
+          git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C target add MANIFEST.json
+          test "$(git -C target diff --cached --name-only)" = "MANIFEST.json"
+          git -C target commit -m "fix(ci): regenerate manifest after validation failure"
+          git -C target push origin "HEAD:${HEAD_REF}"
+          NEW_SHA="$(git -C target rev-parse HEAD)"
+          gh workflow run validate-rules.yml --ref "$HEAD_REF"
+          echo "action=manifest_regenerated_and_validation_dispatched" >> "$GITHUB_OUTPUT"
+          echo "result_sha=$NEW_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert PR diagnostic
+        if: steps.context.outputs.enabled == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          ORIGINAL_SHA: ${{ steps.context.outputs.head_sha }}
+          CONCLUSION: ${{ steps.context.outputs.conclusion }}
+          ACTION: ${{ steps.repair.outputs.action || steps.retry.outputs.action || steps.revalidate.outputs.action || 'escalate_unresolved_failure' }}
+          RESULT_SHA: ${{ steps.repair.outputs.result_sha || steps.retry.outputs.result_sha || steps.revalidate.outputs.result_sha || steps.context.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- operational-rules-pr-ci-self-heal -->'
+          BODY_FILE="$RUNNER_TEMP/comment.md"
+          cat > "$BODY_FILE" <<EOF
+          ${MARKER}
+          ## PR CI Self Heal
+
+          | Campo | Valor |
+          |---|---|
+          | Falha observada | \`${CONCLUSION}\` |
+          | SHA observado | \`${ORIGINAL_SHA}\` |
+          | Ação | \`${ACTION}\` |
+          | SHA resultante | \`${RESULT_SHA}\` |
+          | Merge automático | \`não\` |
+
+          A automação altera código somente quando a correção fica restrita a \`MANIFEST.json\`. Demais falhas permanecem fail-closed para correção objetiva.
+          EOF
+
+          COMMENT_ID="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | tail -n 1)"
+          if [ -n "$COMMENT_ID" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" --raw-field "body=$(cat "$BODY_FILE")" >/dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --raw-field "body=$(cat "$BODY_FILE")" >/dev/null
+          fi
+
+      - name: Fail closed when no safe remediation exists
+        if: >-
+          steps.context.outputs.enabled == 'true' &&
+          (steps.repair.outputs.action == 'escalate_no_allowlisted_manifest_fix' ||
+           steps.repair.outputs.action == 'blocked_by_self_heal_safety_gate' ||
+           steps.repair.outputs.action == 'blocked_concurrent_pr_update' ||
+           (steps.context.outputs.conclusion == 'timed_out' && steps.retry.outputs.action == ''))
+        shell: bash
+        run: |
+          echo "Falha permanece pendente: nenhuma remediação automática segura foi aplicada."
+          exit 1
