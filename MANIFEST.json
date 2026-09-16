@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T17:08:27.845309+00:00",
+  "generated_at": "2026-09-16T17:09:14.520919+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,11 +11,6 @@
       "path": ".github/workflows/pr-ci-self-heal.yml",
       "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
       "size": 10821
-    },
-    {
-      "path": ".github/workflows/refresh-manifest-windows-s4u-e2e-once.yml",
-      "sha256": "335c87e54b061e15501d86f0e77f7bab525022b8d69e73056b312e63a7463faf",
-      "size": 1250
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
