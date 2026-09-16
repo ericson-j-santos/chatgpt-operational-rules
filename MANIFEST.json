@@ -1,6 +1,6 @@
 {
-  "version": "1.6.1",
-  "generated_at": "2026-09-16T17:39:25.900445+00:00",
+  "version": "1.6.2",
+  "generated_at": "2026-09-16T17:50:03.291908+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -34,17 +34,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "64df5892794c4be95b80d9ab77debd9d27474c654ad59b2d5879bb6b666e7d3e",
-      "size": 7676
+      "sha256": "a94c6855a1bd82d5aa8f5ecf0dc854f776dc19acb0cdce11916705b937e5ccc0",
+      "size": 8478
     },
     {
       "path": "README.md",
-      "sha256": "f92aa55e57efa0c13e3f2ceacca318e3ef8b11be0484eac7935f533ea5442a40",
-      "size": 3108
+      "sha256": "3435c7967ee68d7771d52115198997bb0ca491c1d70f2a29ada2466955ef3d5e",
+      "size": 3345
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "f2af11e235a2c9dcf4de70a9542010962fc0e65d37b0c7c707d20c089a701c9a",
+      "sha256": "e1d8d661a3eb0beb6cc682438d038e8a482d78504d9a805083ef4f1667f7cd9e",
       "size": 974
     },
     {
@@ -79,8 +79,8 @@
     },
     {
       "path": "projects/reqsys.md",
-      "sha256": "7adf0fba9928441dd7ba7460d0746d8abaef91561c29dca4c9f5fb591e2edecd",
-      "size": 1372
+      "sha256": "ad88dd7d02a97bd27a8c88fb6572ab15c90f12373e39b7b0a756512cc205a4ab",
+      "size": 2349
     },
     {
       "path": "render.yaml",
@@ -129,8 +129,8 @@
     },
     {
       "path": "rules/runtime-routing.md",
-      "sha256": "0bae4e68acdb3f13268d03579709fa85a0a5fff3146651600899ceb0a056680e",
-      "size": 1933
+      "sha256": "8f6d49e19c86ed24a5cde00400d3447f87a2931fc1701bf3c46df53097a234d5",
+      "size": 4898
     },
     {
       "path": "rules/security-governance.md",

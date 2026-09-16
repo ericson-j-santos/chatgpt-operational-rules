@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.1
+Versão: 1.6.2
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -25,7 +25,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 12. Para múltiplos chats/agentes, usar workspaces isolados sob `C:\\dev\\chatgpt-workers\\*`; nunca compartilhar o mesmo working tree entre workers.
 13. Após o bootstrap, não usar terminal direto como fallback; Remote Desktop Commander é apenas transporte para preflight/gateway.
 14. Para alterações de risco 2, materializar e usar o worktree reservado da sessão.
-15. Para seleção de infraestrutura/runtime, aplicar `rules/runtime-routing.md`; no TODO Global / AI Control Plane o runtime padrão e canônico é `PC24x7 Desktop`, Render é somente contingência manual e Fly.io não é rota desse projeto.
+15. Para seleção de infraestrutura/runtime, aplicar `rules/runtime-routing.md`: avaliar e reaproveitar o `PC24x7 Desktop` antes de criar runtime pago adicional quando o workload for compatível; regras específicas de projeto/ambiente e requisitos objetivos de SLA, segurança, continuidade ou regulação podem determinar outro runtime. No TODO Global / AI Control Plane o PC24x7 permanece canônico, Render é somente contingência manual e Fly.io não é rota desse projeto.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
