@@ -1,0 +1,40 @@
+name: Refresh self-heal manifest once
+
+on:
+  push:
+    branches:
+      - feat/pr-ci-self-heal-20260916
+    paths:
+      - .github/workflows/refresh-self-heal-manifest-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/pr-ci-self-heal-20260916
+          fetch-depth: 0
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Regenerate canonical manifest and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/refresh-self-heal-manifest-once.yml
+          python scripts/generate_manifest.py
+          python scripts/validate_rules.py --self-test
+          python -m unittest -v tests/test_pr_ci_self_heal.py
+          git add MANIFEST.json
+          git diff --cached --check
+          git commit -m 'chore(ci): refresh manifest for PR self-heal'
+          git push origin HEAD:feat/pr-ci-self-heal-20260916
