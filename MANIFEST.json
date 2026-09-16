@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T13:30:50.955917+00:00",
+  "generated_at": "2026-09-16T13:36:09.338343+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -184,8 +184,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "a062a10b8fb4e325a5e67f66f29a15eda99094fc85a3fd086c30c139265ca17a",
-      "size": 20845
+      "sha256": "006c1e44ea96b58fe05c9cb7602298a0d99d45eca137f570baba2565de93e83c",
+      "size": 20909
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
