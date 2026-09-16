@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T13:40:21.905026+00:00",
+  "generated_at": "2026-09-16T13:47:12.139944+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "f2a0408deb22b2237865565758a5cffdb7b6d529a90f6e6db01223700bd94a22",
-      "size": 10764
+      "sha256": "e9bc3a5c259cac685290841b02f93f47c6a172b5ce7c705d35aed06a1b849d9a",
+      "size": 10820
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "7e75cde7eec833c51978dd22b6eb2b18769bd43d404d6c44e7ee265ef517b1cf",
-      "size": 3003
+      "sha256": "9c9b1baf1cd1d9d00c7076071309ea603dcb2c05e884327e52b080b31891e942",
+      "size": 2865
     },
     {
       "path": "config/command-gateway.policy.json",
