@@ -38,6 +38,19 @@ def test_s4u_e2e_resolves_docker_without_relying_only_on_path():
     assert '[docker_executable(), "exec", DB_CONTAINER' in text
 
 
+def test_s4u_e2e_retries_only_connection_errors_with_a_bound():
+    text = E2E.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert "HTTPError, URLError" in text
+    assert "API_CONNECT_ATTEMPTS = 10" in text
+    assert "API_CONNECT_RETRY_SECONDS = 2.0" in text
+    assert "for attempt in range(1, API_CONNECT_ATTEMPTS + 1):" in text
+    assert "except HTTPError as exc:" in text
+    assert "except URLError:" in text
+    assert "time.sleep(API_CONNECT_RETRY_SECONDS)" in text
+    assert "if attempt >= API_CONNECT_ATTEMPTS:" in text
+
+
 def test_headless_runner_emits_stage_beacons_before_terminal_result():
     text = RUNNER.read_text(encoding="utf-8")
     ast.parse(text)
