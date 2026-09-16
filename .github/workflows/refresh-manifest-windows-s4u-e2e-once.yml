@@ -1,0 +1,36 @@
+name: Refresh Windows S4U E2E manifest once
+
+on:
+  push:
+    branches:
+      - feat/todo-global-windows-s4u-headless-20260916
+    paths:
+      - .github/workflows/refresh-manifest-windows-s4u-e2e-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/todo-global-windows-s4u-headless-20260916
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pytest
+      - run: python -m pytest tests/test_todo_gateway_windows_s4u.py -q -p no:cacheprovider
+      - name: Refresh manifest and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/refresh-manifest-windows-s4u-e2e-once.yml
+          python scripts/generate_manifest.py
+          git add MANIFEST.json
+          git commit -m 'chore: refresh manifest for Windows S4U E2E runtime'
+          git push origin HEAD:feat/todo-global-windows-s4u-headless-20260916
