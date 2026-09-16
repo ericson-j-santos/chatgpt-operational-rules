@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T17:09:14.520919+00:00",
+  "generated_at": "2026-09-16T17:46:55.632775+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -211,6 +211,21 @@
       "path": "scripts/pr_ci_self_heal.py",
       "sha256": "83a94f9adc11054dc305d4bbeaf14064973dfd78105bb9beeb69008e2d359812",
       "size": 5063
+    },
+    {
+      "path": "scripts/rdc_delayed_task_run.py",
+      "sha256": "3499090bea66444bd0225c577413ecdefcb9a8a623ae5e438e884356bf1022f2",
+      "size": 3071
+    },
+    {
+      "path": "scripts/rdc_host_diagnostics.py",
+      "sha256": "b0c1c0e5e5b94507f9e150b484729591c279682847be8cb27207509331a5cf69",
+      "size": 8679
+    },
+    {
+      "path": "scripts/rdc_host_fix.py",
+      "sha256": "b4976c32780f41372c656e6d2cb87c8e49e678626c02ad37790a443cfef84df3",
+      "size": 5318
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
