@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T12:10:39.993175+00:00",
+  "generated_at": "2026-09-16T12:28:10.874642+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "e65b16fa3cedde87e2af3e456f338e821d1d5a002fd37ef0d68abc7a237c3922",
-      "size": 2450
+      "sha256": "f6e79c4f0e58706f9d94c1d9bacc6123cfcd620463e98ad26d84a6c9e423221e",
+      "size": 2569
     },
     {
       "path": "AGENTS.md",
@@ -151,6 +151,11 @@
       "path": "scripts/host_bootstrap_e2e.py",
       "sha256": "a38c707de222562129b66306790c38015a76e824a6b301670e9553865e734a85",
       "size": 5328
+    },
+    {
+      "path": "scripts/host_health_check.py",
+      "sha256": "82a12ed90b8f922fb6a44677b3fcf450c9418ca133e9b45441f3fe798b797b3f",
+      "size": 2450
     },
     {
       "path": "scripts/install_command_gateway_host.py",
@@ -291,6 +296,11 @@
       "path": "tests/test_host_bootstrap.py",
       "sha256": "a4edae93fdedddb0d5a8b20e0ecc3158245859e2e010f8d3316675eb9f157f6d",
       "size": 9905
+    },
+    {
+      "path": "tests/test_host_health_check.py",
+      "sha256": "a02e22c20722707baa120fd1b15b87e5414067e06ab2af2a50bdd1d67e61f4f7",
+      "size": 1743
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
