@@ -23,12 +23,12 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest tests/test_todo_gateway_windows_s4u.py -q -p no:cacheprovider
-      - name: Remove one-shot workflow and refresh manifest
+      - name: Remove one-shot workflow from index and refresh manifest
         run: |
-          rm -f .github/workflows/refresh-manifest-s4u-e2e-hotfix-once.yml
+          git rm -f .github/workflows/refresh-manifest-s4u-e2e-hotfix-once.yml
           python scripts/generate_manifest.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add MANIFEST.json
           git diff --cached --quiet || git commit -m 'chore: refresh manifest for S4U E2E hotfix'
           git push origin HEAD:fix/todo-global-s4u-e2e-path-freshness-20260916
