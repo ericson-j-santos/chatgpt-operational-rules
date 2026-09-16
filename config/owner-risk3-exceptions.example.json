@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "enabled": true,
+  "owner_fingerprint": "GENERATE_LOCALLY_DO_NOT_COMMIT_REAL_VALUE",
+  "actions": {
+    "azure.kv.role.assignment.add.minimal_dev": {
+      "environment": "dev",
+      "scope": "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.KeyVault/vaults/REPLACE",
+      "expires_at": "2026-12-31T23:59:59Z",
+      "command": [
+        "az",
+        "role",
+        "assignment",
+        "create",
+        "--assignee-object-id",
+        "REPLACE",
+        "--role",
+        "Key Vault Secrets User",
+        "--scope",
+        "/subscriptions/REPLACE/resourceGroups/REPLACE/providers/Microsoft.KeyVault/vaults/REPLACE"
+      ]
+    }
+  }
+}
