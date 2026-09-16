@@ -2,6 +2,9 @@ name: Patch host health runtime map
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/host-health-runtime-map-issue1649
 
 permissions:
   contents: write
