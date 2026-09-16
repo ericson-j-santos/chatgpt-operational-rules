@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-16T19:54:15.817577+00:00",
+  "generated_at": "2026-09-16T21:04:25.561767+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "3435c7967ee68d7771d52115198997bb0ca491c1d70f2a29ada2466955ef3d5e",
-      "size": 3345
+      "sha256": "80fe6c157d847f608d138637ddbe6a26c5e2d6432ad7382c64e4520203567f84",
+      "size": 4021
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -49,8 +49,8 @@
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
-      "sha256": "83a2ffa28f45726e4c99c247d3e0e6450192145327d0c270bbce750931a01e0b",
-      "size": 681
+      "sha256": "74aa5a5d27cb3fd76686286c42fdaab95435b120d2c9f7e149acfde915ceb7a3",
+      "size": 1129
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -59,8 +59,8 @@
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
-      "sha256": "4eba7d2e158dac895f56b4cef0942fa8f7573c057d8b9aed6ad560c9cd9ae1f5",
-      "size": 2026
+      "sha256": "5491ffbda946b4492ffe4c929c0e5503a430071361fb5b1b28be8203d4d7b8a4",
+      "size": 4689
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
@@ -144,8 +144,8 @@
     },
     {
       "path": "rules/terminal-execution.md",
-      "sha256": "f600cc917eb9fdc1808e5c5f3fc62ff4c12e29e15899fd2eaebfd1b1fd8c3ad6",
-      "size": 6023
+      "sha256": "879aa3825b479691391ffec941ef48af8c7fbab0d89bc6c1de15faf2660137a3",
+      "size": 7114
     },
     {
       "path": "rules/todo-global.md",
@@ -204,8 +204,8 @@
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
-      "sha256": "38d190870783581e5460f8e4a98a48bb7c71a10f079f4456cd6e3b9062f7c9aa",
-      "size": 10862
+      "sha256": "16aa0f3e793c05381f33f51698a48b98904d3b5721ff0c5470f3dde5ad703e85",
+      "size": 17544
     },
     {
       "path": "scripts/pr_ci_self_heal.py",
@@ -246,6 +246,11 @@
       "path": "scripts/session_preflight_e2e.py",
       "sha256": "922fc8c2c227cf5876ab730b2fc388d8c4730c32d1ebf5b6fa1618c51e9b53a2",
       "size": 6338
+    },
+    {
+      "path": "scripts/set_owner_risk3_development_mode.py",
+      "sha256": "6317e605439199403961aac7c766b177f077f4c6318657f91506cf5056b70195",
+      "size": 6059
     },
     {
       "path": "scripts/todo_event_bus.py",
@@ -309,12 +314,12 @@
     },
     {
       "path": "services/__init__.py",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b855",
       "size": 0
     },
     {
       "path": "services/todo_gateway/Dockerfile.pc24x7",
-      "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd91cbbf6ffed79477c0729",
+      "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd34b7272320abdeed269",
       "size": 371
     },
     {
@@ -398,9 +403,14 @@
       "size": 1743
     },
     {
+      "path": "tests/test_owner_risk3_development_mode.py",
+      "sha256": "1e51bc16e5cd8dca712936fa9ea16596daa5c8168107d530b4227708a3454af4",
+      "size": 3393
+    },
+    {
       "path": "tests/test_owner_risk3_gateway.py",
-      "sha256": "672abbb6fdceea9b9cc7ebebcd8ba17985c2a4295a1978d68f1fecfaf66fab16",
-      "size": 5655
+      "sha256": "e51c8ae33f63abb2fe1fb69f47dff6ddbadf899970e3a20f3de1609b8668033d",
+      "size": 10074
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
