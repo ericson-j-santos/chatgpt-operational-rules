@@ -10,11 +10,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from owner_risk3_gateway import (
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from owner_risk3_gateway import (  # noqa: E402
     DEV_MODE_MAX_DAYS,
     DEV_MODE_REASON,
     default_config_path,
