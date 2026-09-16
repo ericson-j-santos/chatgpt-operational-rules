@@ -30,6 +30,7 @@ COMMIT_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 RUNTIME_MAP = {
     "scripts/command_gateway.py": "bin/command_gateway.py",
+    "scripts/host_health_check.py": "bin/host_health_check.py",
     "scripts/session_bootstrap.py": "bin/session_bootstrap.py",
     "scripts/session_preflight.py": "bin/session_preflight.py",
     "scripts/session_launcher.py": "bin/session_launcher.py",
