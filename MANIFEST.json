@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T12:28:10.874642+00:00",
+  "generated_at": "2026-09-16T12:43:21.892163+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -164,8 +164,8 @@
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
-      "sha256": "e5b5e961fb92f15035fe63fe386756f8e69ddddd6500c70cbecc8b92984140dc",
-      "size": 6148
+      "sha256": "c0838f46e4d0751ff8e794e84140dc7e76f5c380c5421d58a20d3fab45fb52ac",
+      "size": 6511
     },
     {
       "path": "scripts/session_bootstrap.py",
@@ -304,8 +304,8 @@
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
-      "sha256": "ed0fcb2c4e7c206ffa867e734b1b66ad43c6a6da0501be4d4033d5f0d742575c",
-      "size": 1813
+      "sha256": "090da23b23521ea36b085fb09246fbfc81df6f0f78f9293177043bff368b7db0",
+      "size": 4861
     },
     {
       "path": "tests/test_session_bootstrap.py",
