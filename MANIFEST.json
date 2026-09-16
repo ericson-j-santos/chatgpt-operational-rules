@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-16T17:42:25.771613+00:00",
+  "generated_at": "2026-09-16T17:50:03.291908+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -34,8 +34,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "64df5892794c4be95b80d9ab77debd9d27474c654ad59b2d5879bb6b666e7d3e",
-      "size": 7676
+      "sha256": "a94c6855a1bd82d5aa8f5ecf0dc854f776dc19acb0cdce11916705b937e5ccc0",
+      "size": 8478
     },
     {
       "path": "README.md",
@@ -44,7 +44,7 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "f2af11e235a2c9dcf4de70a9542010962fc0e65d37b0c7c707d20c089a701c9a",
+      "sha256": "e1d8d661a3eb0beb6cc682438d038e8a482d78504d9a805083ef4f1667f7cd9e",
       "size": 974
     },
     {
@@ -298,6 +298,11 @@
       "size": 4983
     },
     {
+      "path": "scripts/update_command_gateway_host.py",
+      "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
+      "size": 4462
+    },
+    {
       "path": "scripts/validate_rules.py",
       "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
       "size": 8865
@@ -456,6 +461,11 @@
       "path": "tests/test_todo_gateway_windows_s4u.py",
       "sha256": "9bd75d74356216baba71e9c88650b395c399d46676f2a0e6ed78fd6ade0d1af2",
       "size": 2013
+    },
+    {
+      "path": "tests/test_update_command_gateway_host.py",
+      "sha256": "2b822ff6a9f278a064e1f43fe4cd5dcb29eddb1c2acc54f13f230023e8743636",
+      "size": 2152
     }
   ]
 }
