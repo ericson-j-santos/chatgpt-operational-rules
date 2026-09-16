@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T15:38:43.394369+00:00",
+  "generated_at": "2026-09-16T17:09:14.520919+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -198,6 +198,11 @@
       "size": 6875
     },
     {
+      "path": "scripts/install_todo_gateway_windows_s4u.ps1",
+      "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
+      "size": 1503
+    },
+    {
       "path": "scripts/owner_risk3_gateway.py",
       "sha256": "0d7d5cffbb770f06154f783797c1ce147e6ec119cbb4b7b16be3594ab2e03839",
       "size": 10429
@@ -268,6 +273,11 @@
       "size": 5483
     },
     {
+      "path": "scripts/todo_gateway_headless_beacon_listener.py",
+      "sha256": "fdc8151cab5c92a1e38c0deffb14bfc33ab130512084cf72bebda3b5c176d54b",
+      "size": 1235
+    },
+    {
       "path": "scripts/todo_gateway_pc24x7.py",
       "sha256": "4e50c13cf943bb50e1ecc21e2112d31746aa40f6e4e97382cdf5309804ca55dc",
       "size": 8193
@@ -281,6 +291,11 @@
       "path": "scripts/todo_gateway_pc24x7_resilience.py",
       "sha256": "f1eb9ca1b1264983b0591e6e1baab9fcbd5ea9aa231e96671f2c11d7b02c806a",
       "size": 5930
+    },
+    {
+      "path": "scripts/todo_gateway_windows_headless_boot.py",
+      "sha256": "6084e6387ec0ce4a86229296c51605f2782fbb098698efbbefc059b0b6edc031",
+      "size": 4983
     },
     {
       "path": "scripts/validate_rules.py",
@@ -436,6 +451,11 @@
       "path": "tests/test_todo_gateway_service_main.py",
       "sha256": "8ee8889c50166a47e64e35a7e923177d11c7eb56cb0ca8f982ed541be34d0255",
       "size": 4827
+    },
+    {
+      "path": "tests/test_todo_gateway_windows_s4u.py",
+      "sha256": "9bd75d74356216baba71e9c88650b395c399d46676f2a0e6ed78fd6ade0d1af2",
+      "size": 2013
     }
   ]
 }
