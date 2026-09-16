@@ -9,7 +9,6 @@ import os
 import re
 import secrets
 import subprocess
-import sys
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -34,6 +33,58 @@ def redact(text: str) -> str:
     for pattern, replacement in REDACT_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
+
+
+def docker_ready() -> bool:
+    try:
+        result = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            text=True,
+            capture_output=True,
+            timeout=12,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def start_docker_desktop() -> bool:
+    if os.name != "nt":
+        return False
+    candidates = [
+        Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Docker" / "Docker" / "Docker Desktop.exe",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Docker" / "Docker Desktop.exe",
+    ]
+    target = next((item for item in candidates if item.is_file()), None)
+    if target is None:
+        return False
+    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    try:
+        subprocess.Popen(
+            [str(target)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            creationflags=flags,
+        )
+    except OSError:
+        return False
+    return True
+
+
+def ensure_docker_ready(wait_seconds: int = 120) -> bool:
+    if docker_ready():
+        return True
+    if not start_docker_desktop():
+        return False
+    deadline = time.monotonic() + wait_seconds
+    while time.monotonic() < deadline:
+        if docker_ready():
+            return True
+        time.sleep(3)
+    return False
 
 
 def ensure_port_setting(path: Path) -> None:
@@ -133,22 +184,29 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("up", "status", "smoke"), nargs="?", default="up")
     parser.add_argument("--wait-seconds", type=int, default=90)
+    parser.add_argument("--docker-wait-seconds", type=int, default=120)
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     env_file = ensure_runtime_env()
 
     if args.action == "up":
+        if not ensure_docker_ready(args.docker_wait_seconds):
+            print(json.dumps({"action": "up", "ready": False, "docker_ready": False}))
+            return 2
         result = compose(repo_root, env_file, "up", "-d", "--build")
         if result.returncode != 0:
             print(json.dumps({"action": "up", "ready": False, "docker_rc": result.returncode, "stderr": redact(result.stderr[-4000:])}))
             return result.returncode or 1
         evidence = smoke(args.wait_seconds)
-        print(json.dumps({"action": "up", **evidence}, ensure_ascii=True))
+        print(json.dumps({"action": "up", "docker_ready": True, **evidence}, ensure_ascii=True))
         return 0 if evidence["ready"] else 1
 
     if args.action == "status":
+        if not docker_ready():
+            print(json.dumps({"action": "status", "docker_ready": False}))
+            return 2
         result = compose(repo_root, env_file, "ps", "--format", "json", timeout=60)
-        print(json.dumps({"action": "status", "docker_rc": result.returncode, "output": redact(result.stdout[-8000:]), "stderr": redact(result.stderr[-2000:])}, ensure_ascii=True))
+        print(json.dumps({"action": "status", "docker_ready": True, "docker_rc": result.returncode, "output": redact(result.stdout[-8000:]), "stderr": redact(result.stderr[-2000:])}, ensure_ascii=True))
         return result.returncode
 
     evidence = smoke(args.wait_seconds)
