@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-16T18:17:07.973289+00:00",
+  "generated_at": "2026-09-16T18:45:24.885431+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "afe93c25912bdb031654e0cda84c0ff9dc2fa0b9502f8f8298b1a313a97ce242",
-      "size": 2819
+      "sha256": "84f3ebf6c47ab80c82beb5b1f7eb5d17c8acee0cd075a23d437fab41e00bde1d",
+      "size": 2942
     },
     {
       "path": ".gitignore",
@@ -193,6 +193,11 @@
       "size": 20909
     },
     {
+      "path": "scripts/install_owner_reboot_gateway.py",
+      "sha256": "fe91862aabcf86782967cc59f561abfff6a26b8e20dcba784d160a1df10ea52b",
+      "size": 1865
+    },
+    {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
       "sha256": "544f561ba3e0397368121f496ccd8baafee4973e80686d9f8b254f5b18773b8f",
       "size": 6875
@@ -201,6 +206,11 @@
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
       "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
       "size": 1503
+    },
+    {
+      "path": "scripts/owner_reboot_gateway.py",
+      "sha256": "663f7b518223849c242d87ed979c9cb97d361cb74a6d7a1f64f38fa80afe1741",
+      "size": 8508
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
@@ -396,6 +406,11 @@
       "path": "tests/test_host_health_check.py",
       "sha256": "a02e22c20722707baa120fd1b15b87e5414067e06ab2af2a50bdd1d67e61f4f7",
       "size": 1743
+    },
+    {
+      "path": "tests/test_owner_reboot_gateway.py",
+      "sha256": "306dad17900974b1c90b8857c181356c756624a285e44ddff26677129d2d64e9",
+      "size": 5666
     },
     {
       "path": "tests/test_owner_risk3_gateway.py",
