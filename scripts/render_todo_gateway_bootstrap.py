@@ -129,17 +129,25 @@ def main() -> int:
     token = _require("RENDER_API_KEY")
     service_id = _require("RENDER_SERVICE_ID")
     postgres_id = _require("RENDER_POSTGRES_ID")
-    notion_token = _require("NOTION_TOKEN")
-    notion_data_source_id = _require("NOTION_DATA_SOURCE_ID")
+    notion_token = os.environ.get("NOTION_TOKEN", "").strip()
+    notion_data_source_id = os.environ.get("NOTION_DATA_SOURCE_ID", "").strip()
     service_url = _require("TODO_GATEWAY_URL")
     timeout_seconds = int(os.environ.get("RENDER_DEPLOY_TIMEOUT_SECONDS", "900"))
+
+    if notion_token and not notion_data_source_id:
+        raise RuntimeError("required secret/config is missing: NOTION_DATA_SOURCE_ID")
 
     connection_info = _request_json("GET", f"/postgres/{postgres_id}/connection-info", token)
     database_url = select_internal_connection_string(connection_info)
 
     set_env_var(token, service_id, "DATABASE_URL", database_url)
-    set_env_var(token, service_id, "NOTION_TOKEN", notion_token)
-    set_env_var(token, service_id, "NOTION_DATA_SOURCE_ID", notion_data_source_id)
+    notion_sink = "disabled"
+    env_keys = ["DATABASE_URL"]
+    if notion_token:
+        set_env_var(token, service_id, "NOTION_TOKEN", notion_token)
+        set_env_var(token, service_id, "NOTION_DATA_SOURCE_ID", notion_data_source_id)
+        notion_sink = "enabled"
+        env_keys.extend(["NOTION_TOKEN", "NOTION_DATA_SOURCE_ID"])
 
     deploy = _request_json(
         "POST",
@@ -156,7 +164,7 @@ def main() -> int:
     print(
         "RENDER_TODO_BOOTSTRAP_OK "
         f"service_id={service_id} postgres_id={postgres_id} deploy_id={deploy_id} "
-        f"deploy_status={status} readyz=200 env_keys=DATABASE_URL,NOTION_TOKEN,NOTION_DATA_SOURCE_ID"
+        f"deploy_status={status} readyz=200 notion_sink={notion_sink} env_keys={','.join(env_keys)}"
     )
     return 0
 
