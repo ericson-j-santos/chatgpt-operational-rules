@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from scripts import render_todo_gateway_bootstrap as bootstrap
 
@@ -41,6 +41,85 @@ class RenderTodoGatewayBootstrapTests(unittest.TestCase):
             "api-key",
             {"value": "very-secret"},
         )
+
+    def test_main_allows_missing_notion_token(self):
+        env = {
+            "RENDER_API_KEY": "api-key",
+            "RENDER_SERVICE_ID": "srv-1",
+            "RENDER_POSTGRES_ID": "pg-1",
+            "TODO_GATEWAY_URL": "https://gateway.example",
+            "RENDER_DEPLOY_TIMEOUT_SECONDS": "1",
+        }
+        with (
+            patch.dict(bootstrap.os.environ, env, clear=True),
+            patch.object(
+                bootstrap,
+                "_request_json",
+                side_effect=[
+                    {"internalConnectionString": "postgresql://internal.example/db"},
+                    {"id": "dep-1"},
+                ],
+            ),
+            patch.object(bootstrap, "set_env_var") as set_env,
+            patch.object(bootstrap, "_poll_deploy", return_value="live"),
+            patch.object(bootstrap, "_check_readyz") as check_readyz,
+        ):
+            self.assertEqual(bootstrap.main(), 0)
+
+        set_env.assert_called_once_with(
+            "api-key",
+            "srv-1",
+            "DATABASE_URL",
+            "postgresql://internal.example/db",
+        )
+        check_readyz.assert_called_once_with("https://gateway.example")
+
+    def test_main_configures_notion_only_when_token_exists(self):
+        env = {
+            "RENDER_API_KEY": "api-key",
+            "RENDER_SERVICE_ID": "srv-1",
+            "RENDER_POSTGRES_ID": "pg-1",
+            "NOTION_TOKEN": "notion-secret",
+            "NOTION_DATA_SOURCE_ID": "ds-1",
+            "TODO_GATEWAY_URL": "https://gateway.example",
+            "RENDER_DEPLOY_TIMEOUT_SECONDS": "1",
+        }
+        with (
+            patch.dict(bootstrap.os.environ, env, clear=True),
+            patch.object(
+                bootstrap,
+                "_request_json",
+                side_effect=[
+                    {"internalConnectionString": "postgresql://internal.example/db"},
+                    {"id": "dep-1"},
+                ],
+            ),
+            patch.object(bootstrap, "set_env_var") as set_env,
+            patch.object(bootstrap, "_poll_deploy", return_value="live"),
+            patch.object(bootstrap, "_check_readyz"),
+        ):
+            self.assertEqual(bootstrap.main(), 0)
+
+        self.assertEqual(
+            set_env.call_args_list,
+            [
+                call("api-key", "srv-1", "DATABASE_URL", "postgresql://internal.example/db"),
+                call("api-key", "srv-1", "NOTION_TOKEN", "notion-secret"),
+                call("api-key", "srv-1", "NOTION_DATA_SOURCE_ID", "ds-1"),
+            ],
+        )
+
+    def test_main_rejects_notion_token_without_data_source(self):
+        env = {
+            "RENDER_API_KEY": "api-key",
+            "RENDER_SERVICE_ID": "srv-1",
+            "RENDER_POSTGRES_ID": "pg-1",
+            "NOTION_TOKEN": "notion-secret",
+            "TODO_GATEWAY_URL": "https://gateway.example",
+        }
+        with patch.dict(bootstrap.os.environ, env, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "NOTION_DATA_SOURCE_ID"):
+                bootstrap.main()
 
 
 if __name__ == "__main__":
