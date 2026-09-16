@@ -2,9 +2,9 @@
 """Restricted diagnostics for Remote Desktop Commander on Windows.
 
 The helper intentionally avoids reading Remote Desktop Commander credential/session
-contents. It reports task/action metadata, node process count, device config file
-metadata, and a redacted launcher body only when the launcher basename is explicitly
-recognized.
+contents. It reports task/action metadata, task XML execution policy, node process
+count, device config metadata, launcher content, and a redacted tail of the launcher's
+own log.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import json
 import os
 import re
 import subprocess
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,8 @@ BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_|glpat-)[A-Za-z0-9_-]{10,}")
 CMD_PATH_RE = re.compile(r'(?i)(?:"([^\"]+\.cmd)"|([^\s]+\.cmd))')
 MAX_LAUNCHER_BYTES = 16 * 1024
+MAX_LOG_BYTES = 128 * 1024
+LOG_TAIL_LINES = 40
 
 
 def redact(value: str) -> str:
@@ -67,12 +70,47 @@ def extract_launcher(action: str) -> str | None:
     return None
 
 
-def scheduled_tasks() -> list[dict[str, str]]:
+def xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def task_policy(task_name: str) -> dict[str, Any]:
+    completed = run(["schtasks.exe", "/Query", "/TN", task_name, "/XML"])
+    if completed.returncode != 0:
+        return {"error": redact(completed.stderr.strip() or "task XML query failed")}
+    try:
+        root = ET.fromstring(completed.stdout)
+    except ET.ParseError as exc:
+        return {"error": f"task XML parse failed: {exc}"}
+    wanted = {
+        "MultipleInstancesPolicy",
+        "ExecutionTimeLimit",
+        "RestartOnFailure",
+        "DisallowStartIfOnBatteries",
+        "StopIfGoingOnBatteries",
+        "StartWhenAvailable",
+    }
+    result: dict[str, Any] = {}
+    for element in root.iter():
+        name = xml_local_name(element.tag)
+        if name not in wanted:
+            continue
+        if name == "RestartOnFailure":
+            result[name] = {
+                xml_local_name(child.tag): (child.text or "").strip()
+                for child in list(element)
+            }
+        else:
+            result[name] = (element.text or "").strip()
+    return result
+
+
+def scheduled_tasks() -> list[dict[str, Any]]:
     completed = run(["schtasks.exe", "/Query", "/FO", "CSV", "/V"])
     if completed.returncode != 0:
         return [{"error": redact(completed.stderr.strip() or "schtasks query failed")}]
     reader = csv.DictReader(io.StringIO(completed.stdout))
-    matches: list[dict[str, str]] = []
+    matches: list[dict[str, Any]] = []
     for row in reader:
         joined = " ".join(str(v or "") for v in row.values())
         if not looks_like_rdc(joined):
@@ -86,12 +124,27 @@ def scheduled_tasks() -> list[dict[str, str]]:
             or row.get("Ações")
             or ""
         )
+        last_result = (
+            row.get("Last Result")
+            or row.get("Último resultado")
+            or row.get("Ultimo resultado")
+            or ""
+        )
+        last_run = (
+            row.get("Last Run Time")
+            or row.get("Hora da última execução")
+            or row.get("Hora da ultima execução")
+            or ""
+        )
         matches.append(
             {
                 "task_name": redact(task_name),
                 "status": redact(status),
                 "action": redact(action),
                 "launcher": extract_launcher(action) or "",
+                "last_result": redact(last_result),
+                "last_run": redact(last_run),
+                "policy": task_policy(task_name) if task_name else {},
             }
         )
     return matches
@@ -117,6 +170,24 @@ def device_config_metadata() -> dict[str, Any]:
             "mtime_utc": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
         }
     )
+    return result
+
+
+def launcher_log_tail() -> dict[str, Any]:
+    path = Path.home() / "RemoteDesktopCommander.log"
+    result: dict[str, Any] = {"path": str(path), "exists": path.is_file()}
+    if not path.is_file():
+        return result
+    size = path.stat().st_size
+    result["size"] = size
+    if size > MAX_LOG_BYTES:
+        with path.open("rb") as handle:
+            handle.seek(max(0, size - MAX_LOG_BYTES))
+            payload = handle.read(MAX_LOG_BYTES)
+    else:
+        payload = path.read_bytes()
+    text = payload.decode("utf-8-sig", errors="replace")
+    result["tail_redacted"] = redact("\n".join(text.splitlines()[-LOG_TAIL_LINES:]))
     return result
 
 
@@ -147,13 +218,14 @@ def launcher_snapshot(raw: str | None) -> dict[str, Any] | None:
 
 def collect(explicit_launcher: str | None) -> dict[str, Any]:
     tasks = scheduled_tasks()
-    discovered = [item.get("launcher", "") for item in tasks if item.get("launcher")]
+    discovered = [str(item.get("launcher", "")) for item in tasks if item.get("launcher")]
     launcher = explicit_launcher or (discovered[0] if len(set(discovered)) == 1 else None)
     return {
         "host": os.environ.get("COMPUTERNAME", ""),
         "tasks": tasks,
         "node_processes": node_process_count(),
         "device_config": device_config_metadata(),
+        "launcher_log": launcher_log_tail(),
         "launcher": launcher_snapshot(launcher),
         "launcher_discovery_ambiguous": explicit_launcher is None and len(set(discovered)) > 1,
     }
