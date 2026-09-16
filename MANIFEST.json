@@ -1,6 +1,6 @@
 {
   "version": "1.6.1",
-  "generated_at": "2026-09-16T12:43:21.892163+00:00",
+  "generated_at": "2026-09-16T13:04:08.630679+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -16,6 +16,11 @@
       "path": ".github/workflows/validate-rules.yml",
       "sha256": "f6e79c4f0e58706f9d94c1d9bacc6123cfcd620463e98ad26d84a6c9e423221e",
       "size": 2569
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "4eb7819e47edd0d53eb8b32b97ad2d488c11d42841e07c58032b5806c0ff5961",
+      "size": 96
     },
     {
       "path": "AGENTS.md",
@@ -36,6 +41,11 @@
       "path": "config/command-gateway.policy.json",
       "sha256": "f2af11e235a2c9dcf4de70a9542010962fc0e65d37b0c7c707d20c089a701c9a",
       "size": 974
+    },
+    {
+      "path": "docker-compose.pc24x7.yml",
+      "sha256": "cd3f84554f6a17d02b283db601d2e7c0cbf19701a32e86317e31148a363e4784",
+      "size": 1135
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
@@ -213,6 +223,21 @@
       "size": 5483
     },
     {
+      "path": "scripts/todo_gateway_pc24x7.py",
+      "sha256": "4e50c13cf943bb50e1ecc21e2112d31746aa40f6e4e97382cdf5309804ca55dc",
+      "size": 8193
+    },
+    {
+      "path": "scripts/todo_gateway_pc24x7_e2e.py",
+      "sha256": "ec6fe59d485d41e8a01899dd3430f9afcac5f4e43abe6a83b117375367814af7",
+      "size": 7127
+    },
+    {
+      "path": "scripts/todo_gateway_pc24x7_resilience.py",
+      "sha256": "f1eb9ca1b1264983b0591e6e1baab9fcbd5ea9aa231e96671f2c11d7b02c806a",
+      "size": 5930
+    },
+    {
       "path": "scripts/validate_rules.py",
       "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
       "size": 8865
@@ -221,6 +246,11 @@
       "path": "services/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size": 0
+    },
+    {
+      "path": "services/todo_gateway/Dockerfile.pc24x7",
+      "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd91cbbf6ffed79477c0729",
+      "size": 371
     },
     {
       "path": "services/todo_gateway/README.md",
@@ -331,6 +361,11 @@
       "path": "tests/test_todo_event_bus.py",
       "sha256": "2b4488802467fc792e7c66a9c18ab7f866d401bf9aef65a72ffd411ff797d2f3",
       "size": 5773
+    },
+    {
+      "path": "tests/test_todo_gateway_pc24x7.py",
+      "sha256": "ad1ba21a6c1a6579238ccd7208bbe3ab7dfa4e851a29f1f86a777e1da5ce2f83",
+      "size": 3248
     },
     {
       "path": "tests/test_todo_gateway_service.py",
