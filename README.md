@@ -39,3 +39,5 @@ GitHub é usado para código, testes, CI/CD, infraestrutura como código e docum
 
 ## Segurança
 Este repositório pode ser público. Não registrar nele segredos, tokens, credenciais, identificadores privados de armazenamento, conteúdo confidencial ou dados pessoais desnecessários.
+
+<!-- PR_CI_SELF_HEAL_E2E_PROBE: alteração documental deliberadamente fora do MANIFEST para validar autocorreção; nunca integrar. -->
