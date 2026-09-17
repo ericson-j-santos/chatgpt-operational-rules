@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T13:40:18.415920+00:00",
+  "generated_at": "2026-09-17T14:01:02.309904+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -46,6 +46,11 @@
       "path": "config/command-gateway.policy.json",
       "sha256": "e1d8d661a3eb0beb6cc682438d038e8a482d78504d9a805083ef4f1667f7cd9e",
       "size": 974
+    },
+    {
+      "path": "config/github-workflow-dispatch.policy.json",
+      "sha256": "6b1e68b1811c167879dcad77e92776c63f2976e0f232586e907714227d361ecb",
+      "size": 301
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -201,6 +206,11 @@
       "path": "scripts/generate_manifest.py",
       "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
       "size": 1679
+    },
+    {
+      "path": "scripts/github_workflow_dispatch.py",
+      "sha256": "a30db0166d98375a2fb63a39c06e763d775db424f4fe8c831ce1a1da89f61db3",
+      "size": 2722
     },
     {
       "path": "scripts/host_bootstrap_e2e.py",
@@ -461,6 +471,11 @@
       "path": "tests/test_dispatch_workflow_governed.py",
       "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
       "size": 1260
+    },
+    {
+      "path": "tests/test_github_workflow_dispatch.py",
+      "sha256": "97ec0e64c3d3bcefc0ffbaeefe421d172d4e3d1d2f90f8359bb6a6dbf2c06e7b",
+      "size": 790
     },
     {
       "path": "tests/test_host_bootstrap.py",
