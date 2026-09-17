@@ -11,9 +11,9 @@ import sys
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 WORKFLOW_RE = re.compile(r"^[A-Za-z0-9_.-]+\.(?:yml|yaml)$")
 REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
-ALLOWED_WORKFLOWS = {"planner-teams-notify-dev-acceptance.yml"}
+ALLOWED_WORKFLOWS = {"planner-teams-notify-dev-acceptance.yml", "teams-dashboard-availability-monitor.yml"}
 ALLOWED_REPOS = {"ericson-j-santos/reqsys-v2-enterprise-real"}
-ALLOWED_REFS = {"main"}
+ALLOWED_REFS = {"main", "fix/1358-monitor-contract-diagnostics-20260917", "fix/1358-monitor-dispatch-trigger-20260917"}
 
 
 def run(*args: str) -> str:

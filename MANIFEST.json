@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T15:00:37.064542+00:00",
+  "generated_at": "2026-09-17T15:08:00.173648+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -194,8 +194,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "7524bd1b6a877e3d14173cb57a04edcd8b423513b0027e4b01e07853e27ce1a9",
-      "size": 3063
+      "sha256": "44818d79cedc040b65fcf5b939eea4c8b31b88d3be0c806c1f3592457ff538fd",
+      "size": 3203
     },
     {
       "path": "scripts/generate_manifest.py",
