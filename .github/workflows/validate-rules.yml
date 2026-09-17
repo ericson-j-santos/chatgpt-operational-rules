@@ -57,7 +57,7 @@ jobs:
       - name: Install TODO Gateway dependencies
         run: python -m pip install --disable-pip-version-check -r services/todo_gateway/requirements.txt
       - name: Run TODO Gateway unit tests
-        run: python -m unittest -v tests/test_todo_gateway_service.py tests/test_todo_control_plane.py
+        run: python -m unittest -v tests/test_todo_gateway_service.py tests/test_todo_control_plane.py tests/test_gitlab_webhook.py
       - name: Run PC24x7 canonical runtime and anti-regression tests
         run: python -m unittest -v tests/test_todo_gateway_pc24x7.py
       - name: Run TODO Gateway service-main tests
