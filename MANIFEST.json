@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T11:00:55.052317+00:00",
+  "generated_at": "2026-09-17T12:58:17.729532+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -176,6 +176,11 @@
       "path": "scripts/command_gateway_e2e.py",
       "sha256": "eac8b99332cb8dc55200f7b1df4a8cdc2fa1d7873c216e08026523ba131be539",
       "size": 6729
+    },
+    {
+      "path": "scripts/dispatch_workflow_governed.py",
+      "sha256": "7524bd1b6a877e3d14173cb57a04edcd8b423513b0027e4b01e07853e27ce1a9",
+      "size": 3063
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -416,6 +421,11 @@
       "path": "tests/test_command_gateway.py",
       "sha256": "f2762add86b29b9b3b7b9c5dd1ef66fce40e8f3ccf0d893a137c1aff012e87f4",
       "size": 6709
+    },
+    {
+      "path": "tests/test_dispatch_workflow_governed.py",
+      "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
+      "size": 1260
     },
     {
       "path": "tests/test_host_bootstrap.py",
