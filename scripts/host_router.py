@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from typing import Iterable, Protocol
@@ -93,6 +94,8 @@ class PostgresDecisionStore:
         return self._decision(correlation_id, row)
 
     def put_if_absent(self, decision: RouteDecision) -> RouteDecision:
+        if decision.node_id is None:
+            raise ValueError('cannot persist route without node_id')
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(
                 'SELECT node_id, reason, fencing_token FROM todo_bus.claim_host_route(%s,%s,%s)',
@@ -103,3 +106,56 @@ class PostgresDecisionStore:
         if persisted is None:
             raise RuntimeError('host route claim returned no decision')
         return persisted
+
+
+class PostgresNodeHealthStore:
+    def __init__(self, dsn: str) -> None:
+        if not dsn:
+            raise ValueError('DATABASE_URL is required')
+        self.dsn = dsn
+
+    def _connect(self):
+        import psycopg
+        return psycopg.connect(self.dsn)
+
+    def touch(self, node_id: str, worker_id: str, ttl_seconds: int,
+              capabilities: Iterable[str] = ()) -> None:
+        payload = json.dumps(sorted(set(capabilities)))
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(
+                'SELECT todo_bus.touch_runtime_node_heartbeat(%s,%s,%s::jsonb,%s)',
+                (node_id, worker_id, payload, ttl_seconds),
+            )
+
+    def snapshot(self, primary: str, secondary: str, ttl_seconds: int,
+                 primary_stability_seconds: int) -> list[NodeHealth]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(
+                'SELECT node_id, healthy, capabilities '
+                'FROM todo_bus.get_runtime_node_health(%s,%s,%s,%s)',
+                (primary, secondary, ttl_seconds, primary_stability_seconds),
+            )
+            rows = cur.fetchall()
+        result: list[NodeHealth] = []
+        for node_id, healthy, capabilities in rows:
+            raw = capabilities if isinstance(capabilities, list) else []
+            result.append(NodeHealth(str(node_id), bool(healthy), frozenset(str(x) for x in raw)))
+        return result
+
+
+class DynamicNodeHealth:
+    def __init__(self, store: PostgresNodeHealthStore, primary: str, secondary: str,
+                 ttl_seconds: int, primary_stability_seconds: int) -> None:
+        self.store = store
+        self.primary = primary
+        self.secondary = secondary
+        self.ttl_seconds = ttl_seconds
+        self.primary_stability_seconds = primary_stability_seconds
+
+    def __iter__(self):
+        return iter(self.store.snapshot(
+            self.primary,
+            self.secondary,
+            self.ttl_seconds,
+            self.primary_stability_seconds,
+        ))
