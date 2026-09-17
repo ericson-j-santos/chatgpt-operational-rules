@@ -24,7 +24,7 @@ def test_publish_new_branch_and_verify_remote():
         result = publish(Path("."), "fix/safe", HEAD)
     assert result["result"] == "PUBLISHED"
     assert result["remote_sha"] == HEAD
-    assert any(call.args[2] == "push" for call in mocked.call_args_list)
+    assert any(call.args[1] == "push" for call in mocked.call_args_list)
 
 
 def test_idempotent_when_remote_already_matches():
@@ -32,7 +32,7 @@ def test_idempotent_when_remote_already_matches():
     with patch("scripts.publish_branch_governed.run", side_effect=lambda *args: next(outputs)) as mocked:
         result = publish(Path("."), "fix/safe", HEAD)
     assert result["result"] == "ALREADY_PUBLISHED"
-    assert not any(call.args[2] == "push" for call in mocked.call_args_list)
+    assert not any(call.args[1] == "push" for call in mocked.call_args_list)
 
 
 def test_refuses_remote_branch_at_different_sha():

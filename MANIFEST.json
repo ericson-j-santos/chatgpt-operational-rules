@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T10:31:56.118277+00:00",
+  "generated_at": "2026-09-17T11:00:55.052317+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -304,8 +304,8 @@
     },
     {
       "path": "scripts/todo_gateway_headless_beacon_listener.py",
-      "sha256": "fdc8151cab5c92a1e38c0deffb14bfc33ab130512084cf72bebda3b5c176d54b",
-      "size": 1235
+      "sha256": "9a567e2a60c2bf2084b4329e87f4aba9acaf22d15e116a3e9ac3cc84b20ba513",
+      "size": 2913
     },
     {
       "path": "scripts/todo_gateway_pc24x7.py",
@@ -314,8 +314,8 @@
     },
     {
       "path": "scripts/todo_gateway_pc24x7_e2e.py",
-      "sha256": "22f4dd81cf85f8d57603af6177a03e1f4573bf889eb0aafabb98e021148efb6b",
-      "size": 7657
+      "sha256": "1b8cec476b040d70f16bd077c710280af1946cf60e7e59c3a96b0bce6d68e2f7",
+      "size": 8041
     },
     {
       "path": "scripts/todo_gateway_pc24x7_resilience.py",
@@ -324,8 +324,8 @@
     },
     {
       "path": "scripts/todo_gateway_windows_headless_boot.py",
-      "sha256": "86df9502be62bf901ba706468902649e1060502d4dad2f6558ac5e3bf8b5efa5",
-      "size": 5800
+      "sha256": "9b0f4b942bd48a88394844ee7de8a463b5df075bc2d80ff6a9e3fcffa8145aaa",
+      "size": 8812
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -444,7 +444,7 @@
     },
     {
       "path": "tests/test_publish_branch_governed.py",
-      "sha256": "43a3cfc50bc3c0fb3679b7c4e70ef5ed3689a1fe3051e0806a74eb780528d2a7",
+      "sha256": "9f831f8792034a5ff5ff22e44748b524237733dfabe40f5956fef5e0711a7597",
       "size": 1880
     },
     {
@@ -499,8 +499,8 @@
     },
     {
       "path": "tests/test_todo_gateway_windows_s4u.py",
-      "sha256": "ef5947d3b6816945d66130e7ff61abeb3e6052523dcef8151084919e5000a9df",
-      "size": 2495
+      "sha256": "a544a918395fae0b024a2480c40164a3b881b184d16a0043bf018f23adf9f9a1",
+      "size": 3858
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
