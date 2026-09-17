@@ -6,9 +6,21 @@ import uuid
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from todo_gateway_pc24x7_e2e import load_runtime_env
+from todo_gateway_pc24x7 import runtime_dir
 
 URL = "http://127.0.0.1:8094/v1/webhooks/gitlab"
+
+
+def load_runtime_env() -> dict[str, str]:
+    path = runtime_dir() / "runtime.env"
+    values: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key] = value
+    return values
 
 
 def post(payload: dict, token: str, event_uuid: str) -> tuple[int, dict]:
@@ -29,6 +41,7 @@ def post(payload: dict, token: str, event_uuid: str) -> tuple[int, dict]:
         except json.JSONDecodeError:
             payload_out = {}
         return exc.code, payload_out
+
 
 def main() -> int:
     env = load_runtime_env()
