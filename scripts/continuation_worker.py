@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import subprocess
+import sys
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -80,8 +84,70 @@ def _validate_idempotent_continuation(item: Continuation) -> None:
         raise HumanGate("automation_action_external_id_not_allowed")
 
 
+def _validate_head(value: object) -> str:
+    head = str(value or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise HumanGate("automation_action_expected_head_invalid")
+    return head
+
+
+def _validate_repo(item: Continuation) -> tuple[Path, str]:
+    if item.project != "AI Control Plane":
+        raise HumanGate("automation_action_project_not_allowed")
+    repo = Path(str(item.todo.get("repo_path") or "")).resolve()
+    if not repo.is_dir() or not (repo / ".git").exists():
+        raise HumanGate("automation_action_repo_invalid")
+    return repo, _validate_head(item.todo.get("expected_head"))
+
+
+def _run_governed(repo: Path, head: str, script: str, extra: list[str] | None = None) -> None:
+    root = Path(__file__).resolve().parents[1]
+    launcher = root / "scripts" / "session_launcher.py"
+    policy = root / "config" / "command-gateway.policy.json"
+    session = "auto-" + head[:12]
+    corr = "continuation-" + head[:12]
+    launch = subprocess.run([sys.executable, str(launcher), "--policy", str(policy), "--repo", str(repo),
+        "--session-id", session, "--correlation-id", corr, "--expected-head", head], capture_output=True, text=True)
+    if launch.returncode != 0:
+        raise RuntimeError("session_launch_failed:" + (launch.stderr or launch.stdout)[-240:])
+    data = json.loads(launch.stdout.strip().splitlines()[-1])
+    target = Path(data["target_path"])
+    gateway = root / "scripts" / "command_gateway.py"
+    cmd=[sys.executable, str(gateway), "--policy", str(policy), "--correlation-id", corr, "run", "--cwd", str(target),
+         "--session-id", session, "--risk", "1", "--expected-head", head, "--", sys.executable, script]
+    if extra: cmd.extend(extra)
+    run=subprocess.run(cmd, capture_output=True, text=True)
+    if run.returncode != 0:
+        raise RuntimeError("governed_execution_failed:" + (run.stdout + run.stderr)[-240:])
+
+def _run_ci_manifest_recovery(item: Continuation) -> None:
+    repo, head = _validate_repo(item)
+    _run_governed(repo, head, "scripts/pr_ci_self_heal.py", ["--target-root", str(repo), "--expected-head", head])
+
+
+def _run_e2e_validation(item: Continuation) -> None:
+    repo, head = _validate_repo(item)
+    script = str(item.todo.get("e2e_script") or "").strip()
+    allowed = {"scripts/todo_event_bus_e2e.py", "scripts/todo_gateway_pc24x7_e2e.py", "scripts/session_launcher_e2e.py"}
+    if script not in allowed:
+        raise HumanGate("automation_action_e2e_not_allowed")
+    _run_governed(repo, head, script)
+
+
+def _run_known_state_recovery(item: Continuation) -> None:
+    repo, head = _validate_repo(item)
+    recovery = str(item.todo.get("recovery") or "").strip()
+    allowed = {"manifest": "scripts/pr_ci_self_heal.py"}
+    script = allowed.get(recovery)
+    if not script:
+        raise HumanGate("automation_action_recovery_not_allowed")
+    _run_governed(repo, head, script, ["--target-root", str(repo), "--expected-head", head])
+
 ACTION_REGISTRY = {
     "ai_control_plane.validate_idempotent_continuation.v1": _validate_idempotent_continuation,
+    "operational_rules.ci_manifest_recovery.v1": _run_ci_manifest_recovery,
+    "operational_rules.e2e_validation.v1": _run_e2e_validation,
+    "operational_rules.known_state_recovery.v1": _run_known_state_recovery,
 }
 
 
