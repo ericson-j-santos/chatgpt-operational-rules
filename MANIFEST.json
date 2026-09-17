@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T00:52:21.879154+00:00",
+  "generated_at": "2026-09-17T10:31:56.118277+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -91,6 +91,11 @@
       "path": "rules/artifact-storage.md",
       "sha256": "27103df5169394b39a07eff80cec7012f32f6dcc1064ad29c7545f9297aa454b",
       "size": 769
+    },
+    {
+      "path": "rules/branch-publication.md",
+      "sha256": "b61dec74ffab39008122952d5e7cb9653cdb3ea1fb1b524fde673dbbb0abc75f",
+      "size": 1888
     },
     {
       "path": "rules/chat-bootstrap.md",
@@ -211,6 +216,11 @@
       "path": "scripts/pr_ci_self_heal.py",
       "sha256": "83a94f9adc11054dc305d4bbeaf14064973dfd78105bb9beeb69008e2d359812",
       "size": 5063
+    },
+    {
+      "path": "scripts/publish_branch_governed.py",
+      "sha256": "0649ceb5008944e0127c8a1dbd5ff53b4d543a3380606d4a23e25d32f717913f",
+      "size": 3125
     },
     {
       "path": "scripts/rdc_delayed_task_run.py",
@@ -431,6 +441,11 @@
       "path": "tests/test_pr_ci_self_heal.py",
       "sha256": "13305dd4e947c6c7c4264fc4167288783dec5a6e24da577c7fa51d49f1c55fca",
       "size": 3460
+    },
+    {
+      "path": "tests/test_publish_branch_governed.py",
+      "sha256": "43a3cfc50bc3c0fb3679b7c4e70ef5ed3689a1fe3051e0806a74eb780528d2a7",
+      "size": 1880
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
