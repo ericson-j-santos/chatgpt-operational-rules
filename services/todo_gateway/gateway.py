@@ -41,11 +41,11 @@ def _validate_operational_semantics(event: TodoEvent) -> None:
             raise ValueError("BLOQUEADO exige next_action")
 
 
-def create_app(queue: Any, gateway_token: str) -> FastAPI:
+def create_app(queue: Any, gateway_token: str, gitlab_webhook_token: str = "", gitlab_project: str = "") -> FastAPI:
     if not gateway_token:
         raise ValueError("gateway token must be configured")
 
-    app = FastAPI(title="TODO Global Event Gateway", version="1.1.0")
+    app = FastAPI(title="TODO Global Event Gateway", version="1.2.0")
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -63,12 +63,8 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
         return {"status": "ready"}
 
     @app.post("/v1/events", status_code=202)
-    async def publish_event(
-        request: Request,
-        authorization: str | None = Header(default=None),
-    ) -> JSONResponse:
+    async def publish_event(request: Request, authorization: str | None = Header(default=None)) -> JSONResponse:
         _require_authorized(gateway_token, authorization)
-
         content_length = request.headers.get("content-length")
         if content_length:
             try:
@@ -76,44 +72,44 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
                     raise HTTPException(status_code=413, detail="payload too large")
             except ValueError:
                 raise HTTPException(status_code=400, detail="invalid content-length")
-
         raw = await request.body()
         if len(raw) > MAX_BODY_BYTES:
             raise HTTPException(status_code=413, detail="payload too large")
-
         try:
-            body = json_loads(raw)
-            event = TodoEvent.from_dict(body)
+            event = TodoEvent.from_dict(json_loads(raw))
             _validate_operational_semantics(event)
         except (ValueError, TypeError, UnicodeDecodeError) as exc:
             raise HTTPException(status_code=422, detail=f"invalid TodoEvent: {exc}") from exc
-
         try:
             inserted = bool(queue.enqueue(event))
         except Exception:
-            LOGGER.exception(
-                "event persistence failed",
-                extra={"event_id": event.event_id, "correlation_id": event.correlation_id},
-            )
+            LOGGER.exception("event persistence failed", extra={"event_id": event.event_id, "correlation_id": event.correlation_id})
             raise HTTPException(status_code=503, detail="queue unavailable")
+        return JSONResponse(status_code=202, content={"accepted": True, "duplicate": not inserted, "event_id": event.event_id, "correlation_id": event.correlation_id})
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "accepted": True,
-                "duplicate": not inserted,
-                "event_id": event.event_id,
-                "correlation_id": event.correlation_id,
-            },
-        )
+    @app.post("/v1/webhooks/gitlab", status_code=202)
+    async def gitlab_webhook(request: Request) -> JSONResponse:
+        from services.todo_gateway.gitlab_webhook import authorized, normalize
+        if not authorized(gitlab_webhook_token, request.headers.get("x-gitlab-token")):
+            raise HTTPException(status_code=401, detail="unauthorized")
+        raw = await request.body()
+        if len(raw) > MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="payload too large")
+        try:
+            event = normalize(request.headers.get("x-gitlab-event", ""), request.headers.get("x-gitlab-event-uuid"), json_loads(raw), gitlab_project or None)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except (ValueError, TypeError, UnicodeDecodeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        try:
+            inserted = bool(queue.enqueue(event))
+        except Exception:
+            LOGGER.exception("GitLab webhook persistence failed", extra={"event_id": event.event_id})
+            raise HTTPException(status_code=503, detail="queue unavailable")
+        return JSONResponse(status_code=202, content={"accepted": True, "duplicate": not inserted, "event_id": event.event_id, "correlation_id": event.correlation_id})
 
     @app.get("/v1/todos")
-    def list_todos(
-        authorization: str | None = Header(default=None),
-        status: str | None = Query(default=None),
-        project: str | None = Query(default=None),
-        limit: int = Query(default=100, ge=1, le=200),
-    ) -> dict[str, Any]:
+    def list_todos(authorization: str | None = Header(default=None), status: str | None = Query(default=None), project: str | None = Query(default=None), limit: int = Query(default=100, ge=1, le=200)) -> dict[str, Any]:
         _require_authorized(gateway_token, authorization)
         if status is not None and status not in VALID_STATUSES:
             raise HTTPException(status_code=422, detail="invalid status")
@@ -122,7 +118,6 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
         except Exception:
             LOGGER.exception("control-plane TODO read failed")
             raise HTTPException(status_code=503, detail="queue unavailable")
-
         if status is not None:
             items = [item for item in items if item.get("todo", {}).get("status") == status]
         if project is not None:
@@ -131,10 +126,7 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
         return {"items": items, "count": len(items)}
 
     @app.get("/v1/continuations")
-    def list_continuations(
-        authorization: str | None = Header(default=None),
-        limit: int = Query(default=100, ge=1, le=200),
-    ) -> dict[str, Any]:
+    def list_continuations(authorization: str | None = Header(default=None), limit: int = Query(default=100, ge=1, le=200)) -> dict[str, Any]:
         _require_authorized(gateway_token, authorization)
         try:
             items = list(queue.list_continuation_requests(limit=limit))
@@ -144,11 +136,7 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
         return {"items": items, "count": len(items)}
 
     @app.post("/v1/todos/{idempotency_key}/continue", status_code=202)
-    async def request_continuation(
-        idempotency_key: str,
-        request: Request,
-        authorization: str | None = Header(default=None),
-    ) -> JSONResponse:
+    async def request_continuation(idempotency_key: str, request: Request, authorization: str | None = Header(default=None)) -> JSONResponse:
         _require_authorized(gateway_token, authorization)
         correlation_id = f"continue-{uuid.uuid4().hex}"
         raw = await request.body()
@@ -162,7 +150,6 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
             supplied = str(body.get("correlation_id") or "").strip()
             if supplied:
                 correlation_id = supplied
-
         try:
             result = queue.request_continuation(idempotency_key, correlation_id)
         except ValueError as exc:
@@ -171,33 +158,17 @@ def create_app(queue: Any, gateway_token: str) -> FastAPI:
                 raise HTTPException(status_code=409, detail=message) from exc
             raise HTTPException(status_code=422, detail=message) from exc
         except Exception:
-            LOGGER.exception(
-                "continuation persistence failed",
-                extra={"idempotency_key": idempotency_key, "correlation_id": correlation_id},
-            )
+            LOGGER.exception("continuation persistence failed", extra={"idempotency_key": idempotency_key, "correlation_id": correlation_id})
             raise HTTPException(status_code=503, detail="queue unavailable")
-
         if result is None:
             raise HTTPException(status_code=404, detail="TODO not found")
-        return JSONResponse(
-            status_code=202,
-            content={
-                "accepted": True,
-                "duplicate": bool(result.get("duplicate")),
-                "request_id": result["request_id"],
-                "idempotency_key": result["idempotency_key"],
-                "basis_event_id": result["basis_event_id"],
-                "correlation_id": result["correlation_id"],
-                "state": result["state"],
-            },
-        )
+        return JSONResponse(status_code=202, content={"accepted": True, "duplicate": bool(result.get("duplicate")), "request_id": result["request_id"], "idempotency_key": result["idempotency_key"], "basis_event_id": result["basis_event_id"], "correlation_id": result["correlation_id"], "state": result["state"]})
 
     return app
 
 
 def json_loads(raw: bytes) -> dict[str, Any]:
     import json
-
     data = json.loads(raw.decode("utf-8"))
     if not isinstance(data, dict):
         raise ValueError("body must be an object")
@@ -206,12 +177,12 @@ def json_loads(raw: bytes) -> dict[str, Any]:
 
 def create_app_from_env() -> FastAPI:
     import os
-
     from services.todo_gateway.repository import PostgresQueueRepository
-
     token = os.environ.get("TODO_GATEWAY_TOKEN", "")
+    gitlab_token = os.environ.get("GITLAB_WEBHOOK_TOKEN", "")
+    gitlab_project = os.environ.get("GITLAB_WEBHOOK_PROJECT", "")
     database_url = os.environ.get("DATABASE_URL", "")
     if not database_url:
         raise RuntimeError("DATABASE_URL is required")
     queue = PostgresQueueRepository(database_url)
-    return create_app(queue, token)
+    return create_app(queue, token, gitlab_token, gitlab_project)
