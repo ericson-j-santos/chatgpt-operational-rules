@@ -225,7 +225,6 @@ BEGIN
 END
 $$;
 
-
 CREATE TABLE IF NOT EXISTS todo_bus.worker_heartbeat (
     worker_id text PRIMARY KEY,
     heartbeat_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -238,7 +237,6 @@ RETURNS void LANGUAGE sql AS $$
     VALUES (p_worker_id, clock_timestamp(), coalesce(p_counts, '{}'::jsonb))
     ON CONFLICT (worker_id) DO UPDATE SET heartbeat_at=EXCLUDED.heartbeat_at, last_counts=EXCLUDED.last_counts;
 $$;
-
 
 CREATE SEQUENCE IF NOT EXISTS todo_bus.host_route_fencing_seq;
 CREATE TABLE IF NOT EXISTS todo_bus.host_route_decisions (
@@ -255,4 +253,72 @@ RETURNS TABLE(node_id text, reason text, fencing_token bigint) LANGUAGE sql AS $
     VALUES (p_correlation_id,p_node_id,p_reason)
     ON CONFLICT (correlation_id) DO NOTHING;
     SELECT d.node_id,d.reason,d.fencing_token FROM todo_bus.host_route_decisions d WHERE d.correlation_id=p_correlation_id;
+$$;
+
+CREATE OR REPLACE FUNCTION todo_bus.reserve_continuations_for_node(
+    p_node_id text,
+    p_limit integer DEFAULT 10,
+    p_lease_seconds integer DEFAULT 120
+)
+RETURNS SETOF todo_bus.continuation_requests
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF length(trim(coalesce(p_node_id, ''))) = 0 THEN
+        RAISE EXCEPTION 'p_node_id required';
+    END IF;
+    IF p_limit < 1 OR p_limit > 100 THEN
+        RAISE EXCEPTION 'p_limit out of range';
+    END IF;
+    IF p_lease_seconds < 1 OR p_lease_seconds > 3600 THEN
+        RAISE EXCEPTION 'p_lease_seconds out of range';
+    END IF;
+
+    RETURN QUERY
+    WITH eligible AS (
+        SELECT c.request_id
+        FROM todo_bus.continuation_requests c
+        LEFT JOIN todo_bus.host_route_decisions d
+          ON d.correlation_id = c.correlation_id
+        WHERE (
+            (c.state = 'PENDING' AND c.available_at <= clock_timestamp())
+            OR (c.state = 'PROCESSING' AND c.lease_until <= clock_timestamp())
+        )
+          AND (d.node_id IS NULL OR d.node_id = p_node_id)
+        ORDER BY c.created_at, c.request_id
+        FOR UPDATE OF c SKIP LOCKED
+        LIMIT p_limit
+    )
+    UPDATE todo_bus.continuation_requests c
+    SET
+        state = 'PROCESSING',
+        attempts = c.attempts + 1,
+        lease_until = clock_timestamp() + make_interval(secs => p_lease_seconds),
+        updated_at = clock_timestamp()
+    FROM eligible e
+    WHERE c.request_id = e.request_id
+    RETURNING c.*;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION todo_bus.release_continuation_route(p_request_id text)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    changed integer;
+BEGIN
+    UPDATE todo_bus.continuation_requests
+    SET
+        state = 'PENDING',
+        attempts = greatest(attempts - 1, 0),
+        available_at = clock_timestamp(),
+        lease_until = NULL,
+        last_error = NULL,
+        updated_at = clock_timestamp()
+    WHERE request_id = p_request_id
+      AND state = 'PROCESSING';
+    GET DIAGNOSTICS changed = ROW_COUNT;
+    RETURN changed = 1;
+END
 $$;
