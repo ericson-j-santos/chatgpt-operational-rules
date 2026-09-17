@@ -1,0 +1,22 @@
+name: todo-global-24x7-noteri
+
+services:
+  worker_noteri:
+    build:
+      context: .
+      dockerfile: services/todo_gateway/Dockerfile.pc24x7
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      WORKER_NODE_ID: Noteri
+      WORKER_ID: continuation-worker-Noteri
+      ROUTER_PRIMARY_NODE: DESKTOP-PDQK954
+      ROUTER_SECONDARY_NODE: Noteri
+      ROUTER_HEALTHY_NODES: ${ROUTER_HEALTHY_NODES:-DESKTOP-PDQK954,Noteri}
+    command: ["python", "-m", "scripts.continuation_worker", "--interval-seconds", "5"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,psycopg; c=psycopg.connect(os.environ['DATABASE_URL']); c.execute('SELECT 1'); c.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
