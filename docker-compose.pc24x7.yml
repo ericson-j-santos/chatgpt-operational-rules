@@ -38,6 +38,24 @@ services:
       retries: 12
       start_period: 20s
 
+  worker:
+    build:
+      context: .
+      dockerfile: services/todo_gateway/Dockerfile.pc24x7
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    command: ["python", "scripts/continuation_worker.py", "--interval-seconds", "5"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,psycopg; c=psycopg.connect(os.environ['DATABASE_URL']); c.execute('SELECT 1'); c.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 volumes:
   todo_global_pgdata:
     name: todo_global_pgdata

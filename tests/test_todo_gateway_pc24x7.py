@@ -17,7 +17,7 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         text = COMPOSE.read_text(encoding="utf-8")
         self.assertIn("postgres:16-alpine", text)
         self.assertIn("todo_global_pgdata:/var/lib/postgresql/data", text)
-        self.assertEqual(text.count("restart: unless-stopped"), 2)
+        self.assertEqual(text.count("restart: unless-stopped"), 3)
         self.assertIn("127.0.0.1:${TODO_GATEWAY_PORT:-8094}:8000", text)
         self.assertIn("condition: service_healthy", text)
 

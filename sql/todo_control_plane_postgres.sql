@@ -224,3 +224,17 @@ BEGIN
     RETURN target_state;
 END
 $$;
+
+
+CREATE TABLE IF NOT EXISTS todo_bus.worker_heartbeat (
+    worker_id text PRIMARY KEY,
+    heartbeat_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    last_counts jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE OR REPLACE FUNCTION todo_bus.touch_worker_heartbeat(p_worker_id text, p_counts jsonb)
+RETURNS void LANGUAGE sql AS $$
+    INSERT INTO todo_bus.worker_heartbeat(worker_id, heartbeat_at, last_counts)
+    VALUES (p_worker_id, clock_timestamp(), coalesce(p_counts, '{}'::jsonb))
+    ON CONFLICT (worker_id) DO UPDATE SET heartbeat_at=EXCLUDED.heartbeat_at, last_counts=EXCLUDED.last_counts;
+$$;
