@@ -86,7 +86,7 @@ def validate_sync_ref(value: str | None) -> tuple[str, str] | None:
     return match.group("remote"), match.group("branch")
 
 
-def _tracked_clean(repo: Path) -> None:
+def tracked_tree_dirty(repo: Path) -> bool:
     result = cg.run_capture(
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"],
         repo,
@@ -96,28 +96,17 @@ def _tracked_clean(repo: Path) -> None:
             "não foi possível validar alterações rastreadas antes da sincronização",
             cg.EXIT_STATE_CHANGED,
         )
-    if result.stdout:
-        raise cg.GatewayError(
-            "sincronização recusada: base possui alterações rastreadas",
-            cg.EXIT_STATE_CHANGED,
-        )
+    return bool(result.stdout)
 
 
-def sync_expected_head(
+def _fetch_and_verify_remote(
     repo: Path,
-    policy: dict,
     expected: str,
     sync_ref: str,
-) -> tuple[cg.GitState, bool]:
-    current = cg.git_state(repo, True, policy)
-    assert current is not None
-    if current.head.lower() == expected:
-        return current, False
-
+) -> tuple[str, str, str]:
     parsed = validate_sync_ref(sync_ref)
     assert parsed is not None
     remote, branch = parsed
-    _tracked_clean(repo)
 
     fetched = cg.run_capture(
         ["git", "fetch", "--prune", "--no-tags", remote],
@@ -145,6 +134,121 @@ def sync_expected_head(
             cg.EXIT_STATE_CHANGED,
         )
 
+    source_url = cg.run_capture(["git", "remote", "get-url", remote], repo)
+    if source_url.returncode != 0 or source_url.stderr.strip() or not source_url.stdout.strip():
+        raise cg.GatewayError(
+            "sincronização recusada: URL remota não pôde ser validada",
+            cg.EXIT_STATE_CHANGED,
+        )
+    return remote, branch, source_url.stdout.strip()
+
+
+def _isolated_base_path(policy: dict, session_id: str) -> Path:
+    root = Path(cg.expand_path(policy.get("worktree_root", "C:\\dev")))
+    target = root / f"session-base-{sb.validate_session_id(session_id)}"
+    cg.assert_allowed_path(target, policy)
+    return target
+
+
+def _prepare_isolated_base(
+    repo: Path,
+    policy: dict,
+    expected: str,
+    remote: str,
+    branch: str,
+    source_url: str,
+    session_id: str,
+) -> Path:
+    target = _isolated_base_path(policy, session_id)
+    if target.exists():
+        state = cg.git_state(target, True, policy)
+        if state is None or state.head.lower() != expected or state.status_count:
+            raise cg.GatewayError(
+                "base isolada existente diverge do estado esperado",
+                cg.EXIT_STATE_CHANGED,
+            )
+        configured = cg.run_capture(["git", "remote", "get-url", remote], target)
+        if (
+            configured.returncode != 0
+            or configured.stderr.strip()
+            or configured.stdout.strip() != source_url
+        ):
+            raise cg.GatewayError(
+                "base isolada existente possui remoto divergente",
+                cg.EXIT_STATE_CHANGED,
+            )
+        return target
+
+    cloned = cg.run_capture(
+        ["git", "clone", "--no-checkout", "--local", str(repo), str(target)],
+        repo,
+        timeout=120,
+    )
+    if cloned.returncode != 0:
+        detail = cg.redact((cloned.stderr or cloned.stdout).strip())[-300:]
+        raise cg.GatewayError(
+            f"sincronização recusada: clone isolado falhou: {detail}",
+            cg.EXIT_STATE_CHANGED,
+        )
+
+    set_remote = cg.run_capture(["git", "remote", "set-url", "origin", source_url], target)
+    if set_remote.returncode != 0 or set_remote.stderr.strip():
+        raise cg.GatewayError(
+            "sincronização recusada: remoto da base isolada não pôde ser configurado",
+            cg.EXIT_STATE_CHANGED,
+        )
+
+    if remote != "origin":
+        add_remote = cg.run_capture(["git", "remote", "add", remote, source_url], target)
+        if add_remote.returncode != 0 or add_remote.stderr.strip():
+            raise cg.GatewayError(
+                "sincronização recusada: remoto solicitado não pôde ser configurado na base isolada",
+                cg.EXIT_STATE_CHANGED,
+            )
+
+    fetched = cg.run_capture(["git", "fetch", "--no-tags", remote, branch], target, timeout=60)
+    if fetched.returncode != 0:
+        detail = cg.redact((fetched.stderr or fetched.stdout).strip())[-300:]
+        raise cg.GatewayError(
+            f"sincronização recusada: fetch da base isolada falhou: {detail}",
+            cg.EXIT_STATE_CHANGED,
+        )
+
+    checked_out = cg.run_capture(["git", "checkout", "--detach", expected], target, timeout=120)
+    if checked_out.returncode != 0:
+        detail = cg.redact((checked_out.stderr or checked_out.stdout).strip())[-300:]
+        raise cg.GatewayError(
+            f"sincronização recusada: checkout isolado falhou: {detail}",
+            cg.EXIT_STATE_CHANGED,
+        )
+
+    state = cg.git_state(target, True, policy)
+    if state is None or state.head.lower() != expected or state.status_count:
+        raise cg.GatewayError(
+            "base isolada não terminou limpa no SHA esperado",
+            cg.EXIT_STATE_CHANGED,
+        )
+    collisions = cg.tracked_case_collisions(target)
+    if collisions:
+        details = "; ".join(f"{left} <-> {right}" for left, right in collisions[:5])
+        raise cg.GatewayError(
+            f"base isolada possui caminhos rastreados que colidem por casing: {details}",
+            cg.EXIT_STATE_CHANGED,
+        )
+    return target
+
+
+def sync_expected_head(
+    repo: Path,
+    policy: dict,
+    expected: str,
+    sync_ref: str,
+    session_id: str,
+) -> tuple[cg.GitState, Path, str]:
+    current = cg.git_state(repo, True, policy)
+    assert current is not None
+    remote, branch, source_url = _fetch_and_verify_remote(repo, expected, sync_ref)
+
     ancestor = cg.run_capture(
         ["git", "merge-base", "--is-ancestor", current.head, expected],
         repo,
@@ -160,6 +264,23 @@ def sync_expected_head(
             cg.EXIT_STATE_CHANGED,
         )
 
+    if tracked_tree_dirty(repo):
+        isolated = _prepare_isolated_base(
+            repo=repo,
+            policy=policy,
+            expected=expected,
+            remote=remote,
+            branch=branch,
+            source_url=source_url,
+            session_id=session_id,
+        )
+        isolated_state = cg.git_state(isolated, True, policy)
+        assert isolated_state is not None
+        return isolated_state, isolated, "isolated_dirty_base"
+
+    if current.head.lower() == expected:
+        return current, repo, "not_needed"
+
     advanced = cg.run_capture(["git", "merge", "--ff-only", expected], repo, timeout=60)
     if advanced.returncode != 0:
         detail = cg.redact((advanced.stderr or advanced.stdout).strip())[-300:]
@@ -170,13 +291,17 @@ def sync_expected_head(
 
     final = cg.git_state(repo, True, policy)
     assert final is not None
-    _tracked_clean(repo)
+    if tracked_tree_dirty(repo):
+        raise cg.GatewayError(
+            "sincronização incompleta: base deixou de estar limpa após fast-forward",
+            cg.EXIT_STATE_CHANGED,
+        )
     if final.head.lower() != expected:
         raise cg.GatewayError(
             f"sincronização incompleta: atual={final.head} esperado={expected}",
             cg.EXIT_STATE_CHANGED,
         )
-    return final, True
+    return final, repo, "fast_forward"
 
 
 def launch(
@@ -201,24 +326,32 @@ def launch(
             EXIT_SESSION_LAUNCHER,
         )
 
-    base_synced = False
-    if expected and state.head.lower() != expected:
-        if sync_ref is None:
-            raise cg.GatewayError(
-                f"HEAD atual diverge do esperado: atual={state.head} esperado={expected}",
-                cg.EXIT_STATE_CHANGED,
-            )
-        state, base_synced = sync_expected_head(repo, policy, expected, sync_ref)
-
     resolved_session = (
         sb.validate_session_id(session_id)
         if session_id
         else generate_session_id(repo, session_prefix)
     )
+
+    session_repo = repo
+    base_sync = "not_needed"
+    if expected and sync_ref is not None:
+        state, session_repo, base_sync = sync_expected_head(
+            repo=repo,
+            policy=policy,
+            expected=expected,
+            sync_ref=sync_ref,
+            session_id=resolved_session,
+        )
+    elif expected and state.head.lower() != expected:
+        raise cg.GatewayError(
+            f"HEAD atual diverge do esperado: atual={state.head} esperado={expected}",
+            cg.EXIT_STATE_CHANGED,
+        )
+
     sink = io.StringIO()
     with contextlib.redirect_stdout(sink):
         preflight = sp.preflight(
-            repo=repo,
+            repo=session_repo,
             policy_path=policy_path,
             session_id=resolved_session,
             correlation_id=correlation_id,
@@ -231,6 +364,7 @@ def launch(
         "action": "session_launcher",
         "result": "SESSION_LAUNCH_OK",
         "session_id": resolved_session,
+        "source_repo_root": cg.norm(repo),
         "repo_root": preflight["repo_root"],
         "target_path": preflight["target_path"],
         "head": target_state["head"],
@@ -238,7 +372,7 @@ def launch(
         "rules_version": rules_version,
         "host": preflight["host"],
         "state_validated": True,
-        "base_sync": "fast_forward" if base_synced else "not_needed",
+        "base_sync": base_sync,
         "sync_ref": sync_ref,
     }
     cg.append_event(policy, result)
@@ -256,7 +390,7 @@ def main() -> int:
     parser.add_argument("--expected-head")
     parser.add_argument(
         "--sync-ref",
-        help="Permite apenas fast-forward até expected-head após fetch da referência remote/branch.",
+        help="Permite sincronização governada com expected-head usando remote/branch.",
     )
     ns = parser.parse_args()
     correlation_id = ns.correlation_id or f"launcher-{os.getpid()}"
