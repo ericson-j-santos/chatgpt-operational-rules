@@ -7,7 +7,9 @@ import json
 import os
 from pathlib import Path
 
-from scripts.todo_gateway_pc24x7 import ensure_runtime_env
+from scripts.todo_gateway_pc24x7 import ensure_runtime_env, runtime_dir
+
+PENDING_AUTH_FILE = "webhook-auth.pending"
 
 
 def upsert_env(path: Path, updates: dict[str, str]) -> None:
@@ -32,21 +34,21 @@ def upsert_env(path: Path, updates: dict[str, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
-    parser.add_argument("--secret-file", type=Path, required=True)
-    parser.add_argument("--delete-secret-file", action="store_true")
     args = parser.parse_args()
-    secret = args.secret_file.read_text(encoding="utf-8").strip()
+    pending = runtime_dir() / PENDING_AUTH_FILE
+    if not pending.is_file():
+        raise SystemExit("arquivo de autenticação pendente ausente")
+    secret = pending.read_text(encoding="utf-8").strip()
     if len(secret) < 32:
-        raise SystemExit("segredo GitLab inválido")
+        raise SystemExit("material de autenticação GitLab inválido")
     env_path = ensure_runtime_env()
     upsert_env(env_path, {
         "GITLAB_WEBHOOK_TOKEN": secret,
         "GITLAB_WEBHOOK_PROJECT": args.project.strip(),
     })
     fingerprint = hashlib.sha256(secret.encode()).hexdigest()[:12]
-    if args.delete_secret_file:
-        args.secret_file.unlink(missing_ok=True)
-    print(json.dumps({"result": "WEBHOOK_ENV_CONFIGURED", "project": args.project.strip(), "secret_sha256_12": fingerprint}))
+    pending.unlink(missing_ok=True)
+    print(json.dumps({"result": "WEBHOOK_ENV_CONFIGURED", "project": args.project.strip(), "auth_sha256_12": fingerprint}))
     return 0
 
 
