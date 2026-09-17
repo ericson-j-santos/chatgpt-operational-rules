@@ -1,1 +1,0 @@
-PR #49 synchronization trigger. Temporary file; removed in the next commit.
