@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 PORT = 8094
 COMPOSE = "docker-compose.pc24x7.yml"
+GITLAB_PROJECT = "ericson-j-santos/reqsys-v2-enterprise-real"
 REDACT_PATTERNS = (
     (re.compile(r"postgres(?:ql)?://[^@\s]+@", re.I), "postgresql://[REDACTED]@"),
     (re.compile(r"(?i)(password|token|secret|api[_-]?key)=([^\s]+)"), r"\1=[REDACTED]"),
@@ -124,15 +125,44 @@ def ensure_port_setting(path: Path) -> None:
     path.write_text("\n".join(updated) + "\n", encoding="utf-8", newline="\n")
 
 
+def ensure_webhook_settings(path: Path) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    current = {}
+    for line in lines:
+        if "=" in line:
+            key, value = line.split("=", 1)
+            current[key] = value
+    token = current.get("GITLAB_WEBHOOK_TOKEN", "").strip() or secrets.token_urlsafe(40)
+    wanted = {
+        "GITLAB_WEBHOOK_TOKEN": token,
+        "GITLAB_WEBHOOK_PROJECT": GITLAB_PROJECT,
+    }
+    updated = []
+    seen = set()
+    for line in lines:
+        key = line.split("=", 1)[0] if "=" in line else ""
+        if key in wanted:
+            updated.append(f"{key}={wanted[key]}")
+            seen.add(key)
+        else:
+            updated.append(line)
+    for key, value in wanted.items():
+        if key not in seen:
+            updated.append(f"{key}={value}")
+    path.write_text("\n".join(updated) + "\n", encoding="utf-8", newline="\n")
+
+
 def ensure_runtime_env() -> Path:
     root = runtime_dir()
     root.mkdir(parents=True, exist_ok=True)
     path = root / "runtime.env"
     if path.exists():
         ensure_port_setting(path)
+        ensure_webhook_settings(path)
         return path
     password = secrets.token_urlsafe(32)
     token = secrets.token_urlsafe(40)
+    webhook_token = secrets.token_urlsafe(40)
     content = "\n".join(
         [
             "POSTGRES_DB=todo_global_bus_dev",
@@ -141,6 +171,8 @@ def ensure_runtime_env() -> Path:
             f"TODO_GATEWAY_TOKEN={token}",
             f"DATABASE_URL=postgresql://todo_global_bus_dev_user:{password}@db:5432/todo_global_bus_dev",
             f"TODO_GATEWAY_PORT={PORT}",
+            f"GITLAB_WEBHOOK_TOKEN={webhook_token}",
+            f"GITLAB_WEBHOOK_PROJECT={GITLAB_PROJECT}",
             "",
         ]
     )

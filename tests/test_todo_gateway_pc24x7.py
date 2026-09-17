@@ -25,6 +25,8 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         text = COMPOSE.read_text(encoding="utf-8")
         self.assertIn("DATABASE_URL: ${DATABASE_URL}", text)
         self.assertIn("TODO_GATEWAY_TOKEN: ${TODO_GATEWAY_TOKEN}", text)
+        self.assertIn("GITLAB_WEBHOOK_TOKEN: ${GITLAB_WEBHOOK_TOKEN:-}", text)
+        self.assertIn("GITLAB_WEBHOOK_PROJECT: ${GITLAB_WEBHOOK_PROJECT:-ericson-j-santos/reqsys-v2-enterprise-real}", text)
         self.assertNotIn("NOTION_TOKEN", text)
         self.assertNotIn("NOTION_DATA_SOURCE_ID", text)
 
@@ -37,6 +39,9 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         self.assertIn("ensure_docker_ready", text)
         self.assertIn("Docker Desktop.exe", text)
         self.assertIn("TODO_GATEWAY_TOKEN={token}", text)
+        self.assertIn("ensure_webhook_settings(path)", text)
+        self.assertIn("GITLAB_WEBHOOK_TOKEN={webhook_token}", text)
+        self.assertIn("GITLAB_WEBHOOK_PROJECT={GITLAB_PROJECT}", text)
         self.assertNotIn('"TODO_GATEWAY_TOKEN": token', text)
         self.assertNotIn('"POSTGRES_PASSWORD": password', text)
         self.assertIn("postgresql://[REDACTED]@", text)
