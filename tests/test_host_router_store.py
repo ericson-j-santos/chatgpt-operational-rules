@@ -1,4 +1,7 @@
+import os
 import unittest
+from unittest.mock import patch
+
 from scripts.host_router import HostRouter, NodeHealth, RouteDecision
 
 DESKTOP = 'DESKTOP-PDQK954'
@@ -23,6 +26,14 @@ class FakePersistentStore:
 
 
 class StoreContractTest(unittest.TestCase):
+    def test_runtime_database_url_auto_enables_persistent_store(self):
+        store = FakePersistentStore()
+        with patch.dict(os.environ, {'DATABASE_URL': 'postgresql://dev'}, clear=False):
+            with patch('scripts.host_router.PostgresDecisionStore', return_value=store) as factory:
+                router = HostRouter(DESKTOP, NOTERI)
+        self.assertIs(router.decision_store, store)
+        factory.assert_called_once_with('postgresql://dev')
+
     def test_router_restart_reuses_persisted_failover(self):
         store = FakePersistentStore()
         first_router = HostRouter(DESKTOP, NOTERI, store)
