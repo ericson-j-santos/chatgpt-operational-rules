@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T18:50:42.113895+00:00",
+  "generated_at": "2026-09-17T18:52:31.625324+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "afe93c25912bdb031654e0cda84c0ff9dc2fa0b9502f8f8298b1a313a97ce242",
-      "size": 2819
+      "sha256": "6f5ae67a13e0392ba3fe16403c121f1cc237bc1509c33cdd80d1c2d962f0e040",
+      "size": 2848
     },
     {
       "path": ".gitignore",
@@ -44,8 +44,8 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "e23a9813ea3fe4d3ac24d95906803613929f34230e0a44170a9010c88566bc2d",
-      "size": 991
+      "sha256": "e1d8d661a3eb0beb6cc682438d038e8a482d78504d9a805083ef4f1667f7cd9e",
+      "size": 974
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -394,8 +394,13 @@
     },
     {
       "path": "services/todo_gateway/gateway.py",
-      "sha256": "0185e2a8a7a8fdb59493204c10cf62b931a149683e5273281f5329bd5d7f5979",
-      "size": 8324
+      "sha256": "0df47f618c0acaf12deb93081942f7eb4b8e4f0d895b49007668723a8b40fc02",
+      "size": 9390
+    },
+    {
+      "path": "services/todo_gateway/gitlab_webhook.py",
+      "sha256": "5b919890144b525e5ead16ff843df933e9bebcfeeea9a59f8c72301fe58421e4",
+      "size": 2180
     },
     {
       "path": "services/todo_gateway/notion_sink.py",
@@ -461,6 +466,11 @@
       "path": "tests/test_dispatch_workflow_governed.py",
       "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
       "size": 1260
+    },
+    {
+      "path": "tests/test_gitlab_webhook.py",
+      "sha256": "f81509e65977ad53b1e822628897a574f62105dc40ba2e7155ce56fa7a0e776d",
+      "size": 4163
     },
     {
       "path": "tests/test_host_bootstrap.py",
