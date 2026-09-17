@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Iterable, Protocol
 
@@ -27,6 +28,9 @@ class DecisionStore(Protocol):
 class HostRouter:
     def __init__(self, primary: str, secondary: str, decision_store: DecisionStore | None = None) -> None:
         self.primary, self.secondary = primary, secondary
+        if decision_store is None:
+            dsn = os.environ.get('DATABASE_URL', '').strip()
+            decision_store = PostgresDecisionStore(dsn) if dsn else None
         self.decision_store = decision_store
         self._seen: dict[str, RouteDecision] = {}
         self._epoch = 0
