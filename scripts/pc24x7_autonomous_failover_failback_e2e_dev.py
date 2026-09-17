@@ -86,10 +86,12 @@ def wait_completion(req: str, corr: str, timeout_seconds: int = 45) -> dict[str,
         if last:
             state, attempts, node, reason, token = last.split("|", 4)
             if state in {"COMPLETED", "DLQ", "HUMAN_GATE"}:
-                history = psql(
-                    "SELECT string_agg(to_state,',' ORDER BY history_id) "
+                history_row = psql(
+                    "SELECT string_agg(to_state,',' ORDER BY history_id),"
+                    "string_agg(attempts::text,',' ORDER BY history_id) "
                     f"FROM todo_bus.continuation_history WHERE request_id='{req}'"
                 )
+                history, history_attempts = history_row.split("|", 1)
                 return {
                     "request_id": req,
                     "correlation_id": corr,
@@ -99,6 +101,7 @@ def wait_completion(req: str, corr: str, timeout_seconds: int = 45) -> dict[str,
                     "reason": reason,
                     "fencing_token": int(token),
                     "history": history,
+                    "history_attempts": history_attempts,
                 }
         time.sleep(0.5)
     raise AssertionError(f"completion timeout req={req} last={last!r}")
@@ -108,11 +111,19 @@ def assert_execution(proof: dict[str, object], owner: str) -> None:
     if proof["state"] != "COMPLETED":
         raise AssertionError(f"unexpected state: {proof}")
     if proof["attempts"] != 1:
-        raise AssertionError(f"expected exactly one attempt: {proof}")
+        raise AssertionError(f"expected exactly one final attempt: {proof}")
     if proof["node_id"] != owner:
         raise AssertionError(f"unexpected owner expected={owner}: {proof}")
-    if proof["history"] != "PENDING,PROCESSING,COMPLETED":
-        raise AssertionError(f"unexpected history: {proof}")
+
+    states = str(proof["history"]).split(",")
+    history_attempts = [int(x) for x in str(proof["history_attempts"]).split(",") if x]
+    if not states or states[0] != "PENDING" or states[-2:] != ["PROCESSING", "COMPLETED"]:
+        raise AssertionError(f"unexpected terminal history: {proof}")
+    if states.count("COMPLETED") != 1 or any(x in {"DLQ", "HUMAN_GATE"} for x in states):
+        raise AssertionError(f"duplicate/error terminal transition: {proof}")
+    if not history_attempts or max(history_attempts) > 1:
+        raise AssertionError(f"attempt counter exceeded one: {proof}")
+    proof["route_release_cycles"] = max(0, states.count("PENDING") - 1)
 
 
 def main() -> int:
