@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T19:06:57.580676+00:00",
+  "generated_at": "2026-09-17T20:35:03.066784+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,8 +54,8 @@
     },
     {
       "path": "docker-compose.pc24x7.yml",
-      "sha256": "0380bae538f9ad68c0879c4e26bc8b0fba64ce3414ef609b3b69131636490242",
-      "size": 2775
+      "sha256": "7e37a28ae685c8ccf255ea2ed8d0120e7bd285fc624fa78a19e5b8dac808a65f",
+      "size": 2887
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
@@ -183,6 +183,11 @@
       "size": 6729
     },
     {
+      "path": "scripts/configure_pc24x7_gitlab_webhook.py",
+      "sha256": "31049515232d48765ff51644225b3c8246b38c88154ceecacb58be61cfe1d668",
+      "size": 1828
+    },
+    {
       "path": "scripts/continuation_worker.py",
       "sha256": "5656af87cbf708d77382d1844a7b2b9201e68d5997344cce784914a563e4aa51",
       "size": 8873
@@ -201,6 +206,11 @@
       "path": "scripts/generate_manifest.py",
       "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
       "size": 1679
+    },
+    {
+      "path": "scripts/gitlab_webhook_pc24x7_e2e.py",
+      "sha256": "20822a1a325932b73c68da1a472075565927a01af68d73e97f8fd7790b581c17",
+      "size": 2801
     },
     {
       "path": "scripts/host_bootstrap_e2e.py",
@@ -231,6 +241,11 @@
       "path": "scripts/owner_risk3_gateway.py",
       "sha256": "16aa0f3e793c05381f33f51698a48b98904d3b5721ff0c5470f3dde5ad703e85",
       "size": 17544
+    },
+    {
+      "path": "scripts/pc24x7_cloudflare_quick_tunnel.py",
+      "sha256": "d7c197f3e832ed2394d50b28e06c732843b8be4dc21f9c35a120c84d101ec40c",
+      "size": 1945
     },
     {
       "path": "scripts/pr_ci_self_heal.py",
