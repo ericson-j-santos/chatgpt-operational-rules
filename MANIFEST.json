@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T15:00:37.064542+00:00",
+  "generated_at": "2026-09-17T18:30:06.401391+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -394,8 +394,13 @@
     },
     {
       "path": "services/todo_gateway/gateway.py",
-      "sha256": "0185e2a8a7a8fdb59493204c10cf62b931a149683e5273281f5329bd5d7f5979",
-      "size": 8324
+      "sha256": "0df47f618c0acaf12deb93081942f7eb4b8e4f0d895b49007668723a8b40fc02",
+      "size": 9390
+    },
+    {
+      "path": "services/todo_gateway/gitlab_webhook.py",
+      "sha256": "5b919890144b525e5ead16ff843df933e9bebcfeeea9a59f8c72301fe58421e4",
+      "size": 2180
     },
     {
       "path": "services/todo_gateway/notion_sink.py",
@@ -461,6 +466,11 @@
       "path": "tests/test_dispatch_workflow_governed.py",
       "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
       "size": 1260
+    },
+    {
+      "path": "tests/test_gitlab_webhook.py",
+      "sha256": "52b17b299c7f9d7ee2194f7d9fdd40da8e024bfdcedbc8c456ff3c29fa965b19",
+      "size": 3499
     },
     {
       "path": "tests/test_host_bootstrap.py",
