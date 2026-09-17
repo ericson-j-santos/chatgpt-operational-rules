@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T13:40:18.415920+00:00",
+  "generated_at": "2026-09-17T13:53:10.821686+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,8 +54,8 @@
     },
     {
       "path": "docker-compose.pc24x7.yml",
-      "sha256": "2bd36906d4bde0ec376fbf21bf72b439f5c24d9207496504d862d91c6f2dbea8",
-      "size": 1693
+      "sha256": "0380bae538f9ad68c0879c4e26bc8b0fba64ce3414ef609b3b69131636490242",
+      "size": 2775
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
