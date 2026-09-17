@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T12:58:17.729532+00:00",
+  "generated_at": "2026-09-17T13:40:18.415920+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,8 +54,8 @@
     },
     {
       "path": "docker-compose.pc24x7.yml",
-      "sha256": "cd3f84554f6a17d02b283db601d2e7c0cbf19701a32e86317e31148a363e4784",
-      "size": 1135
+      "sha256": "2bd36906d4bde0ec376fbf21bf72b439f5c24d9207496504d862d91c6f2dbea8",
+      "size": 1693
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
@@ -168,6 +168,11 @@
       "size": 4526
     },
     {
+      "path": "scripts/ai_todo_adapter.py",
+      "sha256": "016491298aa56653dd2b216900d7411aeb97efb5b60edcef294850545edefe39",
+      "size": 2212
+    },
+    {
       "path": "scripts/command_gateway.py",
       "sha256": "9e904309054f846c18deb6a0ff4393bab5577278c39636b5ced6f48d0a953602",
       "size": 22283
@@ -176,6 +181,16 @@
       "path": "scripts/command_gateway_e2e.py",
       "sha256": "eac8b99332cb8dc55200f7b1df4a8cdc2fa1d7873c216e08026523ba131be539",
       "size": 6729
+    },
+    {
+      "path": "scripts/continuation_worker.py",
+      "sha256": "15a06a215ab3ad9c1b581a30908ba9fac7a1667021d9b071b00ce10bfa397aa1",
+      "size": 5642
+    },
+    {
+      "path": "scripts/continuous_source_ingest.py",
+      "sha256": "892729cd9f3d0547990d0a735f348034f63a4b787cc19e30582284e820bdd15f",
+      "size": 10902
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
@@ -226,6 +241,11 @@
       "path": "scripts/publish_branch_governed.py",
       "sha256": "0649ceb5008944e0127c8a1dbd5ff53b4d543a3380606d4a23e25d32f717913f",
       "size": 3125
+    },
+    {
+      "path": "scripts/push_current_branch_governed.py",
+      "sha256": "dbce79fc8e0e750a6a97f73a88424ee5745567bc8f0d8e2cdb3badaa670f9568",
+      "size": 1131
     },
     {
       "path": "scripts/rdc_delayed_task_run.py",
@@ -281,6 +301,11 @@
       "path": "scripts/set_owner_risk3_development_mode.py",
       "sha256": "6317e605439199403961aac7c766b177f077f4c6318657f91506cf5056b70195",
       "size": 6059
+    },
+    {
+      "path": "scripts/source_todo_adapter.py",
+      "sha256": "d1beb0a8e9cf4eddcd0b4f18f49aa2ca0e2aaf7b71a0576223780352a57047c7",
+      "size": 915
     },
     {
       "path": "scripts/todo_event_bus.py",
@@ -404,8 +429,8 @@
     },
     {
       "path": "sql/todo_control_plane_postgres.sql",
-      "sha256": "c4efd116b2eedcbe8d6d5c2c34f96451a4413fd96548f044eb195d07ef564c23",
-      "size": 6626
+      "sha256": "1703df71c6b550b5b83eb2924d43372bb0f86fb76c1b9d5e4865175dc9fa6d4c",
+      "size": 7233
     },
     {
       "path": "templates/execution-blueprint.md",
@@ -421,6 +446,16 @@
       "path": "tests/test_command_gateway.py",
       "sha256": "f2762add86b29b9b3b7b9c5dd1ef66fce40e8f3ccf0d893a137c1aff012e87f4",
       "size": 6709
+    },
+    {
+      "path": "tests/test_continuation_worker.py",
+      "sha256": "b217048c878915fbe25aa5579790aa56377f74c8a23a5f90694b5def376a643a",
+      "size": 3280
+    },
+    {
+      "path": "tests/test_continuous_source_ingest.py",
+      "sha256": "484503fd88541e33dab249cbcaf587087e03c6c71c61b22c6e1f0629e6fcff21",
+      "size": 2026
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
@@ -494,7 +529,7 @@
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
-      "sha256": "f68927bd30c4c82cf8e04500b47d578ea4765982623fa71142c882c321ed9a09",
+      "sha256": "2d1eb0455863cf63abc844acef360ed0005e87e2893534f11722d20bec2c69db",
       "size": 4664
     },
     {
