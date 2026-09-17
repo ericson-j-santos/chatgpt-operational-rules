@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from scripts.todo_gateway_pc24x7 import ensure_runtime_env, runtime_dir
+from todo_gateway_pc24x7 import ensure_runtime_env, runtime_dir
 
 PENDING_AUTH_FILE = "webhook-auth.pending"
 
