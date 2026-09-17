@@ -70,7 +70,12 @@ Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O pref
 
 - `scripts/session_launcher.py` é a entrada preferencial para iniciar sessões em hosts que já possuem Gateway.
 - O launcher exige `rules_version >= 1.5.2`, valida opcionalmente o SHA esperado e gera `session_id` quando ele não for fornecido.
-- O launcher sempre chama o preflight com materialização obrigatória; não executa `git fetch`, comandos arbitrários ou mutações de projeto antes da sessão.
-- O aceite do launcher deve retornar `SESSION_LAUNCH_OK`, `session_id`, `target_path`, `head`, `snapshot_sha256` e `state_validated=true`.
+- Por padrão, divergência entre `HEAD` local e `--expected-head` continua falhando fechada.
+- Quando `--sync-ref remote/branch` for fornecido junto com `--expected-head`, o launcher pode atualizar uma base atrasada antes do preflight, exclusivamente por `git fetch` seguido de avanço `fast-forward`.
+- A sincronização deve recusar alterações rastreadas, referência remota diferente do SHA esperado, HEAD local que não seja ancestral do SHA esperado, falha de fetch ou qualquer tentativa de merge não fast-forward.
+- Arquivos não rastreados não são removidos; se impedirem o avanço, o Git deve falhar e o launcher deve permanecer bloqueado.
+- Após o avanço, o launcher deve reler o estado Git e comprovar que o `HEAD` final é exatamente o SHA esperado antes de materializar o worktree.
+- O launcher não executa comandos arbitrários nem usa `reset --hard`; a sincronização opt-in acima é a única mutação da base permitida antes da sessão.
+- O aceite do launcher deve retornar `SESSION_LAUNCH_OK`, `session_id`, `target_path`, `head`, `snapshot_sha256` e `state_validated=true`; quando houver sincronização, deve registrar `base_sync=fast_forward` e `sync_ref`.
 - Após `SESSION_LAUNCH_OK`, toda execução técnica continua passando pelo Command Gateway e usando o worktree retornado.
 - `SESSION_LAUNCH_BLOCKED` é fail-closed e não autoriza fallback para terminal direto.

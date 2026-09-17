@@ -36,6 +36,17 @@ class SessionLauncherTests(unittest.TestCase):
         with self.assertRaises(cg.GatewayError):
             sl.validate_expected_head("abc123")
 
+    def test_sync_ref_requires_remote_branch(self) -> None:
+        self.assertEqual(sl.validate_sync_ref("origin/main"), ("origin", "main"))
+        self.assertEqual(
+            sl.validate_sync_ref("upstream/release/1.6"),
+            ("upstream", "release/1.6"),
+        )
+        for invalid in ("main", "../main", "origin/../main", "origin//main", "-origin/main", "origin/main:evil"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(cg.GatewayError):
+                    sl.validate_sync_ref(invalid)
+
 
 if __name__ == "__main__":
     unittest.main()
