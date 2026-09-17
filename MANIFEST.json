@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T18:34:15.426051+00:00",
+  "generated_at": "2026-09-17T18:52:31.625324+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -144,8 +144,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "4ba682a2f4fd8115f396e72d7ccceb3e30686bee7b47fa6793d801ead4cc2bee",
-      "size": 4941
+      "sha256": "e46b6d52a73148f1e69bb87460bd35ba6c59674a22e9ffa5638deb450e0e7da8",
+      "size": 5550
     },
     {
       "path": "rules/terminal-execution.md",
@@ -279,13 +279,13 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "c1e275b431628730a92c3779ae6d6eab4c2d5603f6c3fe3750f7f396e13aa8db",
-      "size": 9637
+      "sha256": "4d5568bcf52162e3b234c948c78144f42a29c9719eb31c275afe15a163e224c9",
+      "size": 14582
     },
     {
       "path": "scripts/session_launcher_e2e.py",
-      "sha256": "c5b470fabf3e20a5e8d12afbb4bc5a5ae698eb7591064f0faa444b1434dc4173",
-      "size": 8198
+      "sha256": "5246cb672576c93ae137ea20df62c71a20a94d5eee554beb44150a75a75d154c",
+      "size": 9802
     },
     {
       "path": "scripts/session_preflight.py",
