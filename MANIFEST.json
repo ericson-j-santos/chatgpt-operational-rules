@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T00:53:40.997734+00:00",
+  "generated_at": "2026-09-17T10:39:19.481359+00:00",
   "files": [
     {"path":".gitattributes","sha256":"d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c","size":19},
     {"path":".github/workflows/pr-ci-self-heal.yml","sha256":"324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f","size":10821},
@@ -44,6 +44,9 @@
     {"path":"scripts/install_todo_gateway_windows_s4u.ps1","sha256":"5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7","size":1503},
     {"path":"scripts/owner_risk3_gateway.py","sha256":"16aa0f3e793c05381f33f51698a48b98904d3b5721ff0c5470f3dde5ad703e85","size":17544},
     {"path":"scripts/pr_ci_self_heal.py","sha256":"83a94f9adc11054dc305d4bbeaf14064973dfd78105bb9beeb69008e2d359812","size":5063},
+    {"path":"scripts/rdc_delayed_task_run.py","sha256":"3499090bea66444bd0225c577413ecdefcb9a8a623ae5e438e884356bf1022f2","size":3071},
+    {"path":"scripts/rdc_host_diagnostics.py","sha256":"b0c1c0e5e5b94507f9e150b484729591c279682847be8cb27207509331a5cf69","size":8679},
+    {"path":"scripts/rdc_host_fix.py","sha256":"b4976c32780f41372c656e6d2cb87c8e49e678626c02ad37790a443cfef84df3","size":5318},
     {"path":"scripts/render_todo_gateway_bootstrap.py","sha256":"c0838f46e4d0751ff8e794e84140dc7e76f5c380c5421d58a20d3fab45fb52ac","size":6511},
     {"path":"scripts/session_bootstrap.py","sha256":"f05963931b731eb945e24dcce6954c0aa09ca4d4d267263d61022d7cb40f93c4","size":9252},
     {"path":"scripts/session_bootstrap_e2e.py","sha256":"b24d29445afa738265b65ccdf2959a89b6bea1719d1a2b239dce67c1d0279a1e","size":5889},
