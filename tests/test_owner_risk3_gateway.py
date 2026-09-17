@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -29,6 +30,36 @@ def action(**overrides):
     }
     payload.update(overrides)
     return payload
+
+
+def dev_config(repo: Path, **overrides):
+    now = datetime.now(timezone.utc)
+    mode = {
+        "enabled": True,
+        "environment": "dev",
+        "reason": m.DEV_MODE_REASON,
+        "activated_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=14)).isoformat(),
+        "allowed_roots": [str(repo)],
+        "allowed_executables": ["python", "python3"],
+        "reactivation_required_before_non_dev": True,
+    }
+    mode.update(overrides)
+    return {"version": 1, "enabled": True, "development_mode": mode, "actions": {}}
+
+
+def make_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    scripts = repo / "scripts"
+    scripts.mkdir()
+    (scripts / "run_dev.py").write_text("print('ok')\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "scripts/run_dev.py"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-m", "test"], check=True, capture_output=True)
+    return repo
 
 
 def test_global_gateway_source_keeps_risk3_denied():
@@ -58,10 +89,10 @@ def test_denies_scope_mismatch():
 def test_denies_production_marker_in_scope_and_command():
     prod_scope = "/subscriptions/s/resourceGroups/rg-prod/providers/Microsoft.KeyVault/vaults/kv"
     a = action(scope=prod_scope)
-    with pytest.raises(m.Risk3Error, match="produção"):
+    with pytest.raises(m.Risk3Error, match="bloqueados"):
         m.validate_action("azure.kv.role.assignment.dev", prod_scope, a)
     a = action(command=["tool", "deploy", "reqsys-production"])
-    with pytest.raises(m.Risk3Error, match="produção"):
+    with pytest.raises(m.Risk3Error, match="bloqueados"):
         m.validate_action("tool.deploy.dev", a["scope"], a)
 
 
@@ -77,6 +108,16 @@ def test_denies_destructive_tokens(token):
     a = action(command=["az", "resource", token, "--scope", "x"])
     with pytest.raises(m.Risk3Error, match="destrutiva"):
         m.validate_action("azure.resource.dev", a["scope"], a)
+
+
+def test_denies_host_reboot_scope_and_command():
+    scope = "host://DESKTOP-PDQK954/reboot"
+    a = action(environment="local", scope=scope, command=["python", r"C:\ReqSys\reboot_guarded.py"])
+    with pytest.raises(m.Risk3Error, match="reinicialização/desligamento"):
+        m.validate_action("host.reboot.desktop_primary", scope, a)
+    b = action(command=["python", r"C:\ReqSys\reboot_guarded.py"])
+    with pytest.raises(m.Risk3Error, match="reinicialização/desligamento"):
+        m.validate_action("tool.safe.dev", b["scope"], b)
 
 
 def test_denies_direct_secret_operation():
@@ -121,3 +162,90 @@ def test_load_config_accepts_current_owner(tmp_path):
     os.chmod(cfg, 0o600)
     loaded = m.load_local_config(cfg.resolve())
     assert loaded["enabled"] is True
+
+
+def test_development_mode_allows_clean_versioned_python(tmp_path):
+    repo = make_repo(tmp_path)
+    command = ["python", "scripts/run_dev.py", "--confirm", "DEV-ONLY"]
+    resolved, evidence = m.validate_development_mode(
+        dev_config(repo),
+        "reqsys.power_platform.rotate.dev",
+        "repo://reqsys/environment/dev",
+        repo,
+        command,
+    )
+    assert resolved == command
+    assert evidence["execution_mode"] == "development_mode"
+    assert evidence["environment"] == "dev"
+    assert evidence["git_head"]
+    assert len(evidence["script_sha256"]) == 64
+
+
+def test_development_mode_rejects_dirty_worktree(tmp_path):
+    repo = make_repo(tmp_path)
+    (repo / "dirty.txt").write_text("dirty", encoding="utf-8")
+    with pytest.raises(m.Risk3Error, match="worktree Git limpo"):
+        m.validate_development_mode(
+            dev_config(repo), "tool.dev.action", "repo://reqsys/dev", repo,
+            ["python", "scripts/run_dev.py"],
+        )
+
+
+def test_development_mode_rejects_untracked_script(tmp_path):
+    repo = make_repo(tmp_path)
+    (repo / "scripts" / "untracked.py").write_text("print('x')\n", encoding="utf-8")
+    with pytest.raises(m.Risk3Error, match="worktree Git limpo"):
+        m.validate_development_mode(
+            dev_config(repo), "tool.dev.action", "repo://reqsys/dev", repo,
+            ["python", "scripts/untracked.py"],
+        )
+
+
+@pytest.mark.parametrize("scope", ["repo://reqsys/hml", "repo://reqsys/stg", "repo://reqsys/prod"])
+def test_development_mode_never_opens_non_dev(scope, tmp_path):
+    repo = make_repo(tmp_path)
+    with pytest.raises(m.Risk3Error, match="bloqueados"):
+        m.validate_development_mode(
+            dev_config(repo), "tool.dev.action", scope, repo,
+            ["python", "scripts/run_dev.py"],
+        )
+
+
+def test_development_mode_rejects_non_python(tmp_path):
+    repo = make_repo(tmp_path)
+    with pytest.raises(m.Risk3Error, match="somente Python"):
+        m.validate_development_mode(
+            dev_config(repo), "tool.dev.action", "repo://reqsys/dev", repo,
+            ["az", "account", "show"],
+        )
+
+
+def test_development_mode_rejects_expired_window(tmp_path):
+    repo = make_repo(tmp_path)
+    now = datetime.now(timezone.utc)
+    config = dev_config(
+        repo,
+        activated_at=(now - timedelta(days=2)).isoformat(),
+        expires_at=(now - timedelta(seconds=1)).isoformat(),
+    )
+    with pytest.raises(m.Risk3Error) as exc:
+        m.validate_development_mode(
+            config, "tool.dev.action", "repo://reqsys/dev", repo,
+            ["python", "scripts/run_dev.py"],
+        )
+    assert exc.value.exit_code == m.EXIT_EXPIRED
+
+
+def test_development_mode_rejects_window_over_30_days(tmp_path):
+    repo = make_repo(tmp_path)
+    now = datetime.now(timezone.utc)
+    config = dev_config(
+        repo,
+        activated_at=now.isoformat(),
+        expires_at=(now + timedelta(days=31)).isoformat(),
+    )
+    with pytest.raises(m.Risk3Error, match="30 dias"):
+        m.validate_development_mode(
+            config, "tool.dev.action", "repo://reqsys/dev", repo,
+            ["python", "scripts/run_dev.py"],
+        )
