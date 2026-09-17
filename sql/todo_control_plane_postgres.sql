@@ -238,3 +238,21 @@ RETURNS void LANGUAGE sql AS $$
     VALUES (p_worker_id, clock_timestamp(), coalesce(p_counts, '{}'::jsonb))
     ON CONFLICT (worker_id) DO UPDATE SET heartbeat_at=EXCLUDED.heartbeat_at, last_counts=EXCLUDED.last_counts;
 $$;
+
+
+CREATE SEQUENCE IF NOT EXISTS todo_bus.host_route_fencing_seq;
+CREATE TABLE IF NOT EXISTS todo_bus.host_route_decisions (
+    correlation_id text PRIMARY KEY,
+    node_id text NOT NULL,
+    reason text NOT NULL,
+    fencing_token bigint NOT NULL UNIQUE DEFAULT nextval('todo_bus.host_route_fencing_seq'),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE OR REPLACE FUNCTION todo_bus.claim_host_route(p_correlation_id text, p_node_id text, p_reason text)
+RETURNS TABLE(node_id text, reason text, fencing_token bigint) LANGUAGE sql AS $$
+    INSERT INTO todo_bus.host_route_decisions(correlation_id,node_id,reason)
+    VALUES (p_correlation_id,p_node_id,p_reason)
+    ON CONFLICT (correlation_id) DO NOTHING;
+    SELECT d.node_id,d.reason,d.fencing_token FROM todo_bus.host_route_decisions d WHERE d.correlation_id=p_correlation_id;
+$$;
