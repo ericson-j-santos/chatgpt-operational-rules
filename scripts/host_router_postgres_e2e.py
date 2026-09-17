@@ -2,30 +2,26 @@
 from __future__ import annotations
 
 import json
-import os
 
-from scripts.host_router import HostRouter, NodeHealth, PostgresDecisionStore
+from scripts.host_router import HostRouter, NodeHealth
 
 DESKTOP = 'DESKTOP-PDQK954'
 NOTERI = 'Noteri'
 
 
 def main() -> int:
-    dsn = os.environ.get('DATABASE_URL', '')
-    store = PostgresDecisionStore(dsn)
-
     corr_failover = 'host-router-runtime-e2e-failover-20260917'
     corr_recovered = 'host-router-runtime-e2e-recovered-20260917'
 
-    first = HostRouter(DESKTOP, NOTERI, store).select(
+    first = HostRouter(DESKTOP, NOTERI).select(
         corr_failover,
         [NodeHealth(DESKTOP, False), NodeHealth(NOTERI, True)],
     )
-    restarted = HostRouter(DESKTOP, NOTERI, store).select(
+    restarted = HostRouter(DESKTOP, NOTERI).select(
         corr_failover,
         [NodeHealth(DESKTOP, True), NodeHealth(NOTERI, True)],
     )
-    recovered = HostRouter(DESKTOP, NOTERI, store).select(
+    recovered = HostRouter(DESKTOP, NOTERI).select(
         corr_recovered,
         [NodeHealth(DESKTOP, True), NodeHealth(NOTERI, True)],
     )
@@ -41,6 +37,7 @@ def main() -> int:
 
     print(json.dumps({
         'status': 'ok',
+        'auto_store': True,
         'failover': first.__dict__,
         'restart': restarted.__dict__,
         'recovered': recovered.__dict__,
