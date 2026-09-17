@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2 - 2026-09-16
+- Generalizada a seleção de runtime para aplicar o princípio `PC24x7-first` antes de criar infraestrutura paga adicional quando o workload for compatível.
+- Definidos critérios objetivos de elegibilidade: execução supervisionável, persistência e backup, HTTPS estável quando necessário, segredo fora do Git/chat, restart automático, isolamento/disponibilidade adequados e E2E verificável.
+- ReqSys passa a preferir PC24x7 para workloads auxiliares compatíveis, especialmente em DEV, sem promover automaticamente HML/PROD nem remover gates de segurança, continuidade, SLA ou regulação.
+- Render e outros provedores gerenciados permanecem disponíveis quando houver requisito objetivo não atendido pelo PC24x7 ou decisão explícita de contingência/arquitetura.
+
 ## 1.6.1 - 2026-09-13
 - Host bootstrap em Windows passa a provisionar MinGit oficial quando `git` não estiver instalado.
 - MinGit é fixado por versão, tamanho e SHA-256; o ZIP é validado antes da extração e não altera o `PATH` global.

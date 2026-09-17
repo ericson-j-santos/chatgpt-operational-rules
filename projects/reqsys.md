@@ -10,6 +10,18 @@ Aplicar as regras globais com ênfase em:
 - próximo incremento executável;
 - preservação de trabalho existente.
 
+## Seleção de runtime
+
+Aplicar `rules/runtime-routing.md`.
+
+Para novos workloads auxiliares compatíveis do ReqSys, especialmente em DEV — brokers, workers, gateways, filas, executores e serviços de apoio — verificar e preferir o `PC24x7 Desktop` existente antes de criar runtime pago adicional.
+
+A decisão deve considerar persistência, backup/restauração, HTTPS estável quando necessário, secret store/arquivo protegido, restart automático, isolamento, disponibilidade e E2E. Se o PC24x7 atender esses requisitos, usar `runtime_target=pc24x7` por padrão.
+
+Render, Fly.io ou outro provedor não devem ser introduzidos como novo caminho normal sem requisito objetivo não atendido pelo PC24x7 ou decisão explícita. Render pode permanecer como contingência quando justificado.
+
+Esta preferência não altera automaticamente HML/PROD. Promoção de ambiente continua condicionada aos gates específicos de governança, segurança, continuidade e autorização.
+
 ## Prontidão antes de abrir Pull Request
 
 Para o repositório `ericson-j-santos/reqsys-v2-enterprise-real`, agentes, automações e assistentes devem exigir `READY_FOR_PR=passed` antes de criar uma nova Pull Request.

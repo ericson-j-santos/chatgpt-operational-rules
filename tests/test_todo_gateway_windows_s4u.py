@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "todo_gateway_windows_headless_boot.py"
+E2E = ROOT / "scripts" / "todo_gateway_pc24x7_e2e.py"
 INSTALLER = ROOT / "scripts" / "install_todo_gateway_windows_s4u.ps1"
 LISTENER = ROOT / "scripts" / "todo_gateway_headless_beacon_listener.py"
 
@@ -20,11 +21,21 @@ def test_headless_runner_is_fail_closed_for_interactive_sessions():
 def test_headless_runner_requires_fresh_e2e_before_ready():
     text = RUNNER.read_text(encoding="utf-8")
     assert '"todo-global-headless-boot-v3"' in text
+    assert 'e2e_evidence.unlink(missing_ok=True)' in text
+    assert '"e2e_evidence_fresh"' in text
     assert '"-m", "scripts.todo_gateway_pc24x7_e2e"' in text
     assert '"e2e_ready"' in text
     assert '"e2e_event_id"' in text
     assert '"e2e_request_id"' in text
-    assert '"status"] = "ready" if result["ready"] else "e2e_failed"' in text
+    assert 'result["ready"] = e2e_rc == 0 and result["e2e_evidence_fresh"] and result["e2e_ready"]' in text
+
+
+def test_s4u_e2e_resolves_docker_without_relying_only_on_path():
+    text = E2E.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert 'shutil.which("docker")' in text
+    assert 'DockerDesktop/resources/bin/docker.exe' in text
+    assert '[docker_executable(), "exec", DB_CONTAINER' in text
 
 
 def test_headless_runner_emits_independent_beacon():

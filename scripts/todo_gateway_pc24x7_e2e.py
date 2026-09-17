@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import uuid
 from datetime import UTC, datetime
@@ -38,6 +40,17 @@ def load_runtime_env() -> dict[str, str]:
     return values
 
 
+def docker_executable() -> str:
+    discovered = shutil.which("docker")
+    if discovered:
+        return discovered
+    if os.name == "nt":
+        candidate = Path.home() / "AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe"
+        if candidate.is_file():
+            return str(candidate)
+    raise RuntimeError("docker CLI not found in PATH or known Docker Desktop location")
+
+
 def api_json(method: str, path: str, token: str, payload: dict | None = None) -> tuple[int, dict]:
     body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
     headers = {"Accept": "application/json", "Authorization": f"Bearer {token}"}
@@ -56,7 +69,7 @@ def api_json(method: str, path: str, token: str, payload: dict | None = None) ->
 
 def psql_scalar(sql: str) -> str:
     result = subprocess.run(
-        ["docker", "exec", DB_CONTAINER, "psql", "-U", DB_USER, "-d", DB_NAME, "-At", "-c", sql],
+        [docker_executable(), "exec", DB_CONTAINER, "psql", "-U", DB_USER, "-d", DB_NAME, "-At", "-c", sql],
         text=True,
         capture_output=True,
         encoding="utf-8",
@@ -65,7 +78,8 @@ def psql_scalar(sql: str) -> str:
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError("independent SQL read failed")
+        detail = (result.stderr or "").strip()[-500:]
+        raise RuntimeError(f"independent SQL read failed: {detail or 'docker exec returned non-zero'}")
     return result.stdout.strip()
 
 
