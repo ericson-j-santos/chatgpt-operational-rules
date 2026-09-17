@@ -8,9 +8,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "sql" / "todo_control_plane_postgres.sql"
 CONTAINER = "todo-global-24x7-db-1"
+DB_USER = "todo_global_bus_dev_user"
+DB_NAME = "todo_global_bus_dev"
 PSQL = [
     "docker", "exec", "-i", CONTAINER, "psql",
-    "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres",
+    "-v", "ON_ERROR_STOP=1", "-U", DB_USER, "-d", DB_NAME,
     "-At", "-F", "|",
 ]
 
