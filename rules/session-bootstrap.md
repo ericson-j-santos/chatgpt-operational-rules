@@ -40,7 +40,7 @@ Sem `BOOTSTRAP_OK`, nenhuma execução local subsequente é considerada autoriza
 - O bootstrap reserva um caminho exclusivo derivado do `session_id`.
 - O caminho precisa continuar dentro da allowlist do gateway.
 - A materialização usa `git worktree add --detach` no SHA capturado no bootstrap.
-- A base pode conter arquivos não rastreados, mas não pode ter alterações rastreadas quando o worktree for materializado.
+- A base efetivamente entregue ao bootstrap pode conter arquivos não rastreados, mas não pode ter alterações rastreadas quando o worktree for materializado.
 - O worktree criado deve terminar limpo e no mesmo SHA reservado.
 - Nunca sobrescrever diretório de worktree já existente sem vínculo válido com a mesma reserva.
 
@@ -71,11 +71,14 @@ Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O pref
 - `scripts/session_launcher.py` é a entrada preferencial para iniciar sessões em hosts que já possuem Gateway.
 - O launcher exige `rules_version >= 1.5.2`, valida opcionalmente o SHA esperado e gera `session_id` quando ele não for fornecido.
 - Por padrão, divergência entre `HEAD` local e `--expected-head` continua falhando fechada.
-- Quando `--sync-ref remote/branch` for fornecido junto com `--expected-head`, o launcher pode atualizar uma base atrasada antes do preflight, exclusivamente por `git fetch` seguido de avanço `fast-forward`.
-- A sincronização deve recusar alterações rastreadas, referência remota diferente do SHA esperado, HEAD local que não seja ancestral do SHA esperado, falha de fetch ou qualquer tentativa de merge não fast-forward.
-- Arquivos não rastreados não são removidos; se impedirem o avanço, o Git deve falhar e o launcher deve permanecer bloqueado.
-- Após o avanço, o launcher deve reler o estado Git e comprovar que o `HEAD` final é exatamente o SHA esperado antes de materializar o worktree.
-- O launcher não executa comandos arbitrários nem usa `reset --hard`; a sincronização opt-in acima é a única mutação da base permitida antes da sessão.
-- O aceite do launcher deve retornar `SESSION_LAUNCH_OK`, `session_id`, `target_path`, `head`, `snapshot_sha256` e `state_validated=true`; quando houver sincronização, deve registrar `base_sync=fast_forward` e `sync_ref`.
+- Quando `--sync-ref remote/branch` for fornecido junto com `--expected-head`, o launcher pode sincronizar uma base atrasada antes do preflight.
+- O launcher primeiro executa `git fetch`, comprova que a referência remota corresponde exatamente ao SHA esperado e exige que o HEAD local seja ancestral desse SHA.
+- Se a base original estiver limpa, a atualização permitida continua sendo exclusivamente `fast-forward`; `reset --hard`, rebase e merge não fast-forward permanecem proibidos.
+- Se a base original possuir alterações rastreadas, o launcher não pode limpar, esconder, sobrescrever nem avançar esse diretório. Ele deve preservar o HEAD e o conteúdo local e criar uma base Git isolada e limpa dentro da allowlist, no SHA remoto validado, configurando nela o mesmo remoto antes do preflight.
+- A base isolada deve terminar limpa, sem colisões de casing e exatamente no SHA esperado; uma base isolada pré-existente só pode ser reutilizada se SHA, limpeza e remoto forem revalidados.
+- Arquivos não rastreados da base original nunca são removidos.
+- HEAD local divergente do remoto, referência remota diferente do SHA esperado, fetch inválido, base isolada inconsistente ou qualquer falha de validação devem manter o fluxo bloqueado.
+- O launcher não executa comandos arbitrários; sincronização `fast-forward` ou criação da base isolada são as únicas preparações permitidas antes da sessão.
+- O aceite deve retornar `SESSION_LAUNCH_OK`, `session_id`, `target_path`, `head`, `snapshot_sha256` e `state_validated=true`; `base_sync` deve indicar `not_needed`, `fast_forward` ou `isolated_dirty_base`, junto com `sync_ref` quando usado.
 - Após `SESSION_LAUNCH_OK`, toda execução técnica continua passando pelo Command Gateway e usando o worktree retornado.
 - `SESSION_LAUNCH_BLOCKED` é fail-closed e não autoriza fallback para terminal direto.
