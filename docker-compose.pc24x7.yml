@@ -48,6 +48,10 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      WORKER_NODE_ID: ${WORKER_NODE_ID:-DESKTOP-PDQK954}
+      ROUTER_PRIMARY_NODE: ${ROUTER_PRIMARY_NODE:-DESKTOP-PDQK954}
+      ROUTER_SECONDARY_NODE: ${ROUTER_SECONDARY_NODE:-Noteri}
+      ROUTER_HEALTHY_NODES: ${ROUTER_HEALTHY_NODES:-DESKTOP-PDQK954,Noteri}
     command: ["python", "scripts/continuation_worker.py", "--interval-seconds", "5"]
     healthcheck:
       test: ["CMD", "python", "-c", "import os,psycopg; c=psycopg.connect(os.environ['DATABASE_URL']); c.execute('SELECT 1'); c.close()"]
