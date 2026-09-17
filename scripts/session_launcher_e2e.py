@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E2E do Session Launcher sobre bootstrap, preflight e Gateway reais."""
+"""E2E do Session Launcher sobre bootstrap, preflight, sync fast-forward e Gateway reais."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ LAUNCHER = ROOT / "scripts" / "session_launcher.py"
 def run(script: Path, args: list[str], expected: int) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         [sys.executable, "-B", str(script), *args],
-        text=True, capture_output=True, check=False, timeout=45,
+        text=True, capture_output=True, check=False, timeout=60,
     )
     if result.returncode != expected:
         raise AssertionError(
@@ -32,21 +32,46 @@ def run(script: Path, args: list[str], expected: int) -> subprocess.CompletedPro
 def git(cwd: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args], cwd=str(cwd), text=True,
-        capture_output=True, check=True, timeout=20,
+        capture_output=True, check=True, timeout=30,
     )
     return result.stdout.strip()
 
 
+def init_repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    git(path, "init")
+    git(path, "config", "user.email", "launcher-e2e@example.invalid")
+    git(path, "config", "user.name", "Launcher E2E")
+    (path / "baseline.txt").write_text("baseline\n", encoding="utf-8", newline="\n")
+    git(path, "add", "baseline.txt")
+    git(path, "commit", "-m", "baseline")
+    git(path, "branch", "-M", "main")
+    return path
+
+
 def make_repo(root: Path) -> Path:
-    repo = root / "repo"
-    repo.mkdir()
-    git(repo, "init")
-    git(repo, "config", "user.email", "launcher-e2e@example.invalid")
-    git(repo, "config", "user.name", "Launcher E2E")
-    (repo / "baseline.txt").write_text("baseline\n", encoding="utf-8", newline="\n")
-    git(repo, "add", "baseline.txt")
-    git(repo, "commit", "-m", "baseline")
-    return repo
+    return init_repo(root / "repo")
+
+
+def make_remote_scenario(root: Path, name: str) -> tuple[Path, str]:
+    scenario = root / name
+    scenario.mkdir(parents=True)
+    local = init_repo(scenario / "local")
+    remote = scenario / "remote.git"
+    git(scenario, "init", "--bare", str(remote))
+    git(local, "remote", "add", "origin", str(remote))
+    git(local, "push", "-u", "origin", "main")
+
+    writer = scenario / "writer"
+    git(scenario, "clone", str(remote), str(writer))
+    git(writer, "config", "user.email", "launcher-e2e@example.invalid")
+    git(writer, "config", "user.name", "Launcher E2E")
+    git(writer, "checkout", "main")
+    (writer / "remote.txt").write_text(f"{name}\n", encoding="utf-8", newline="\n")
+    git(writer, "add", "remote.txt")
+    git(writer, "commit", "-m", f"{name} remote advance")
+    git(writer, "push", "origin", "main")
+    return local, git(writer, "rev-parse", "HEAD")
 
 
 def write_policy(path: Path, root: Path, state: Path, version: str) -> None:
@@ -123,6 +148,55 @@ def main() -> int:
             0,
         )
 
+        stale, remote_head = make_remote_scenario(root, "sync-positive")
+        synced = run(
+            LAUNCHER,
+            [
+                "--policy", str(policy_path),
+                "--repo", str(stale),
+                "--session-id", "sync-positive",
+                "--expected-head", remote_head,
+                "--sync-ref", "origin/main",
+                "--correlation-id", "launcher-e2e-sync-positive",
+            ],
+            0,
+        )
+        synced_payload = json.loads(synced.stdout.splitlines()[-1])
+        if synced_payload.get("base_sync") != "fast_forward":
+            raise AssertionError("launcher não registrou fast-forward da base")
+        if git(stale, "rev-parse", "HEAD") != remote_head:
+            raise AssertionError("base stale não avançou exatamente até expected_head")
+
+        dirty, dirty_remote_head = make_remote_scenario(root, "sync-dirty")
+        (dirty / "baseline.txt").write_text("dirty\n", encoding="utf-8", newline="\n")
+        run(
+            LAUNCHER,
+            [
+                "--policy", str(policy_path),
+                "--repo", str(dirty),
+                "--session-id", "sync-dirty",
+                "--expected-head", dirty_remote_head,
+                "--sync-ref", "origin/main",
+            ],
+            23,
+        )
+
+        divergent, divergent_remote_head = make_remote_scenario(root, "sync-divergent")
+        (divergent / "local-only.txt").write_text("local\n", encoding="utf-8", newline="\n")
+        git(divergent, "add", "local-only.txt")
+        git(divergent, "commit", "-m", "local divergent commit")
+        run(
+            LAUNCHER,
+            [
+                "--policy", str(policy_path),
+                "--repo", str(divergent),
+                "--session-id", "sync-divergent",
+                "--expected-head", divergent_remote_head,
+                "--sync-ref", "origin/main",
+            ],
+            23,
+        )
+
         write_policy(policy_path, root, state, "1.5.1")
         run(
             LAUNCHER,
@@ -141,8 +215,9 @@ def main() -> int:
         )
 
         print(
-            "SESSION_LAUNCHER_E2E_OK positive=3 negative=2 "
-            "auto_session=valid worktree=isolated base=unchanged"
+            "SESSION_LAUNCHER_E2E_OK positive=4 negative=4 "
+            "sync=fast_forward dirty=blocked divergence=blocked "
+            "auto_session=valid worktree=isolated"
         )
         return 0
     finally:
