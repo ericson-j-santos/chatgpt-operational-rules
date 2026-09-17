@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import hmac
 from typing import Any
 
@@ -12,6 +13,12 @@ def authorized(expected_token: str, supplied_token: str | None) -> bool:
     if not expected_token or not supplied_token:
         return False
     return hmac.compare_digest(expected_token.encode(), supplied_token.encode())
+
+
+def _contract_id(prefix: str, value: str) -> str:
+    if 8 <= len(value) <= 128:
+        return value
+    return f"{prefix}-{hashlib.sha256(value.encode('utf-8')).hexdigest()[:24]}"
 
 
 def normalize(event_name: str, event_uuid: str | None, body: dict[str, Any], expected_project: str | None = None):
@@ -28,10 +35,12 @@ def normalize(event_name: str, event_uuid: str | None, body: dict[str, Any], exp
     if not source_id:
         raise ValueError("identificador GitLab ausente")
     title = str(object_attributes.get("title") or body.get("ref") or event_name).strip()
+    stable_event_id = _contract_id("evt-gitlab", source_id)
+    stable_correlation_id = _contract_id("corr-gitlab", source_id)
     return adapt_external_source("gitlab", {
         "external_id": source_id,
-        "event_id": event_uuid or "",
-        "correlation_id": event_uuid or "",
+        "event_id": stable_event_id,
+        "correlation_id": stable_correlation_id,
         "project": project_path or (f"gitlab-project-{project_id}" if project_id else "AI Hub"),
         "type": f"GitLab {object_kind or event_name}",
         "title": title,
