@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T15:00:37.064542+00:00",
+  "generated_at": "2026-09-17T14:01:02.309904+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -48,14 +48,19 @@
       "size": 974
     },
     {
+      "path": "config/github-workflow-dispatch.policy.json",
+      "sha256": "6b1e68b1811c167879dcad77e92776c63f2976e0f232586e907714227d361ecb",
+      "size": 301
+    },
+    {
       "path": "config/owner-risk3-exceptions.example.json",
       "sha256": "74aa5a5d27cb3fd76686286c42fdaab95435b120d2c9f7e149acfde915ceb7a3",
       "size": 1129
     },
     {
       "path": "docker-compose.pc24x7.yml",
-      "sha256": "0380bae538f9ad68c0879c4e26bc8b0fba64ce3414ef609b3b69131636490242",
-      "size": 2775
+      "sha256": "2bd36906d4bde0ec376fbf21bf72b439f5c24d9207496504d862d91c6f2dbea8",
+      "size": 1693
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
@@ -201,6 +206,11 @@
       "path": "scripts/generate_manifest.py",
       "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
       "size": 1679
+    },
+    {
+      "path": "scripts/github_workflow_dispatch.py",
+      "sha256": "a30db0166d98375a2fb63a39c06e763d775db424f4fe8c831ce1a1da89f61db3",
+      "size": 2722
     },
     {
       "path": "scripts/host_bootstrap_e2e.py",
@@ -463,6 +473,11 @@
       "size": 1260
     },
     {
+      "path": "tests/test_github_workflow_dispatch.py",
+      "sha256": "97ec0e64c3d3bcefc0ffbaeefe421d172d4e3d1d2f90f8359bb6a6dbf2c06e7b",
+      "size": 790
+    },
+    {
       "path": "tests/test_host_bootstrap.py",
       "sha256": "a4edae93fdedddb0d5a8b20e0ecc3158245859e2e010f8d3316675eb9f157f6d",
       "size": 9905
@@ -529,7 +544,7 @@
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
-      "sha256": "78e52bfb46729c5a7bc653a8ef569dab34b631b379a5706a6864288a9c00d4ba",
+      "sha256": "2d1eb0455863cf63abc844acef360ed0005e87e2893534f11722d20bec2c69db",
       "size": 4664
     },
     {

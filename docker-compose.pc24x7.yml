@@ -56,32 +56,6 @@ services:
       retries: 3
       start_period: 10s
 
-  ingest:
-    build:
-      context: .
-      dockerfile: services/todo_gateway/Dockerfile.pc24x7
-    restart: unless-stopped
-    depends_on:
-      gateway:
-        condition: service_healthy
-    environment:
-      TODO_GATEWAY_URL: http://gateway:8000
-      TODO_GATEWAY_TOKEN: ${TODO_GATEWAY_TOKEN}
-      POWER_PLATFORM_TENANT_ID: ${POWER_PLATFORM_TENANT_ID:-}
-      POWER_PLATFORM_CLIENT_ID: ${POWER_PLATFORM_CLIENT_ID:-}
-      POWER_PLATFORM_CLIENT_SECRET: ${POWER_PLATFORM_CLIENT_SECRET:-}
-      PLANNER_TEAMS_DEV_TEAM_ID: ${PLANNER_TEAMS_DEV_TEAM_ID:-}
-      PLANNER_TEAMS_DEV_CHANNEL_ID: ${PLANNER_TEAMS_DEV_CHANNEL_ID:-}
-      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
-      GITLAB_API_URL: ${GITLAB_API_URL:-https://gitlab.com/api/v4}
-      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
-      CONTINUOUS_INGEST_STATE_FILE: /var/lib/continuous-ingest/state.json
-    command: ["python", "-m", "scripts.continuous_source_ingest", "--interval-seconds", "30"]
-    volumes:
-      - continuous_ingest_state:/var/lib/continuous-ingest
-
 volumes:
   todo_global_pgdata:
     name: todo_global_pgdata
-  continuous_ingest_state:
-    name: continuous_ingest_state
