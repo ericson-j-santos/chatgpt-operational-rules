@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts.continuation_worker import Continuation, HumanGate, execute, process_batch
+from scripts.host_router import NodeHealth, RouteDecision
 
 
 class FakeQueue:
@@ -12,6 +13,9 @@ class FakeQueue:
         self.transitions = []
 
     def reserve_continuations(self, limit, lease_seconds):
+        return self.items[:limit]
+
+    def reserve_continuations_for_node(self, node_id, limit, lease_seconds):
         return self.items[:limit]
 
     def complete_continuation(self, request_id):
@@ -24,6 +28,18 @@ class FakeQueue:
         state = "DLQ" if next(x for x in self.items if x.request_id == request_id).attempts >= max_attempts else "PENDING"
         self.transitions.append((request_id, state, error)); return state
 
+    def release_continuation_route(self, request_id):
+        self.transitions.append((request_id, "PENDING_ROUTE")); return True
+
+
+class FakeRouter:
+    def __init__(self, node_id, token=7):
+        self.node_id = node_id
+        self.token = token
+
+    def select(self, correlation_id, nodes):
+        return RouteDecision(correlation_id, self.node_id, "test_route", self.token)
+
 
 def item(request_id, attempts=1):
     return Continuation(request_id, "a" * 64, "corr-test-001", "test", {"automation_action": "safe.test"}, attempts)
@@ -34,8 +50,27 @@ class WorkerTest(unittest.TestCase):
     def test_success_does_not_block_next_item(self, execute):
         q = FakeQueue([item("one"), item("two")])
         result = process_batch(q)
-        self.assertEqual(result, {"reserved": 2, "completed": 2, "human_gate": 0, "retry": 0, "dlq": 0})
+        self.assertEqual(result, {"reserved": 2, "completed": 2, "human_gate": 0, "retry": 0, "dlq": 0, "routed_elsewhere": 0})
         self.assertEqual(len(q.transitions), 2)
+
+    @patch("scripts.continuation_worker.execute")
+    def test_owner_node_executes(self, execute):
+        q = FakeQueue([item("one")])
+        result = process_batch(q, router=FakeRouter("DESKTOP-PDQK954"), node_id="DESKTOP-PDQK954",
+                               nodes=[NodeHealth("DESKTOP-PDQK954", True), NodeHealth("Noteri", True)])
+        self.assertEqual(result["completed"], 1)
+        self.assertEqual(result["routed_elsewhere"], 0)
+        execute.assert_called_once()
+
+    @patch("scripts.continuation_worker.execute")
+    def test_non_owner_releases_without_execution(self, execute):
+        q = FakeQueue([item("one")])
+        result = process_batch(q, router=FakeRouter("Noteri"), node_id="DESKTOP-PDQK954",
+                               nodes=[NodeHealth("DESKTOP-PDQK954", True), NodeHealth("Noteri", True)])
+        self.assertEqual(result["completed"], 0)
+        self.assertEqual(result["routed_elsewhere"], 1)
+        self.assertEqual(q.transitions, [("one", "PENDING_ROUTE")])
+        execute.assert_not_called()
 
     @patch("scripts.continuation_worker.execute", side_effect=HumanGate("approval_required"))
     def test_human_gate_isolated_per_item(self, execute):
