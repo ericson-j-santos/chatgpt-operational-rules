@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import uuid
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import HTTPError
@@ -112,6 +113,7 @@ def main() -> int:
             "priority": "P0",
             "source": "ChatGPT",
             "next_action": "validar continuidade idempotente",
+            "automation_action": "ai_control_plane.validate_idempotent_continuation.v1",
         },
     }
 
@@ -140,6 +142,37 @@ def main() -> int:
         "SELECT event_id || '|' || state || '|' || idempotency_key "
         f"FROM todo_bus.queue_events WHERE event_id = '{event_id}'"
     )
+    request_id = str(cont.get("request_id") or "")
+    terminal_state = ""
+    terminal_error = ""
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        terminal = psql_scalar(
+            "SELECT state || '|' || coalesce(last_error,'') "
+            f"FROM todo_bus.continuation_requests WHERE request_id = '{request_id}'"
+        )
+        terminal_state, _, terminal_error = terminal.partition("|")
+        if terminal_state in {"COMPLETED", "HUMAN_GATE", "DLQ"}: break
+        time.sleep(1)
+
+    neg_suffix = uuid.uuid4().hex[:12]
+    neg_external = f"desktop-negative-{neg_suffix}"
+    neg_event_id = f"evt-negative-{neg_suffix}"
+    neg_key = make_idempotency_key(PROJECT, "Automação", neg_external)
+    negative_event = {**event, "event_id": neg_event_id, "correlation_id": f"corr-negative-{neg_suffix}", "idempotency_key": neg_key, "todo": {**event["todo"], "external_id": neg_external}}
+    negative_event["todo"].pop("automation_action", None)
+    neg_post, _ = api_json("POST", "/v1/events", token, negative_event)
+    neg_cont_status, neg_cont = api_json("POST", f"/v1/todos/{neg_key}/continue", token, {"correlation_id": f"continue-negative-{neg_suffix}"})
+    neg_request = str(neg_cont.get("request_id") or "")
+    neg_state = neg_error = ""
+    neg_deadline = time.monotonic() + 20
+    while time.monotonic() < neg_deadline:
+        neg_terminal = psql_scalar("SELECT state || '|' || coalesce(last_error,'') " f"FROM todo_bus.continuation_requests WHERE request_id = '{neg_request}'")
+        neg_state, _, neg_error = neg_terminal.partition("|")
+        if neg_state in {"COMPLETED", "HUMAN_GATE", "DLQ"}: break
+        time.sleep(1)
+    negative_ok = neg_post == 202 and neg_cont_status == 202 and neg_state == "HUMAN_GATE" and neg_error == "automation_action_missing"
+
     continuation_sql = psql_scalar(
         "SELECT request_id || '|' || state || '|' || basis_event_id "
         f"FROM todo_bus.continuation_requests WHERE idempotency_key = '{key}' ORDER BY created_at DESC LIMIT 1"
@@ -164,6 +197,8 @@ def main() -> int:
             event_sql.startswith(f"{event_id}|"),
             event_sql.endswith(f"|{key}"),
             continuation_sql.endswith(f"|{event_id}"),
+            terminal_state == "COMPLETED",
+            negative_ok,
         ]
     )
 
@@ -183,6 +218,11 @@ def main() -> int:
         "continuation_readback": conts_status == 200 and cont_match is not None,
         "sql_event_readback": event_sql.startswith(f"{event_id}|") and event_sql.endswith(f"|{key}"),
         "sql_continuation_readback": continuation_sql.endswith(f"|{event_id}"),
+        "continuation_terminal_state": terminal_state,
+        "continuation_completed": terminal_state == "COMPLETED",
+        "negative_control_state": neg_state,
+        "negative_control_error": neg_error,
+        "negative_control_passed": negative_ok,
         "ready": ok,
     }
     evidence_dir = runtime_dir() / "evidence"
