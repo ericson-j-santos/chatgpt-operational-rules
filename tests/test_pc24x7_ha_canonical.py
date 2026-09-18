@@ -11,6 +11,7 @@ BRIDGE = ROOT / "docker-compose.pc24x7.bridge.yml"
 BOOTSTRAP = ROOT / "scripts" / "todo_gateway_pc24x7.py"
 SERVICE_HOST = ROOT / "scripts" / "pc24x7_noteri_windows_service.py"
 SERVICE_INSTALLER = ROOT / "scripts" / "install_pc24x7_noteri_windows_service_dev.py"
+NOTERI_DEPLOY = ROOT / "scripts" / "deploy_pc24x7_noteri_ha_worker_dev.py"
 RUNTIME_RULE = ROOT / "rules" / "runtime-routing.md"
 
 
@@ -68,6 +69,12 @@ class HaCanonicalRuntimeTests(unittest.TestCase):
         main_body = installer.split("def main() -> int:", 1)[1]
         self.assertLess(main_body.index("wait_service_heartbeat(values)"), main_body.index("retire_legacy_worker()"))
         self.assertLess(main_body.index("wait_service_heartbeat(values)"), main_body.index("remove_logon_fallback()"))
+
+    def test_noteri_legacy_launcher_also_enforces_neon_only(self):
+        text = NOTERI_DEPLOY.read_text(encoding="utf-8")
+        self.assertIn('"HA_MODE": "enabled"', text)
+        self.assertIn('"HA_DATABASE_REQUIRED_HOST_SUFFIX": ".neon.tech"', text)
+        self.assertIn('"HA_DATABASE_REQUIRED_NAME": "todo_global_bus_dev_ha"', text)
 
     def test_runtime_rule_declares_neon_canonical_and_local_rollback_manual(self):
         text = RUNTIME_RULE.read_text(encoding="utf-8")
