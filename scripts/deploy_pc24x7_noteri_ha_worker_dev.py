@@ -48,9 +48,10 @@ def main() -> int:
     values = load_env()
     database_url = values.get("DATABASE_URL", "")
     parsed = urlparse(database_url)
-    if not parsed.hostname or not parsed.port:
-        raise SystemExit("DATABASE_URL host/port invalid")
-    with socket.create_connection((parsed.hostname, parsed.port), timeout=5):
+    if not parsed.hostname:
+        raise SystemExit("DATABASE_URL host invalid")
+    port = parsed.port or 5432
+    with socket.create_connection((parsed.hostname, port), timeout=5):
         pass
 
     if PID_FILE.is_file():
