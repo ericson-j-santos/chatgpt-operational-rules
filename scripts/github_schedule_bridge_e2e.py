@@ -108,7 +108,11 @@ def terminal_update(
 
 
 def main() -> int:
-    runtime = load_runtime_env()\n    token = runtime["TODO_GATEWAY_TOKEN"]\n    database_url = runtime.get("DATABASE_URL", "")\n    if not database_url:\n        raise RuntimeError("DATABASE_URL missing from local runtime env")
+    runtime = load_runtime_env()
+    token = runtime["TODO_GATEWAY_TOKEN"]
+    database_url = runtime.get("DATABASE_URL", "")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL missing from local runtime env")
     suffix = uuid.uuid4().hex[:12]
     head = current_head()
     run_seed = int(datetime.now(UTC).strftime("%Y%m%d%H%M%S"))
