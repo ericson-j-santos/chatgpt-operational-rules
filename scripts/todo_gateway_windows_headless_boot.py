@@ -111,6 +111,11 @@ def main() -> int:
 
     base = Path(args.runtime_dir)
     repo_root = Path(args.repo_root)
+    active_repo_pointer = base / "active-repo-root.txt"
+    if active_repo_pointer.is_file():
+        pointed = Path(active_repo_pointer.read_text(encoding="utf-8").strip())
+        if pointed.is_dir():
+            repo_root = pointed
     postboot = base / "postboot_runner.py"
     postboot_evidence = base / "evidence" / "postboot-last.json"
     e2e_evidence = base / "evidence" / "e2e-last.json"
