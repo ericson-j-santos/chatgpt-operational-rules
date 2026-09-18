@@ -7,6 +7,7 @@ import win32com.client  # type: ignore
 
 RUNTIME=Path(r"C:\ProgramData\ReqSys\RdcSvc")
 RECEIPT=RUNTIME/"cutover-receipt.json"
+NODE_RECEIPT=RUNTIME/"node-probe-receipt.json"
 LOG=RUNTIME/"rdc-headless.log"
 TASK_FOLDER=r"\Automation"
 NAMES=("RemoteDesktopCommander","RemoteDesktopCommanderHeadless")
@@ -38,6 +39,7 @@ def task_info(folder,name:str)->dict[str,object]:
 def main()->int:
     result:dict[str,object]={
         "receipt_present":RECEIPT.is_file(),
+        "node_probe_receipt_present":NODE_RECEIPT.is_file(),
         "log_present":LOG.is_file(),
         "secret_value_exposed":False,
     }
@@ -51,6 +53,17 @@ def main()->int:
                 result[f"receipt_{key}"]=r.get(key)
         except Exception as exc:
             result["receipt_read_error_type"]=type(exc).__name__
+    if NODE_RECEIPT.is_file():
+        try:
+            r=json.loads(NODE_RECEIPT.read_text(encoding="utf-8"))
+            for key in (
+                "result","reason","node_path_system_level","receipt_present",
+                "task_state","last_task_result","node_version_present",
+                "username_matches_service","profile_present"
+            ):
+                result[f"node_probe_{key}"]=r.get(key)
+        except Exception as exc:
+            result["node_probe_read_error_type"]=type(exc).__name__
     if LOG.is_file():
         text=LOG.read_text(encoding="utf-8",errors="replace")
         result["log_session_restored"]="Session restored" in text
