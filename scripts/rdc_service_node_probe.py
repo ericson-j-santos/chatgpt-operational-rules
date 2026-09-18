@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
-import socket
 import time
 from pathlib import Path
 
@@ -16,11 +16,21 @@ TASK_NAME="ReqSysRdcSvcNodeProbe"
 RUNTIME=Path(r"C:\ProgramData\ReqSys\RdcSvc")
 JS=RUNTIME/"node-probe.cjs"
 OUT=RUNTIME/"node-probe.json"
+RECEIPT=RUNTIME/"node-probe-receipt.json"
 
 TASK_CREATE_OR_UPDATE=6
 TASK_LOGON_PASSWORD=1
 TASK_RUNLEVEL_LUA=0
 TASK_ACTION_EXEC=0
+
+
+def write_receipt(payload:dict[str,object])->None:
+    RUNTIME.mkdir(parents=True,exist_ok=True)
+    safe=dict(payload)
+    safe["secret_value_exposed"]=False
+    tmp=RECEIPT.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(safe,ensure_ascii=True,sort_keys=True)+"\n",encoding="utf-8")
+    os.replace(tmp,RECEIPT)
 
 
 def credential()->tuple[str,str]:
@@ -42,7 +52,9 @@ def credential()->tuple[str,str]:
 def main()->int:
     node=shutil.which("node.exe") or shutil.which("node")
     if not node:
-        print(json.dumps({"result":"blocked","reason":"node_missing","secret_value_exposed":False},sort_keys=True))
+        payload={"result":"blocked","reason":"node_missing"}
+        write_receipt(payload)
+        print(json.dumps({**payload,"secret_value_exposed":False},sort_keys=True))
         return 2
     RUNTIME.mkdir(parents=True,exist_ok=True)
     OUT.unlink(missing_ok=True)
@@ -88,7 +100,6 @@ def main()->int:
         "receipt_present":OUT.exists(),
         "task_state":state,
         "last_task_result":last,
-        "secret_value_exposed":False,
     }
     if OUT.exists():
         try:
@@ -98,13 +109,14 @@ def main()->int:
             payload["profile_present"]=bool(data.get("profile"))
         except Exception as exc:
             payload["receipt_error_type"]=type(exc).__name__
+    write_receipt(payload)
     try:
         folder.DeleteTask(TASK_NAME,0)
     except Exception:
         pass
     OUT.unlink(missing_ok=True)
     JS.unlink(missing_ok=True)
-    print(json.dumps(payload,ensure_ascii=True,sort_keys=True))
+    print(json.dumps({**payload,"secret_value_exposed":False},ensure_ascii=True,sort_keys=True))
     return 0 if payload["result"]=="ready" else 2
 
 
