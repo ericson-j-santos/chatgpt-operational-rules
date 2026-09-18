@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T19:39:55.426576+00:00",
+  "generated_at": "2026-09-18T20:54:12.351344+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -266,6 +266,11 @@
       "path": "scripts/install_command_gateway_host.py",
       "sha256": "006c1e44ea96b58fe05c9cb7602298a0d99d45eca137f570baba2565de93e83c",
       "size": 20909
+    },
+    {
+      "path": "scripts/install_gitlab_relay_registrar_windows.py",
+      "sha256": "cf0b4214a6f6e27ad201d0d92faa24bfc730e9a319ad3b5f93444c5e179a7942",
+      "size": 3083
     },
     {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
