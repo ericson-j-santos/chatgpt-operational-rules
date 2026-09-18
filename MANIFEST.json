@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T17:21:22.289405+00:00",
+  "generated_at": "2026-09-18T17:24:57.986516+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "21216ae2475f1303a86defb740295c164720e02dd498ba362bbfd08edbb71b52",
-      "size": 2966
+      "sha256": "967175f49da223d4f0a81a63f15d57f699dbbd6a5100ad5cc9caa12f24478531",
+      "size": 3098
     },
     {
       "path": ".gitignore",
@@ -489,8 +489,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "ab82bbd7eb354243f4e3ad10f7fe2d03ba397fc3293cb9e4e4dd3c325c8e0682",
-      "size": 3249
+      "sha256": "5e5294a1def10bff3f3b9de5de49c8e86215c0bd1cc15ea204f11f0dbf398c68",
+      "size": 4132
     },
     {
       "path": "tests/test_dual_host_preflight.py",
