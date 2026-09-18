@@ -6,6 +6,7 @@ MIGRATION = ROOT / "scripts" / "migrate_todo_bus_to_neon_dev.py"
 DESKTOP = ROOT / "scripts" / "cutover_todo_bus_neon_desktop_dev.py"
 NOTERI = ROOT / "scripts" / "cutover_todo_bus_neon_noteri_dev.py"
 NOTERI_DEPLOY = ROOT / "scripts" / "deploy_pc24x7_noteri_ha_worker_dev.py"
+INDEPENDENCE_E2E = ROOT / "scripts" / "pc24x7_neon_independence_e2e_dev.py"
 
 
 def read(path: Path) -> str:
@@ -47,3 +48,16 @@ def test_noteri_deploy_accepts_default_postgres_port():
     text = read(NOTERI_DEPLOY)
     assert "port = parsed.port or 5432" in text
     assert "socket.create_connection((parsed.hostname, port)" in text
+
+
+def test_neon_independence_e2e_removes_local_db_dependency_and_requires_noteri():
+    text = read(INDEPENDENCE_E2E)
+    assert 'LOCAL_DB = "todo-global-24x7-db-1"' in text
+    assert 'LOCAL_BRIDGE = "todo-global-24x7-db_bridge-1"' in text
+    assert 'for name in (WORKER, LOCAL_BRIDGE, LOCAL_DB)' in text
+    assert 'if proof["attempts"] != 1' in text
+    assert 'if proof["node_id"] != "Noteri"' in text
+    assert 'duplicate completion detected' in text
+    assert 'run(["docker", "start", WORKER])' in text
+    assert '"desktop_local_db_stopped": True' in text
+    assert '"local_database_preserved_for_rollback": True' in text
