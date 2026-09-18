@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -80,14 +81,27 @@ def register_once() -> dict[str, object]:
     return {"status": "registered", "target": target}
 
 
+def emit(payload: dict[str, object]) -> None:
+    payload = {"timestamp": time.time(), **payload}
+    line = json.dumps(payload, sort_keys=True)
+    try:
+        path = runtime_dir() / "gitlab-relay-registrar.log"
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+    except OSError:
+        pass
+    if sys.stdout is not None:
+        print(line, flush=True)
+
+
 def main() -> int:
     acquire_mutex()
     once = "--once" in os.sys.argv
     while True:
         try:
-            print(json.dumps(register_once(), sort_keys=True), flush=True)
+            emit(register_once())
         except Exception as exc:
-            print(json.dumps({"status": "retry", "error_type": type(exc).__name__}), flush=True)
+            emit({"status": "retry", "error_type": type(exc).__name__})
         if once:
             return 0
         time.sleep(60)
