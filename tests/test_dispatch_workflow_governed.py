@@ -8,6 +8,8 @@ from scripts.dispatch_workflow_governed import dispatch, validate
 REPO = "ericson-j-santos/reqsys-v2-enterprise-real"
 WF = "planner-teams-notify-dev-acceptance.yml"
 WEEKLY_WF = "reqsys-weekly-accomplishment-log.yml"
+TODO_HOURLY_REPO = "ericson-j-santos/chatgpt-operational-rules"
+TODO_HOURLY_WF = "todo-global-hourly-cycle.yml"
 
 
 class DispatchWorkflowGovernedTests(unittest.TestCase):
@@ -23,6 +25,12 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
         self.assertEqual(
             validate(REPO, WEEKLY_WF, "main"),
             (REPO, WEEKLY_WF, "main"),
+        )
+
+    def test_accepts_todo_global_hourly_workflow_on_main(self):
+        self.assertEqual(
+            validate(TODO_HOURLY_REPO, TODO_HOURLY_WF, "main"),
+            (TODO_HOURLY_REPO, TODO_HOURLY_WF, "main"),
         )
 
     def test_rejects_ref_outside_allowlist(self):
