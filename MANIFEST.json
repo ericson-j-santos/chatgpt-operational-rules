@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T23:44:37.306925+00:00",
+  "generated_at": "2026-09-18T23:47:48.412437+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1762530a72c5ce062df8c87da3d29e5fb2ddc6fc249e44f4a05e5d25b0943cb2",
-      "size": 3507
+      "sha256": "1a4eb6848607db3a8542f9cf5fafbb440ad103ab53d66587ad2c9dc9587aedbb",
+      "size": 3506
     },
     {
       "path": ".gitignore",
@@ -319,13 +319,13 @@
     },
     {
       "path": "scripts/rdc_host_fix.py",
-      "sha256": "994aba313145483a17d7ccf95854057d439a059be0e4a242875788393a4b39bd",
-      "size": 5925
+      "sha256": "fcaad5dcfdd1df5f180065062c773746baebbd13acbc105752f712323be3a8e0",
+      "size": 5924
     },
     {
       "path": "scripts/rdc_task_resilience.py",
-      "sha256": "de6334aef2d801d77e2cecec4b740576f097c166c1aacb202377909f152f2d64",
-      "size": 5969
+      "sha256": "d3d6a346a7fc263cca2438d5a8be27bda2e16cbeb7f47f05762c93c02e59b03e",
+      "size": 5968
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -429,8 +429,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "0767c822106a9a098791494d74e748d8c734becf6f214b49d9e3dbd1352bfba2",
-      "size": 9116
+      "sha256": "b73eeb67e33f78396f46c3ad4628e96005dd3811d059ed35c8a1e95393d85be8",
+      "size": 9115
     },
     {
       "path": "services/__init__.py",
@@ -599,13 +599,13 @@
     },
     {
       "path": "tests/test_rdc_host_fix.py",
-      "sha256": "ccb3baada14b1703b540c022db8092b727765406908253fb600b7f896b8a0ec3",
-      "size": 1804
+      "sha256": "3977bbbfe2b57887c43255f2b5c8153408b1c4b46fa75bf54f77bfd7c673643a",
+      "size": 1803
     },
     {
       "path": "tests/test_rdc_task_resilience.py",
-      "sha256": "9e8a2b8151c69f811f3a28385f8004345ef00a0b2596e36aab61fe0ea2904b0f",
-      "size": 3959
+      "sha256": "6162feda13b7b9939c3644ed30f7308daaecb6267de9e546b177770eccc098fa",
+      "size": 3958
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
