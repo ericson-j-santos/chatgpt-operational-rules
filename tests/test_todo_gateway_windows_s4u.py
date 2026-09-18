@@ -7,6 +7,7 @@ E2E = ROOT / "scripts" / "todo_gateway_pc24x7_e2e.py"
 INSTALLER = ROOT / "scripts" / "install_todo_gateway_windows_s4u.ps1"
 NOTERI_INSTALLER = ROOT / "scripts" / "install_pc24x7_noteri_windows_s4u.ps1"
 BOOT_SURVIVAL = ROOT / "scripts" / "pc24x7_boot_survival_dev.py"
+NOTERI_FALLBACK = ROOT / "scripts" / "pc24x7_noteri_logon_fallback_dev.py"
 LISTENER = ROOT / "scripts" / "todo_gateway_headless_beacon_listener.py"
 
 
@@ -110,6 +111,17 @@ def test_boot_survival_installer_is_versioned_and_never_reboots():
     assert "restart-computer" not in text.casefold()
     assert '"S4U"' in text
     assert "BootTrigger" in text
+
+
+def test_noteri_logon_fallback_is_non_admin_and_does_not_read_passwords():
+    text = NOTERI_FALLBACK.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert "HKEY_CURRENT_USER" in text
+    assert "AutoAdminLogon" in text
+    assert "DefaultPassword" not in text
+    assert "shutdown" not in text.casefold()
+    assert "restart-computer" not in text.casefold()
+    assert "deploy_pc24x7_noteri_ha_worker_dev" in text
 
 
 def test_beacon_listener_collects_progress_until_terminal_or_timeout():
