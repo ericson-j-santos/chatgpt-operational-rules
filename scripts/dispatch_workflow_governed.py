@@ -12,8 +12,8 @@ import time
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 WORKFLOW_RE = re.compile(r"^[A-Za-z0-9_.-]+\.(?:yml|yaml)$")
 REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
-ALLOWED_WORKFLOWS = {"planner-teams-notify-dev-acceptance.yml", "teams-dashboard-availability-monitor.yml", "reqsys-weekly-accomplishment-log.yml"}
-ALLOWED_REPOS = {"ericson-j-santos/reqsys-v2-enterprise-real"}
+ALLOWED_WORKFLOWS = {"planner-teams-notify-dev-acceptance.yml", "teams-dashboard-availability-monitor.yml", "reqsys-weekly-accomplishment-log.yml", "todo-global-hourly-cycle.yml"}
+ALLOWED_REPOS = {"ericson-j-santos/reqsys-v2-enterprise-real", "ericson-j-santos/chatgpt-operational-rules"}
 ALLOWED_REFS = {"main", "fix/1358-monitor-contract-diagnostics-20260917", "fix/1358-monitor-dispatch-trigger-20260917"}
 DISPATCH_CONFIRM_ATTEMPTS = 6
 DISPATCH_CONFIRM_INITIAL_DELAY_SECONDS = 1
