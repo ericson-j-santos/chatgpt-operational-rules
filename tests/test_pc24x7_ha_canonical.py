@@ -13,6 +13,9 @@ SERVICE_HOST = ROOT / "scripts" / "pc24x7_noteri_windows_service.py"
 SERVICE_INSTALLER = ROOT / "scripts" / "install_pc24x7_noteri_windows_service_dev.py"
 NOTERI_DEPLOY = ROOT / "scripts" / "deploy_pc24x7_noteri_ha_worker_dev.py"
 RUNTIME_RULE = ROOT / "rules" / "runtime-routing.md"
+NOTERI_CYCLE_OBSERVER = ROOT / "scripts" / "pc24x7_noteri_physical_cycle_desktop_e2e_dev.py"
+NOTERI_CYCLE_TRIGGER = ROOT / "scripts" / "pc24x7_physical_cycle_noteri_dev.py"
+NOTERI_CYCLE_UAC = ROOT / "scripts" / "request_pc24x7_noteri_reboot_uac_dev.py"
 
 
 class HaCanonicalRuntimeTests(unittest.TestCase):
@@ -85,3 +88,24 @@ class HaCanonicalRuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_noteri_physical_cycle_is_guarded_and_symmetric():
+    observer = NOTERI_CYCLE_OBSERVER.read_text(encoding="utf-8")
+    trigger = NOTERI_CYCLE_TRIGGER.read_text(encoding="utf-8")
+    uac = NOTERI_CYCLE_UAC.read_text(encoding="utf-8")
+    self = unittest.TestCase()
+    self.assertIn('DESKTOP = "DESKTOP-PDQK954"', observer)
+    self.assertIn('NOTERI = "Noteri"', observer)
+    self.assertIn('NOTERI_SERVICE_WORKER = "continuation-worker-Noteri-ha-service"', observer)
+    self.assertIn('assert_execution(desktop_survival, DESKTOP)', observer)
+    self.assertIn('assert_execution(noteri_takeover, NOTERI)', observer)
+    self.assertIn('finally:', observer)
+    self.assertIn('docker("start", DESKTOP_WORKER_CONTAINER, check=False)', observer)
+    self.assertIn('TARGET = "Noteri"', trigger)
+    self.assertIn("InitiateSystemShutdownExW", trigger)
+    self.assertIn("SeShutdownPrivilege", trigger)
+    self.assertIn('refusing physical cycle on unexpected host', trigger)
+    self.assertNotIn('"shutdown.exe"', trigger)
+    self.assertIn('lpVerb = "runas"', uac)
+    self.assertIn('pc24x7_physical_cycle_noteri_dev.py', uac)
