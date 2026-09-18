@@ -49,7 +49,7 @@ SERVICE_MAIN = ctypes.WINFUNCTYPE(None, wintypes.DWORD, ctypes.POINTER(wintypes.
 
 
 class SERVICE_TABLE_ENTRY(ctypes.Structure):
-    _fields_ = [("lpServiceName", wintypes.LPWSTR), ("lpServiceProc", SERVICE_MAIN)]
+    _fields_ = [("lpServiceName", wintypes.LPWSTR), ("lpServiceProc", ctypes.c_void_p)]
 
 
 advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
@@ -192,9 +192,9 @@ def service_main(argc, argv):
 def run_service() -> int:
     table = (SERVICE_TABLE_ENTRY * 2)()
     table[0].lpServiceName = SERVICE_NAME
-    table[0].lpServiceProc = service_main
+    table[0].lpServiceProc = ctypes.cast(service_main, ctypes.c_void_p).value
     table[1].lpServiceName = None
-    table[1].lpServiceProc = SERVICE_MAIN()
+    table[1].lpServiceProc = None
     if not advapi32.StartServiceCtrlDispatcherW(table):
         raise ctypes.WinError(ctypes.get_last_error())
     return 0
