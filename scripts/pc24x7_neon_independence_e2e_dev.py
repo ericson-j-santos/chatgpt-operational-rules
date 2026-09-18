@@ -158,7 +158,7 @@ def main() -> int:
         health = wait_failover_health()
 
         suffix = uuid.uuid4().hex[:12]
-        external_id = f"neon-independent-{suffix}"
+        external_id = f"desktop-24x7-e2e-{suffix}"
         event_id = f"evt-neon-{suffix}"
         correlation_id = f"corr-neon-{suffix}"
         continuation_correlation = f"continue-neon-{suffix}"
