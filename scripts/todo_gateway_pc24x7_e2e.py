@@ -12,7 +12,7 @@ import uuid
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -25,6 +25,8 @@ DB_USER = "todo_global_bus_dev_user"
 DB_NAME = "todo_global_bus_dev"
 SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 SAFE_HEX = re.compile(r"^[0-9a-f]{64}$")
+API_CONNECT_ATTEMPTS = 10
+API_CONNECT_RETRY_SECONDS = 2.0
 
 
 def load_runtime_env() -> dict[str, str]:
@@ -58,14 +60,20 @@ def api_json(method: str, path: str, token: str, payload: dict | None = None) ->
     if body is not None:
         headers["Content-Type"] = "application/json"
     request = Request(f"http://127.0.0.1:{PORT}{path}", data=body, headers=headers, method=method)
-    try:
-        with urlopen(request, timeout=8) as response:
-            raw = response.read(262144)
-            return int(response.status), json.loads(raw.decode("utf-8"))
-    except HTTPError as exc:
-        raw = exc.read(262144)
-        payload_out = json.loads(raw.decode("utf-8")) if raw else {}
-        return int(exc.code), payload_out
+    for attempt in range(1, API_CONNECT_ATTEMPTS + 1):
+        try:
+            with urlopen(request, timeout=8) as response:
+                raw = response.read(262144)
+                return int(response.status), json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            raw = exc.read(262144)
+            payload_out = json.loads(raw.decode("utf-8")) if raw else {}
+            return int(exc.code), payload_out
+        except URLError:
+            if attempt >= API_CONNECT_ATTEMPTS:
+                raise
+            time.sleep(API_CONNECT_RETRY_SECONDS)
+    raise RuntimeError("API retry loop exhausted unexpectedly")
 
 
 def psql_scalar(sql: str) -> str:
