@@ -262,7 +262,7 @@ def register_headless_task(folder, user_id: str, password: str, node: str) -> No
     trigger.Delay = "PT20S"
 
     action = definition.Actions.Create(TASK_ACTION_EXEC)
-    action.Path = node
+    action.Path = str(node)
     action.Arguments = f'"{RUNNER_JS}"'
     action.WorkingDirectory = str(RUNTIME)
 
