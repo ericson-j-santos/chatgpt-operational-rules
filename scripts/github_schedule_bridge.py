@@ -160,7 +160,13 @@ def _scheduler_event(run: WorkflowRun) -> tuple[dict[str, Any], str]:
     return event, key
 
 
-def process_tick(\n    run: WorkflowRun,\n    gateway_url: str,\n    gateway_token: str,\n    *,\n    only_keys: set[str] | None = None,\n) -> dict[str, Any]:
+def process_tick(
+    run: WorkflowRun,
+    gateway_url: str,
+    gateway_token: str,
+    *,
+    only_keys: set[str] | None = None,
+) -> dict[str, Any]:
     event, scheduler_key = _scheduler_event(run)
     publish = _gateway_json("POST", gateway_url, gateway_token, "/v1/events", event)
 
