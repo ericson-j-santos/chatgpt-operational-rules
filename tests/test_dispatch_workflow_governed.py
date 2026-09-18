@@ -1,80 +1,113 @@
-from unittest.mock import patch
 import json
-import pytest
+import unittest
+from unittest.mock import patch
+
 from scripts.dispatch_workflow_governed import dispatch, validate
+
 
 REPO = "ericson-j-santos/reqsys-v2-enterprise-real"
 WF = "planner-teams-notify-dev-acceptance.yml"
 WEEKLY_WF = "reqsys-weekly-accomplishment-log.yml"
 
 
-def test_rejects_repo_outside_allowlist():
-    with pytest.raises(ValueError, match="repositório"):
-        validate("other/repo", WF, "main")
+class DispatchWorkflowGovernedTests(unittest.TestCase):
+    def test_rejects_repo_outside_allowlist(self):
+        with self.assertRaisesRegex(ValueError, "repositório"):
+            validate("other/repo", WF, "main")
 
+    def test_rejects_workflow_outside_allowlist(self):
+        with self.assertRaisesRegex(ValueError, "workflow"):
+            validate(REPO, "danger.yml", "main")
 
-def test_rejects_workflow_outside_allowlist():
-    with pytest.raises(ValueError, match="workflow"):
-        validate(REPO, "danger.yml", "main")
+    def test_accepts_reqsys_weekly_accomplishment_workflow_on_main(self):
+        self.assertEqual(
+            validate(REPO, WEEKLY_WF, "main"),
+            (REPO, WEEKLY_WF, "main"),
+        )
 
+    def test_rejects_ref_outside_allowlist(self):
+        with self.assertRaisesRegex(ValueError, "ref"):
+            validate(REPO, WF, "prod")
 
-def test_accepts_reqsys_weekly_accomplishment_workflow_on_main():
-    assert validate(REPO, WEEKLY_WF, "main") == (REPO, WEEKLY_WF, "main")
+    def test_dispatch_confirms_new_run_id(self):
+        before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
+        after = json.dumps({
+            "workflow_runs": [
+                {
+                    "id": 11,
+                    "head_branch": "main",
+                    "html_url": "https://example/run/11",
+                    "status": "queued",
+                },
+                {"id": 10, "head_branch": "main"},
+            ]
+        })
+        outputs = iter([before, "", after])
+        with patch(
+            "scripts.dispatch_workflow_governed.run",
+            side_effect=lambda *args: next(outputs),
+        ):
+            result = dispatch(REPO, WF, "main", "corr-1")
 
+        self.assertEqual(result["result"], "DISPATCHED")
+        self.assertEqual(result["run_id"], 11)
+        self.assertEqual(result["correlation_id"], "corr-1")
 
-def test_rejects_ref_outside_allowlist():
-    with pytest.raises(ValueError, match="ref"):
-        validate(REPO, WF, "prod")
+    def test_dispatch_retries_confirmation_without_repeating_post(self):
+        before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
+        empty = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
+        visible = json.dumps({
+            "workflow_runs": [
+                {
+                    "id": 11,
+                    "head_branch": "main",
+                    "html_url": "https://example/run/11",
+                    "status": "queued",
+                },
+                {"id": 10, "head_branch": "main"},
+            ]
+        })
+        outputs = iter([before, "", empty, visible])
+        calls = []
 
+        def fake_run(*args):
+            calls.append(args)
+            return next(outputs)
 
-def test_dispatch_confirms_new_run_id():
-    before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
-    after = json.dumps({"workflow_runs": [{"id": 11, "head_branch": "main", "html_url": "https://example/run/11", "status": "queued"}, {"id": 10, "head_branch": "main"}]})
-    outputs = iter([before, "", after])
-    with patch("scripts.dispatch_workflow_governed.run", side_effect=lambda *args: next(outputs)):
-        result = dispatch(REPO, WF, "main", "corr-1")
-    assert result["result"] == "DISPATCHED"
-    assert result["run_id"] == 11
-    assert result["correlation_id"] == "corr-1"
+        with patch(
+            "scripts.dispatch_workflow_governed.run",
+            side_effect=fake_run,
+        ), patch("scripts.dispatch_workflow_governed.time.sleep") as sleep:
+            result = dispatch(REPO, WEEKLY_WF, "main", "corr-retry")
 
-
-def test_dispatch_retries_confirmation_without_repeating_post():
-    before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
-    empty = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
-    visible = json.dumps({
-        "workflow_runs": [
-            {"id": 11, "head_branch": "main", "html_url": "https://example/run/11", "status": "queued"},
-            {"id": 10, "head_branch": "main"},
+        post_calls = [
+            args for args in calls if "--method" in args and "POST" in args
         ]
-    })
-    outputs = iter([before, "", empty, visible])
-    calls = []
+        self.assertEqual(len(post_calls), 1)
+        sleep.assert_called_once_with(1)
+        self.assertEqual(result["run_id"], 11)
+        self.assertEqual(result["correlation_id"], "corr-retry")
 
-    def fake_run(*args):
-        calls.append(args)
-        return next(outputs)
+    def test_dispatch_stops_after_bounded_confirmation_attempts(self):
+        before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
+        empty = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
+        outputs = iter([before, "", empty, empty, empty])
 
-    with patch("scripts.dispatch_workflow_governed.run", side_effect=fake_run), patch(
-        "scripts.dispatch_workflow_governed.time.sleep"
-    ) as sleep:
-        result = dispatch(REPO, WEEKLY_WF, "main", "corr-retry")
+        with patch(
+            "scripts.dispatch_workflow_governed.DISPATCH_CONFIRM_ATTEMPTS",
+            3,
+        ), patch(
+            "scripts.dispatch_workflow_governed.run",
+            side_effect=lambda *args: next(outputs),
+        ), patch("scripts.dispatch_workflow_governed.time.sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "retentativas limitadas"):
+                dispatch(REPO, WEEKLY_WF, "main", "corr-timeout")
 
-    post_calls = [args for args in calls if "--method" in args and "POST" in args]
-    assert len(post_calls) == 1
-    sleep.assert_called_once_with(1)
-    assert result["run_id"] == 11
-    assert result["correlation_id"] == "corr-retry"
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [1, 2],
+        )
 
 
-def test_dispatch_stops_after_bounded_confirmation_attempts():
-    before = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
-    empty = json.dumps({"workflow_runs": [{"id": 10, "head_branch": "main"}]})
-    outputs = iter([before, "", empty, empty, empty])
-
-    with patch("scripts.dispatch_workflow_governed.DISPATCH_CONFIRM_ATTEMPTS", 3), patch(
-        "scripts.dispatch_workflow_governed.run", side_effect=lambda *args: next(outputs)
-    ), patch("scripts.dispatch_workflow_governed.time.sleep") as sleep:
-        with pytest.raises(RuntimeError, match="retentativas limitadas"):
-            dispatch(REPO, WEEKLY_WF, "main", "corr-timeout")
-
-    assert [call.args[0] for call in sleep.call_args_list] == [1, 2]
+if __name__ == "__main__":
+    unittest.main()
