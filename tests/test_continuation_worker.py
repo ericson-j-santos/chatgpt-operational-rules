@@ -3,15 +3,17 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from scripts.continuation_worker import Continuation, HumanGate, execute, process_batch
+from scripts.continuation_worker import Continuation, HumanGate, execute, process_batch, process_cycle
 
 
 class FakeQueue:
     def __init__(self, items):
         self.items = items
         self.transitions = []
+        self.reserve_calls = 0
 
     def reserve_continuations(self, limit, lease_seconds):
+        self.reserve_calls += 1
         return self.items[:limit]
 
     def complete_continuation(self, request_id):
@@ -51,6 +53,31 @@ class WorkerTest(unittest.TestCase):
         self.assertEqual(result["retry"], 1)
         self.assertEqual(result["dlq"], 1)
         self.assertEqual([x[1] for x in q.transitions], ["PENDING", "DLQ"])
+
+    @patch("scripts.continuation_worker.execute")
+    def test_estudo_profile_does_not_reserve_new_work(self, execute):
+        q = FakeQueue([item("one")])
+        result = process_cycle(q, profile="ESTUDO")
+        self.assertEqual(result["study_mode"], 1)
+        self.assertEqual(result["reserved"], 0)
+        self.assertEqual(q.reserve_calls, 0)
+        execute.assert_not_called()
+
+    @patch("scripts.continuation_worker.execute")
+    def test_normal_profile_processes_work(self, execute):
+        q = FakeQueue([item("one")])
+        result = process_cycle(q, profile="NORMAL")
+        self.assertEqual(result["study_mode"], 0)
+        self.assertEqual(result["completed"], 1)
+        self.assertEqual(q.reserve_calls, 1)
+
+    @patch("scripts.continuation_worker.execute")
+    def test_invalid_profile_fails_closed_without_reservation(self, execute):
+        q = FakeQueue([item("one")])
+        result = process_cycle(q, profile="INVALID")
+        self.assertEqual(result["profile_blocked"], 1)
+        self.assertEqual(q.reserve_calls, 0)
+        execute.assert_not_called()
 
     def test_registered_action_accepts_only_known_e2e_payload(self):
         x = Continuation("ok", "a"*64, "corr", "AI Control Plane", {"automation_action":"ai_control_plane.validate_idempotent_continuation.v1","next_action":"validar continuidade idempotente","external_id":"desktop-24x7-e2e-abc"}, 1)
