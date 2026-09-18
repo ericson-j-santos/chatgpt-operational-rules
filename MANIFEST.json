@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "7a2738d95d8883e1b7dc70a8378e9d2cde4a2bf19ac57aa2acfe22ea91418cc2",
-      "size": 3090
+      "sha256": "4d07b81617cc1f844b869f3106a8abafad49f1d9e8aa22e03f296d81db1182e3",
+      "size": 3222
     },
     {
       "path": ".gitignore",
@@ -204,8 +204,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "44818d79cedc040b65fcf5b939eea4c8b31b88d3be0c806c1f3592457ff538fd",
-      "size": 3203
+      "sha256": "06b8eeaf292b6c1cd77bfbd6ac83125bbb58e0f73473d868bfe647f4178e19da",
+      "size": 3830
     },
     {
       "path": "scripts/dual_host_preflight.py",
@@ -494,8 +494,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
-      "size": 1260
+      "sha256": "5e5294a1def10bff3f3b9de5de49c8e86215c0bd1cc15ea204f11f0dbf398c68",
+      "size": 4132
     },
     {
       "path": "tests/test_dual_host_preflight.py",
