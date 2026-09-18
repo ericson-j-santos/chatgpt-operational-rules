@@ -9,6 +9,8 @@ NOTERI_INSTALLER = ROOT / "scripts" / "install_pc24x7_noteri_windows_s4u.ps1"
 BOOT_SURVIVAL = ROOT / "scripts" / "pc24x7_boot_survival_dev.py"
 NOTERI_FALLBACK = ROOT / "scripts" / "pc24x7_noteri_logon_fallback_dev.py"
 LISTENER = ROOT / "scripts" / "todo_gateway_headless_beacon_listener.py"
+POSTBOOT_RUNNER = ROOT / "scripts" / "pc24x7_desktop_postboot_runner_dev.py"
+POSTBOOT_VALIDATE = ROOT / "scripts" / "pc24x7_desktop_postboot_validate_dev.py"
 
 
 def test_headless_runner_is_fail_closed_for_interactive_sessions():
@@ -38,7 +40,9 @@ def test_s4u_e2e_resolves_docker_without_relying_only_on_path():
     ast.parse(text)
     assert 'shutil.which("docker")' in text
     assert 'DockerDesktop/resources/bin/docker.exe' in text
-    assert '[docker_executable(), "exec", DB_CONTAINER' in text
+    assert 'DB_CLIENT_CONTAINER = "todo-global-24x7-gateway-1"' in text
+    assert '[docker_executable(), "exec", DB_CLIENT_CONTAINER' in text
+    assert "psycopg.connect(os.environ['DATABASE_URL'])" in text
 
 
 def test_s4u_e2e_retries_only_connection_errors_with_a_bound():
@@ -134,3 +138,33 @@ def test_beacon_listener_collects_progress_until_terminal_or_timeout():
     assert '"timed_out"' in text
     assert "persist(out, records" in text
     assert "return 2 if records else 3" in text
+
+
+def test_headless_runner_prefers_active_repo_pointer():
+    text = RUNNER.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert 'active-repo-root.txt' in text
+    assert 'if pointed.is_dir()' in text
+    assert 'repo_root = pointed' in text
+
+
+def test_boot_survival_materializes_versioned_postboot_and_repo_pointer():
+    text = BOOT_SURVIVAL.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert 'pc24x7_desktop_postboot_runner_dev.py' in text
+    assert 'pc24x7_desktop_postboot_validate_dev.py' in text
+    assert 'active-repo-root.txt' in text
+
+
+def test_postboot_validator_is_neon_only_and_keeps_local_db_stopped():
+    runner = POSTBOOT_RUNNER.read_text(encoding="utf-8")
+    validator = POSTBOOT_VALIDATE.read_text(encoding="utf-8")
+    ast.parse(runner)
+    ast.parse(validator)
+    assert 'todo-global-24x7-db-1' in validator
+    assert 'todo-global-24x7-db_bridge-1' in validator
+    assert '"update", "--restart=no"' in validator
+    assert '"gateway", "worker", "ingest"' in validator
+    assert '.neon.tech' in validator
+    assert 'todo_global_bus_dev_ha' in validator
+    assert 'backup-restore' not in validator
