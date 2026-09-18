@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T20:35:03.066784+00:00",
+  "generated_at": "2026-09-18T15:47:51.520182+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "6f5ae67a13e0392ba3fe16403c121f1cc237bc1509c33cdd80d1c2d962f0e040",
-      "size": 2848
+      "sha256": "21216ae2475f1303a86defb740295c164720e02dd498ba362bbfd08edbb71b52",
+      "size": 2966
     },
     {
       "path": ".gitignore",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "80fe6c157d847f608d138637ddbe6a26c5e2d6432ad7382c64e4520203567f84",
-      "size": 4021
+      "sha256": "f6979c0bf8d404402fdc740c4c40789420f3d76161596a007beb4fe8d61742aa",
+      "size": 4324
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -111,6 +111,11 @@
       "path": "rules/command-gateway.md",
       "sha256": "c85bf843b7d57f0ca2abab7017da9c9d9f9c6750ed885d93a7dd0ba24b9063e9",
       "size": 7138
+    },
+    {
+      "path": "rules/dual-host-routing.md",
+      "sha256": "270db1f200ea1d5a67c35b3030c358710d26cb80cb09d09a4e5a90ce27dcbf49",
+      "size": 1696
     },
     {
       "path": "rules/e2e-validation.md",
@@ -201,6 +206,11 @@
       "path": "scripts/dispatch_workflow_governed.py",
       "sha256": "44818d79cedc040b65fcf5b939eea4c8b31b88d3be0c806c1f3592457ff538fd",
       "size": 3203
+    },
+    {
+      "path": "scripts/dual_host_preflight.py",
+      "sha256": "d93aa00123fb5c894e0f6b6fdd32fd4eda92d50350436e46a8af301ede9b387f",
+      "size": 4698
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -379,8 +389,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "516fb71ff73696e83d84bb1c1b2bb14cb31c2152d9014c0f657ec5ba66776c3e",
-      "size": 8865
+      "sha256": "ef641cd044c4d402d290f8fc4751e4a586d5cedad318a163d378abfbada2e1f0",
+      "size": 8970
     },
     {
       "path": "services/__init__.py",
@@ -481,6 +491,11 @@
       "path": "tests/test_dispatch_workflow_governed.py",
       "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
       "size": 1260
+    },
+    {
+      "path": "tests/test_dual_host_preflight.py",
+      "sha256": "ddf4376e5350d01164ef351efb2be03364850f0a663cf9a83ba82a3d3931a2c5",
+      "size": 4061
     },
     {
       "path": "tests/test_gitlab_webhook.py",
