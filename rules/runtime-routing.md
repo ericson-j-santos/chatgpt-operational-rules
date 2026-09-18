@@ -8,7 +8,7 @@ Antes de contratar, criar ou recuperar um runtime pago adicional, verificar prim
 
 O PC24x7 deve ser a rota preferencial quando todos estes requisitos forem compatíveis:
 - execução supervisionável por Docker/serviço equivalente;
-- persistência local durável com backup/restauração definidos;
+- persistência durável com backup/restauração definidos; para o TODO Global em HA, o plano de controle deve ser independente dos hosts executores;
 - endpoint HTTPS estável quando acesso externo for necessário;
 - segredos mantidos fora do Git/chat e injetados por arquivo protegido, cofre ou mecanismo equivalente;
 - restart automático após falha/reboot;
@@ -29,7 +29,8 @@ Registrar causa, evidência e impacto antes de provisionar novo runtime pago. N�
 
 ## TODO Global / AI Control Plane
 - `PC24x7 Desktop` é o runtime primário e canônico.
-- A implementação canônica usa `docker-compose.pc24x7.yml`, PostgreSQL persistente e o TODO Gateway local supervisionado.
+- A implementação canônica usa `docker-compose.pc24x7.yml` para gateway/worker locais e PostgreSQL Neon externo como plano de controle persistente independente dos hosts.
+- O PostgreSQL Docker local e `db_bridge` são somente rollback manual (`--profile rollback`) e não podem participar do caminho normal quando `HA_MODE=enabled`.
 - Diagnóstico, recuperação, deploy, smoke test e E2E devem começar pelo PC24x7.
 - Um provedor legado não pode ser usado como evidência de disponibilidade do runtime canônico.
 
