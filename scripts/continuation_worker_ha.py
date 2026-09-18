@@ -8,6 +8,7 @@ import time
 
 from scripts.continuation_worker import PostgresContinuationQueue, process_batch
 from scripts.host_router import DynamicNodeHealth, HostRouter, PostgresNodeHealthStore
+from scripts.ha_database_guard import validate_ha_database
 
 
 def bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -29,6 +30,7 @@ def main() -> int:
     if not 1 <= args.limit <= 100 or not 1 <= args.lease_seconds <= 3600:
         raise SystemExit("invalid worker limits")
 
+    validate_ha_database(os.environ)
     dsn = os.environ.get("DATABASE_URL", "").strip()
     primary = os.environ.get("ROUTER_PRIMARY_NODE", "DESKTOP-PDQK954").strip()
     secondary = os.environ.get("ROUTER_SECONDARY_NODE", "Noteri").strip()
