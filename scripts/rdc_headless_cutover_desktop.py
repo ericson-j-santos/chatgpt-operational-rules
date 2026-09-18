@@ -22,6 +22,8 @@ NEW_TASK = "RemoteDesktopCommanderHeadless"
 PROFILE_PROBE_TASK = "ReqSysRdcSvcProfileProbe"
 
 RUNTIME = Path(r"C:\ProgramData\ReqSys\RdcSvc")
+BIN_DIR = RUNTIME / "bin"
+SERVICE_NODE = BIN_DIR / "node.exe"
 APP_DIR = RUNTIME / "app"
 RUNNER_JS = RUNTIME / "rdc-headless-runner.cjs"
 LOG_FILE = RUNTIME / "rdc-headless.log"
