@@ -19,6 +19,9 @@ TABLES = (
     "worker_heartbeat",
     "host_route_decisions",
     "runtime_node_heartbeat",
+    "queue_events",
+    "queue_event_history",
+    "worker_heartbeats",
 )
 
 
@@ -88,10 +91,13 @@ def main() -> int:
         "--file", DUMP_PATH,
     ])
 
-    trigger_disabled = False
+    continuation_trigger_disabled = False
+    queue_trigger_disabled = False
     try:
         psql_target(dsn, "ALTER TABLE todo_bus.continuation_requests DISABLE TRIGGER trg_continuation_audit")
-        trigger_disabled = True
+        continuation_trigger_disabled = True
+        psql_target(dsn, "ALTER TABLE todo_bus.queue_events DISABLE TRIGGER trg_todo_queue_audit")
+        queue_trigger_disabled = True
         restored = run([
             "docker", "exec", DB_CONTAINER, "pg_restore",
             "--dbname", dsn, "--data-only", "--no-owner", "--no-privileges",
@@ -100,7 +106,9 @@ def main() -> int:
         if restored.returncode != 0:
             raise SystemExit((restored.stderr or restored.stdout)[-1200:])
     finally:
-        if trigger_disabled:
+        if queue_trigger_disabled:
+            psql_target(dsn, "ALTER TABLE todo_bus.queue_events ENABLE TRIGGER trg_todo_queue_audit")
+        if continuation_trigger_disabled:
             psql_target(dsn, "ALTER TABLE todo_bus.continuation_requests ENABLE TRIGGER trg_continuation_audit")
 
     psql_target(
@@ -115,6 +123,12 @@ def main() -> int:
         "GREATEST(COALESCE((SELECT max(history_id) FROM todo_bus.continuation_history),1),1), "
         "EXISTS(SELECT 1 FROM todo_bus.continuation_history))",
     )
+    psql_target(
+        dsn,
+        "SELECT setval('todo_bus.queue_event_history_history_id_seq', "
+        "GREATEST(COALESCE((SELECT max(history_id) FROM todo_bus.queue_event_history),1),1), "
+        "EXISTS(SELECT 1 FROM todo_bus.queue_event_history))",
+    )
 
     target_after = counts_target(dsn)
     if target_after != source:
@@ -124,7 +138,10 @@ def main() -> int:
         "status": "ok",
         "source_counts": source,
         "target_counts": target_after,
-        "history_preserved": target_after["continuation_history"] == source["continuation_history"],
+        "history_preserved": (
+            target_after["continuation_history"] == source["continuation_history"]
+            and target_after["queue_event_history"] == source["queue_event_history"]
+        ),
         "source_untouched": True,
         "target_database": EXPECTED_TARGET_DB,
     }
