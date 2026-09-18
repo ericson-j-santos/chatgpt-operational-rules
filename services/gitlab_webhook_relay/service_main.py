@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 MAX_BODY_BYTES = 65536
+FORWARDED_HEADERS = ("Content-Type", "X-Gitlab-Token", "X-Gitlab-Event", "X-Gitlab-Event-UUID", "Webhook-Id", "Idempotency-Key")
 TARGET_LOCK = threading.Lock()
 TARGET_BASE_URL = ""
 
@@ -128,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         headers = {}
-        for name in ("Content-Type", "X-Gitlab-Token", "X-Gitlab-Event", "X-Gitlab-Event-UUID"):
+        for name in FORWARDED_HEADERS:
             value = self.headers.get(name)
             if value:
                 headers[name] = value
