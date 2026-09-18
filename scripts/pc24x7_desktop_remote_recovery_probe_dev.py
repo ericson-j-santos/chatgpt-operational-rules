@@ -32,10 +32,14 @@ def run(args: list[str], timeout: int = 20) -> dict[str, object]:
 
 def main() -> int:
     share = {
-        "exists": ADMIN_SHARE.exists(),
+        "exists": False,
         "listable": False,
         "error": "",
     }
+    try:
+        share["exists"] = ADMIN_SHARE.exists()
+    except Exception as exc:
+        share["error"] = f"{type(exc).__name__}: {exc}"
     if share["exists"]:
         try:
             entries = os.listdir(ADMIN_SHARE)
