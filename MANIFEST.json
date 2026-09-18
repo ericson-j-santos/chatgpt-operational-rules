@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T18:12:12.989770+00:00",
+  "generated_at": "2026-09-18T19:39:55.426576+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -238,6 +238,11 @@
       "size": 9429
     },
     {
+      "path": "scripts/gitlab_relay_registrar.py",
+      "sha256": "9eb75fc32e8c28ed444dae03cecec34102c27992b5451c85365c16d0a67963cf",
+      "size": 3478
+    },
+    {
       "path": "scripts/gitlab_webhook_pc24x7_e2e.py",
       "sha256": "20822a1a325932b73c68da1a472075565927a01af68d73e97f8fd7790b581c17",
       "size": 2801
@@ -423,6 +428,16 @@
       "size": 0
     },
     {
+      "path": "services/gitlab_webhook_relay/__init__.py",
+      "sha256": "c89b20343fca355cd6df53c9dd10618699bfedd912eac078577ecb8feb0e1dd8",
+      "size": 65
+    },
+    {
+      "path": "services/gitlab_webhook_relay/service_main.py",
+      "sha256": "bb7a855b5b1e86f88e93b25988d402985bb67a02a8445bd1d4f6afa3fffb3f0a",
+      "size": 6240
+    },
+    {
       "path": "services/todo_gateway/Dockerfile.pc24x7",
       "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd91cbbf6ffed79477c0729",
       "size": 371
@@ -531,6 +546,11 @@
       "path": "tests/test_gitlab_webhook.py",
       "sha256": "f81509e65977ad53b1e822628897a574f62105dc40ba2e7155ce56fa7a0e776d",
       "size": 4163
+    },
+    {
+      "path": "tests/test_gitlab_webhook_relay.py",
+      "sha256": "232701d1af43821f142f06032f0382dba023e2e0cf0b9ceaaf5e9091597f1e46",
+      "size": 856
     },
     {
       "path": "tests/test_host_bootstrap.py",
