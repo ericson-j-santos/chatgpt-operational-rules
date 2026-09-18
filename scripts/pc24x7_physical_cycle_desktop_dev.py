@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
 import time
+from pathlib import Path
 
 TARGET = "DESKTOP-PDQK954"
 
@@ -13,8 +15,14 @@ def main() -> int:
     if host.casefold() != TARGET.casefold():
         raise SystemExit(f"refusing physical cycle on unexpected host: {host}")
     delay_seconds = 10
-    command = ["shutdown.exe", "/r", "/t", str(delay_seconds)]
-    started = subprocess.run(command, capture_output=True, text=True, check=False)
+    env = os.environ.copy()
+    system_root = env.get("SystemRoot") or env.get("windir") or r"C:\\Windows"
+    env["SystemRoot"] = system_root
+    env["windir"] = system_root
+    env.setdefault("USERDOMAIN", host)
+    shutdown_exe = Path(system_root) / "System32" / "shutdown.exe"
+    command = [str(shutdown_exe), "/r", "/t", str(delay_seconds)]
+    started = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
     if started.returncode != 0:
         raise SystemExit((started.stderr or started.stdout or "restart command failed")[-800:])
     print(json.dumps({
