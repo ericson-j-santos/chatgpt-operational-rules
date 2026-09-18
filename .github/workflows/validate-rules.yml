@@ -48,6 +48,8 @@ jobs:
         run: python scripts/session_launcher_e2e.py
       - name: Run Dual Host Preflight unit tests
         run: python -m unittest -v tests/test_dual_host_preflight.py
+      - name: Run Host Operating Profile unit tests
+        run: python -m unittest -v tests/test_host_operating_profile.py
       - name: Run Host Bootstrap unit tests
         run: python -m unittest -v tests/test_host_bootstrap.py
       - name: Run Host Bootstrap E2E
