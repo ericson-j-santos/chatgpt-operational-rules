@@ -1,0 +1,31 @@
+name: TODO Global Hourly Cycle
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: todo-global-hourly-cycle
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    name: Publish hourly scheduling signal
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Record scheduling evidence
+        run: |
+          {
+            echo "## TODO Global Hourly Cycle"
+            echo
+            echo "- run_id: ${{ github.run_id }}"
+            echo "- event: ${{ github.event_name }}"
+            echo "- ref: ${{ github.ref_name }}"
+            echo "- sha: ${{ github.sha }}"
+            echo "- generated_at_utc: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
