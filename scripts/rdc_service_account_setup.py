@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import socket
 import string
 import time
 from pathlib import Path
@@ -21,6 +22,7 @@ TEST_TASK = "ReqSysRdcSvcCredentialPreflight"
 RUNTIME_DIR = Path(r"C:\ProgramData\ReqSys\RdcSvc")
 IDENTITY_FILE = RUNTIME_DIR / "identity.txt"
 VBS_FILE = RUNTIME_DIR / "identity_probe.vbs"
+RECEIPT_FILE = RUNTIME_DIR / "setup-receipt.json"
 
 TASK_CREATE_OR_UPDATE = 6
 TASK_LOGON_PASSWORD = 1
@@ -31,6 +33,18 @@ TASK_INSTANCES_IGNORE_NEW = 2
 
 class SetupError(RuntimeError):
     pass
+
+
+def write_receipt(payload: dict[str, object]) -> None:
+    try:
+        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+        safe = dict(payload)
+        safe["secret_value_exposed"] = False
+        temp = RECEIPT_FILE.with_suffix(".json.tmp")
+        temp.write_text(json.dumps(safe, ensure_ascii=True, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temp, RECEIPT_FILE)
+    except Exception:
+        pass
 
 
 def random_password(length: int = 40) -> str:
@@ -82,10 +96,7 @@ def get_sid():
 
 
 def configure_logon_rights() -> None:
-    if not all(
-        hasattr(win32security, name)
-        for name in ("LsaOpenPolicy", "LsaAddAccountRights")
-    ):
+    if not all(hasattr(win32security, name) for name in ("LsaOpenPolicy", "LsaAddAccountRights")):
         raise SetupError("required LSA APIs unavailable")
     policy = win32security.LsaOpenPolicy(None, win32security.POLICY_ALL_ACCESS)
     sid = get_sid()
@@ -251,48 +262,62 @@ def register_and_run_test(user_id: str, password: str) -> dict[str, object]:
 
 
 def main() -> int:
-    computer = os.environ.get("COMPUTERNAME", "").strip()
-    if not computer:
-        raise SetupError("COMPUTERNAME unavailable")
-    user_id = f"{computer}\\{ACCOUNT}"
-
     created_user = False
     created_credential = False
+    stage = "resolve_host"
     try:
+        computer = (os.environ.get("COMPUTERNAME", "").strip() or socket.gethostname().strip())
+        if not computer:
+            raise SetupError("host name unavailable")
+        user_id = f"{computer}\\{ACCOUNT}"
+
+        stage = "inspect_existing"
         exists = account_exists()
         stored = read_credential()
 
         if exists and stored is None:
-            print(json.dumps({
+            write_receipt({
                 "result": "blocked",
+                "stage": stage,
                 "reason": "existing_account_without_managed_credential",
                 "account": ACCOUNT,
-                "secret_value_exposed": False,
-            }, sort_keys=True))
+            })
             return 3
 
         if not exists:
             if stored is not None:
                 delete_credential()
+            stage = "create_account"
             password = random_password()
             create_account(password)
             created_user = True
+
+            stage = "configure_logon_rights"
             configure_logon_rights()
+
+            stage = "grant_runtime_acl"
             grant_runtime_acl()
+
+            stage = "store_credential"
             write_credential(user_id, password)
             created_credential = True
         else:
             stored_user, password = stored
             if stored_user.casefold() != user_id.casefold() or not password:
                 raise SetupError("managed credential metadata mismatch")
+            stage = "configure_logon_rights"
             configure_logon_rights()
+            stage = "grant_runtime_acl"
             grant_runtime_acl()
 
+        stage = "write_probe"
         write_probe_script()
+        stage = "register_and_run_test"
         evidence = register_and_run_test(user_id, password)
 
-        print(json.dumps({
+        payload = {
             "result": "ready",
+            "stage": "complete",
             "account": ACCOUNT,
             "account_created": created_user,
             "credential_managed": True,
@@ -300,11 +325,13 @@ def main() -> int:
             "batch_logon_configured": True,
             "interactive_logon_denied": True,
             "remote_interactive_logon_denied": True,
-            "secret_value_exposed": False,
             **evidence,
-        }, sort_keys=True))
+        }
+        write_receipt(payload)
+        print(json.dumps({**payload, "secret_value_exposed": False}, sort_keys=True))
         return 0
     except Exception as exc:
+        winerror = getattr(exc, "winerror", None)
         if created_credential:
             try:
                 delete_credential()
@@ -326,11 +353,16 @@ def main() -> int:
             VBS_FILE.unlink(missing_ok=True)
         except Exception:
             pass
-        print(json.dumps({
+        payload = {
             "result": "blocked",
+            "stage": stage,
             "error_type": type(exc).__name__,
-            "secret_value_exposed": False,
-        }, sort_keys=True))
+            "winerror": winerror,
+            "rollback_user_attempted": created_user,
+            "rollback_credential_attempted": created_credential,
+        }
+        write_receipt(payload)
+        print(json.dumps({**payload, "secret_value_exposed": False}, sort_keys=True))
         return 2
 
 
