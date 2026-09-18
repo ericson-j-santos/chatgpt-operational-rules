@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from scripts.ha_database_guard import validate_ha_database
+
 LOGGER = logging.getLogger("todo_gateway_service")
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATHS = (
@@ -37,6 +39,7 @@ def validate_environment(env: Mapping[str, str]) -> None:
     if missing:
         raise RuntimeError("required environment is missing: " + ", ".join(missing))
     notion_projection_enabled(env)
+    validate_ha_database(env)
 
 
 def bootstrap_schema(
