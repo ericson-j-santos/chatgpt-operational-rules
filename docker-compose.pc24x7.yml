@@ -2,6 +2,7 @@ name: todo-global-24x7
 
 services:
   db:
+    profiles: ["rollback"]
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -22,11 +23,11 @@ services:
       context: .
       dockerfile: services/todo_gateway/Dockerfile.pc24x7
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      HA_MODE: "enabled"
+      HA_DATABASE_REQUIRED_HOST_SUFFIX: ".neon.tech"
+      HA_DATABASE_REQUIRED_NAME: "todo_global_bus_dev_ha"
       TODO_GATEWAY_TOKEN: ${TODO_GATEWAY_TOKEN}
       PORT: "8000"
     ports:
@@ -43,11 +44,11 @@ services:
       context: .
       dockerfile: services/todo_gateway/Dockerfile.pc24x7
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      HA_MODE: "enabled"
+      HA_DATABASE_REQUIRED_HOST_SUFFIX: ".neon.tech"
+      HA_DATABASE_REQUIRED_NAME: "todo_global_bus_dev_ha"
       WORKER_NODE_ID: ${WORKER_NODE_ID:-DESKTOP-PDQK954}
       WORKER_ID: ${WORKER_ID:-continuation-worker-DESKTOP-PDQK954}
       WORKER_CAPABILITIES: ${WORKER_CAPABILITIES:-continuation}
