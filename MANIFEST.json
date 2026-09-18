@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T18:04:46.942117+00:00",
+  "generated_at": "2026-09-18T18:12:12.989770+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -59,8 +59,13 @@
     },
     {
       "path": "docker-compose.pc24x7.yml",
-      "sha256": "139a6afee37b5c63e30e6c95c29fb8cf5b5550dc0345b91a3f52f262f883479c",
-      "size": 3645
+      "sha256": "7e37a28ae685c8ccf255ea2ed8d0120e7bd285fc624fa78a19e5b8dac808a65f",
+      "size": 2887
+    },
+    {
+      "path": "docker-compose.scheduler.pc24x7.yml",
+      "sha256": "67306f7eab3474321975722b9ba4627d2cf375652e8d9f1f64690fb24d06a7e5",
+      "size": 877
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
@@ -519,8 +524,8 @@
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
-      "sha256": "d0ce19a8f0d6016a54a49236f03b0037d88fc9992e58fdb4e5837c2c4dfb6cb2",
-      "size": 6545
+      "sha256": "b2b3c5bc158ace6acb5bd42e216e86b69169192d234b3943bece71aca1bbdf17",
+      "size": 7326
     },
     {
       "path": "tests/test_gitlab_webhook.py",
@@ -599,8 +604,8 @@
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
-      "sha256": "9a2e55d28930e326b42a8fa1961b074a4a188701f167d98a75be9a1481dfbc91",
-      "size": 5177
+      "sha256": "78e52bfb46729c5a7bc653a8ef569dab34b631b379a5706a6864288a9c00d4ba",
+      "size": 4664
     },
     {
       "path": "tests/test_todo_gateway_service.py",
