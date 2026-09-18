@@ -7,14 +7,28 @@ import json
 import subprocess
 import time
 import uuid
+
+import psycopg
 from datetime import UTC, datetime
 
 from scripts.github_schedule_bridge import WorkflowRun, process_tick
 from scripts.todo_event_bus import make_idempotency_key, utc_now_iso
-from scripts.todo_gateway_pc24x7_e2e import api_json, load_runtime_env, psql_scalar
+from scripts.todo_gateway_pc24x7_e2e import api_json, load_runtime_env
 
 PROJECT = "AI Control Plane"
 GATEWAY_URL = "http://127.0.0.1:8094"
+
+
+def db_scalar(database_url: str, sql: str, value: str) -> str:
+    try:
+        with psycopg.connect(database_url, connect_timeout=8) as conn, conn.cursor() as cur:
+            cur.execute(sql, (value,))
+            row = cur.fetchone()
+    except Exception as exc:
+        raise RuntimeError(f"independent DB read failed: {type(exc).__name__}") from exc
+    if not row:
+        return ""
+    return str(row[0])
 
 
 def current_head() -> str:
@@ -94,7 +108,7 @@ def terminal_update(
 
 
 def main() -> int:
-    token = load_runtime_env()["TODO_GATEWAY_TOKEN"]
+    runtime = load_runtime_env()\n    token = runtime["TODO_GATEWAY_TOKEN"]\n    database_url = runtime.get("DATABASE_URL", "")\n    if not database_url:\n        raise RuntimeError("DATABASE_URL missing from local runtime env")
     suffix = uuid.uuid4().hex[:12]
     head = current_head()
     run_seed = int(datetime.now(UTC).strftime("%Y%m%d%H%M%S"))
@@ -137,13 +151,15 @@ def main() -> int:
     terminal = wait_continuation(token, positive_event_id)
     replay_cycle = process_tick(run, GATEWAY_URL, token, only_keys={positive_key})
 
-    positive_event_count = psql_scalar(
-        "SELECT count(*) FROM todo_bus.queue_events "
-        f"WHERE event_id = '{positive_event_id}'"
+    positive_event_count = db_scalar(
+        database_url,
+        "SELECT count(*) FROM todo_bus.queue_events WHERE event_id = %s",
+        positive_event_id,
     )
-    positive_continuation_count = psql_scalar(
-        "SELECT count(*) FROM todo_bus.continuation_requests "
-        f"WHERE basis_event_id = '{positive_event_id}'"
+    positive_continuation_count = db_scalar(
+        database_url,
+        "SELECT count(*) FROM todo_bus.continuation_requests WHERE basis_event_id = %s",
+        positive_event_id,
     )
 
     negative_external = f"desktop-negative-hourly-{suffix}"
@@ -178,9 +194,10 @@ def main() -> int:
         created_at=utc_now_iso(),
     )
     negative_cycle = process_tick(negative_run, GATEWAY_URL, token, only_keys={negative_key})
-    negative_continuation_count = psql_scalar(
-        "SELECT count(*) FROM todo_bus.continuation_requests "
-        f"WHERE basis_event_id = '{negative_event_id}'"
+    negative_continuation_count = db_scalar(
+        database_url,
+        "SELECT count(*) FROM todo_bus.continuation_requests WHERE basis_event_id = %s",
+        negative_event_id,
     )
 
     ready = all(
