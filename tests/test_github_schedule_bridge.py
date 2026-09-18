@@ -3,6 +3,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SCHEDULER_COMPOSE = ROOT / "docker-compose.scheduler.pc24x7.yml"
 from unittest.mock import patch
 
 from scripts.github_schedule_bridge import (
@@ -27,6 +30,19 @@ def run(run_id: int = 101) -> WorkflowRun:
 
 
 class GitHubScheduleBridgeTests(unittest.TestCase):
+
+    def test_scheduler_compose_is_isolated_from_runtime_topology(self):
+        text = SCHEDULER_COMPOSE.read_text(encoding="utf-8")
+        self.assertIn("name: todo-global-scheduler", text)
+        self.assertIn("restart: unless-stopped", text)
+        self.assertIn("TODO_GATEWAY_URL: http://gateway:8000", text)
+        self.assertIn("GITHUB_SCHEDULE_WORKFLOW: todo-global-hourly-cycle.yml", text)
+        self.assertIn("todo_global_scheduler_state", text)
+        self.assertIn("external: true", text)
+        self.assertIn("name: todo-global-24x7_default", text)
+        self.assertNotIn("postgres:16-alpine", text)
+        self.assertNotIn("GITHUB_TOKEN:", text)
+
     @patch("scripts.github_schedule_bridge._json_request")
     def test_latest_successful_run_filters_branch_event_and_conclusion(self, request):
         request.return_value = {
