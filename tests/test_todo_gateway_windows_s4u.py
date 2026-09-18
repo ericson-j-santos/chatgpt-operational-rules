@@ -109,7 +109,7 @@ def test_boot_survival_installer_is_versioned_and_never_reboots():
     assert "shutdown" not in text.casefold()
     assert "restart-computer" not in text.casefold()
     assert '"S4U"' in text
-    assert '"BootTrigger"' in text
+    assert "BootTrigger" in text
 
 
 def test_beacon_listener_collects_progress_until_terminal_or_timeout():
