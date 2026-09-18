@@ -5,7 +5,7 @@ import socket
 import time
 
 MAC = "78:46:5c:1a:78:bb"
-BROADCASTS = ("192.168.1.255", "255.255.255.255")
+BROADCASTS = ("192.168.1.60", "192.168.1.255", "255.255.255.255")
 PORTS = (7, 9)
 BURSTS = 5
 
