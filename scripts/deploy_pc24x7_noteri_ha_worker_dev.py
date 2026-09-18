@@ -82,6 +82,9 @@ def main() -> int:
         "ROUTER_SECONDARY_NODE": "Noteri",
         "ROUTER_HEARTBEAT_TTL_SECONDS": "20",
         "ROUTER_PRIMARY_STABILITY_SECONDS": "15",
+        "HA_MODE": "enabled",
+        "HA_DATABASE_REQUIRED_HOST_SUFFIX": ".neon.tech",
+        "HA_DATABASE_REQUIRED_NAME": "todo_global_bus_dev_ha",
         "PYTHONPATH": str(ROOT),
     })
     log = LOG_FILE.open("a", encoding="utf-8")
