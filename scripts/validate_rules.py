@@ -24,9 +24,10 @@ REQUIRED_PATHS = {
     "scripts/command_gateway_e2e.py", "scripts/generate_manifest.py", "scripts/host_bootstrap_e2e.py",
     "scripts/install_command_gateway_host.py", "scripts/session_bootstrap.py", "scripts/session_bootstrap_e2e.py",
     "scripts/session_preflight.py", "scripts/session_preflight_e2e.py", "scripts/session_launcher.py",
-    "scripts/session_launcher_e2e.py", "scripts/validate_rules.py",
+    "scripts/session_launcher_e2e.py", "scripts/dual_host_preflight.py", "scripts/validate_rules.py",
+    "rules/dual-host-routing.md",
     "tests/test_command_gateway.py", "tests/test_host_bootstrap.py", "tests/test_session_bootstrap.py",
-    "tests/test_session_preflight.py", "tests/test_session_launcher.py",
+    "tests/test_session_preflight.py", "tests/test_session_launcher.py", "tests/test_dual_host_preflight.py",
 }
 
 
