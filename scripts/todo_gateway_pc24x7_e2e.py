@@ -20,9 +20,7 @@ from scripts.todo_event_bus import make_idempotency_key, utc_now_iso
 from scripts.todo_gateway_pc24x7 import PORT, runtime_dir
 
 PROJECT = "AI Control Plane"
-DB_CONTAINER = "todo-global-24x7-db-1"
-DB_USER = "todo_global_bus_dev_user"
-DB_NAME = "todo_global_bus_dev"
+DB_CLIENT_CONTAINER = "todo-global-24x7-gateway-1"
 SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]+$")
 SAFE_HEX = re.compile(r"^[0-9a-f]{64}$")
 API_CONNECT_ATTEMPTS = 10
@@ -77,8 +75,15 @@ def api_json(method: str, path: str, token: str, payload: dict | None = None) ->
 
 
 def psql_scalar(sql: str) -> str:
+    code = (
+        "import os,sys,psycopg;"
+        "c=psycopg.connect(os.environ['DATABASE_URL']);"
+        "r=c.execute(sys.argv[1]).fetchone();"
+        "print('' if r is None else r[0]);"
+        "c.close()"
+    )
     result = subprocess.run(
-        [docker_executable(), "exec", DB_CONTAINER, "psql", "-U", DB_USER, "-d", DB_NAME, "-At", "-c", sql],
+        [docker_executable(), "exec", DB_CLIENT_CONTAINER, "python", "-c", code, sql],
         text=True,
         capture_output=True,
         encoding="utf-8",
