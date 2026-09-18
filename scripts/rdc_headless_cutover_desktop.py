@@ -173,6 +173,20 @@ def secure_secret_file(path: Path, service_account: str) -> None:
     win32security.SetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION, sd)
 
 
+def provision_service_node() -> Path:
+    source = shutil.which("node.exe") or shutil.which("node")
+    if not source:
+        raise CutoverError("node not found")
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    source_path = Path(source)
+    if not SERVICE_NODE.exists() or SERVICE_NODE.stat().st_size != source_path.stat().st_size:
+        shutil.copy2(source_path, SERVICE_NODE)
+    completed = run([str(SERVICE_NODE), "--version"], timeout=30)
+    if completed.returncode != 0:
+        raise CutoverError("service-local node validation failed")
+    return SERVICE_NODE
+
+
 def install_pinned_package() -> Path:
     npm = shutil.which("npm.cmd") or shutil.which("npm")
     if not npm:
@@ -321,9 +335,7 @@ def main() -> int:
 
         stage = "install_pinned_package"
         cli = install_pinned_package()
-        node = shutil.which("node.exe") or shutil.which("node")
-        if not node:
-            raise CutoverError("node not found")
+        node = provision_service_node()
         write_runner(cli)
 
         stage = "register_headless_task"
@@ -343,7 +355,8 @@ def main() -> int:
             "result": "ready",
             "stage": "complete",
             "host": computer,
-            "package_version": VERSION,\n            "service_node_under_programdata": str(node).casefold().startswith(str(RUNTIME).casefold()),
+            "package_version": VERSION,
+            "service_node_under_programdata": str(node).casefold().startswith(str(RUNTIME).casefold()),
             "service_profile_detected": True,
             "session_copied": True,
             "session_file_acl_restricted": True,
