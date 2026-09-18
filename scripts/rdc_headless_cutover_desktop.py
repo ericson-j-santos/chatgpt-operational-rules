@@ -343,7 +343,7 @@ def main() -> int:
             "result": "ready",
             "stage": "complete",
             "host": computer,
-            "package_version": VERSION,
+            "package_version": VERSION,\n            "service_node_under_programdata": str(node).casefold().startswith(str(RUNTIME).casefold()),
             "service_profile_detected": True,
             "session_copied": True,
             "session_file_acl_restricted": True,
