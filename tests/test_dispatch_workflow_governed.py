@@ -5,6 +5,7 @@ from scripts.dispatch_workflow_governed import dispatch, validate
 
 REPO = "ericson-j-santos/reqsys-v2-enterprise-real"
 WF = "planner-teams-notify-dev-acceptance.yml"
+WEEKLY_WF = "reqsys-weekly-accomplishment-log.yml"
 
 
 def test_rejects_repo_outside_allowlist():
@@ -15,6 +16,10 @@ def test_rejects_repo_outside_allowlist():
 def test_rejects_workflow_outside_allowlist():
     with pytest.raises(ValueError, match="workflow"):
         validate(REPO, "danger.yml", "main")
+
+
+def test_accepts_reqsys_weekly_accomplishment_workflow_on_main():
+    assert validate(REPO, WEEKLY_WF, "main") == (REPO, WEEKLY_WF, "main")
 
 
 def test_rejects_ref_outside_allowlist():
