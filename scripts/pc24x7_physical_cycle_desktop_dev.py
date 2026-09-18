@@ -18,8 +18,6 @@ def main() -> int:
         "/r",
         "/t",
         str(delay_seconds),
-        "/d",
-        "p:4:1",
         "/c",
         "Authorized PC24x7 physical failover/failback E2E",
     ]
