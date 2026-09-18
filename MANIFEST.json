@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-17T20:35:03.066784+00:00",
+  "generated_at": "2026-09-18T15:59:20.047759+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -189,8 +189,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "5656af87cbf708d77382d1844a7b2b9201e68d5997344cce784914a563e4aa51",
-      "size": 8873
+      "sha256": "d2ff149ceb25326e70283d10110aae3817fb92759f9fbbe7fc2b3ffa6d354a68",
+      "size": 8872
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -469,8 +469,8 @@
     },
     {
       "path": "tests/test_continuation_worker.py",
-      "sha256": "b217048c878915fbe25aa5579790aa56377f74c8a23a5f90694b5def376a643a",
-      "size": 3280
+      "sha256": "7b4b196eb1aaea2ef850cf4ad522eddb22639fb68e826d5b7c4a86db46eca1dc",
+      "size": 4004
     },
     {
       "path": "tests/test_continuous_source_ingest.py",
