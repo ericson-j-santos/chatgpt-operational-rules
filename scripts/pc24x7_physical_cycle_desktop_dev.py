@@ -13,14 +13,7 @@ def main() -> int:
     if host.casefold() != TARGET.casefold():
         raise SystemExit(f"refusing physical cycle on unexpected host: {host}")
     delay_seconds = 10
-    command = [
-        "shutdown.exe",
-        "/r",
-        "/t",
-        str(delay_seconds),
-        "/c",
-        "Authorized PC24x7 physical failover/failback E2E",
-    ]
+    command = ["shutdown.exe", "/r", "/t", str(delay_seconds)]
     started = subprocess.run(command, capture_output=True, text=True, check=False)
     if started.returncode != 0:
         raise SystemExit((started.stderr or started.stdout or "restart command failed")[-800:])
