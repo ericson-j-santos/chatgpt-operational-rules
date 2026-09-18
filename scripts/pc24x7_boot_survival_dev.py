@@ -54,6 +54,15 @@ def audit_task(node: str) -> dict[str, object]:
     }
 
 
+def task_core_valid(item: dict[str, object]) -> bool:
+    return (
+        item.get("exists") is True
+        and item.get("boot_trigger") is True
+        and item.get("logon_type") == "S4U"
+        and item.get("run_level") in {"", "LeastPrivilege", "Limited"}
+    )
+
+
 def install_desktop() -> None:
     runtime = Path.home() / "AppData" / "Local" / "ReqSys" / "TodoGlobal24x7"
     runtime.mkdir(parents=True, exist_ok=True)
@@ -63,6 +72,8 @@ def install_desktop() -> None:
     postboot = runtime / "postboot_runner.py"
     if not postboot.is_file():
         raise SystemExit(f"postboot runner missing: {postboot}")
+    if task_core_valid(audit_task("desktop")):
+        return
     installer = ROOT / "scripts" / "install_todo_gateway_windows_s4u.ps1"
     cp = run([
         "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -75,6 +86,8 @@ def install_desktop() -> None:
 
 
 def install_noteri() -> None:
+    if task_core_valid(audit_task("noteri")):
+        return
     installer = ROOT / "scripts" / "install_pc24x7_noteri_windows_s4u.ps1"
     cp = run([
         "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -98,14 +111,7 @@ def main() -> int:
         (install_desktop if args.node == "desktop" else install_noteri)()
     result = [audit_task(node) for node in nodes]
     for item in result:
-        if item.get("exists"):
-            item["valid"] = (
-                item.get("boot_trigger") is True
-                and item.get("logon_type") == "S4U"
-                and item.get("run_level") in {"LeastPrivilege", "Limited"}
-            )
-        else:
-            item["valid"] = False
+        item["valid"] = task_core_valid(item)
     print(json.dumps(result if args.node == "all" else result[0], sort_keys=True))
     return 0 if all(bool(x["valid"]) for x in result) else 2
 
