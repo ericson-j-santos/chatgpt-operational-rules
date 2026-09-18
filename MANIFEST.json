@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T20:54:12.351344+00:00",
+  "generated_at": "2026-09-18T23:47:48.412437+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "44cc60049909c9fc81bdca667016972442b3b0dc479a9985c3d7610c468e5159",
-      "size": 3346
+      "sha256": "1a4eb6848607db3a8542f9cf5fafbb440ad103ab53d66587ad2c9dc9587aedbb",
+      "size": 3506
     },
     {
       "path": ".gitignore",
@@ -319,8 +319,13 @@
     },
     {
       "path": "scripts/rdc_host_fix.py",
-      "sha256": "b4976c32780f41372c656e6d2cb87c8e49e678626c02ad37790a443cfef84df3",
-      "size": 5318
+      "sha256": "fcaad5dcfdd1df5f180065062c773746baebbd13acbc105752f712323be3a8e0",
+      "size": 5924
+    },
+    {
+      "path": "scripts/rdc_task_resilience.py",
+      "sha256": "d3d6a346a7fc263cca2438d5a8be27bda2e16cbeb7f47f05762c93c02e59b03e",
+      "size": 5968
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -424,8 +429,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "5c68dc59261dc90743f1991d1bc3faf31283325fec9a99590d5b25e4f2f5cde4",
-      "size": 9051
+      "sha256": "b73eeb67e33f78396f46c3ad4628e96005dd3811d059ed35c8a1e95393d85be8",
+      "size": 9115
     },
     {
       "path": "services/__init__.py",
@@ -591,6 +596,16 @@
       "path": "tests/test_publish_branch_governed.py",
       "sha256": "9f831f8792034a5ff5ff22e44748b524237733dfabe40f5956fef5e0711a7597",
       "size": 1880
+    },
+    {
+      "path": "tests/test_rdc_host_fix.py",
+      "sha256": "3977bbbfe2b57887c43255f2b5c8153408b1c4b46fa75bf54f77bfd7c673643a",
+      "size": 1803
+    },
+    {
+      "path": "tests/test_rdc_task_resilience.py",
+      "sha256": "6162feda13b7b9939c3644ed30f7308daaecb6267de9e546b177770eccc098fa",
+      "size": 3958
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",

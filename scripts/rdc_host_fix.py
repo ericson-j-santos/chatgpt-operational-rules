@@ -12,40 +12,37 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ALLOWED_NAME = "start-remote-desktop-commander.cmd"
-EXPECTED_OLD_SHA256 = "d86b2eafaa6b679727f1db28d41f8489e7c2ae1fcb3529da750cf52ff5e02dd6"
-MARKER = "REM RDC_LAUNCHER_V2_GOVERNED"
+LEGACY_V1_SHA256 = "d86b2eafaa6b679727f1db28d41f8489e7c2ae1fcb3529da750cf52ff5e02dd6"
+V2_SHA256 = "001cb4f595d305ea757c4b251b7fefaee9b0df7732f7a373ae742c7a6f850767"
+V2_MARKER = "REM RDC_LAUNCHER_V2_GOVERNED"
+V3_MARKER = "REM RDC_LAUNCHER_V3_RESILIENT"
+PINNED_PACKAGE = "@wonderwhy-er/desktop-commander@0.2.51"
 NEW_CONTENT = r'''@echo off
 setlocal EnableExtensions
-''' + MARKER + r'''
-title Remote Desktop Commander - Automation
+''' + V3_MARKER + r'''
+title Remote Desktop Commander - Resilient Automation
 
 set "RDC_LOG=%USERPROFILE%\RemoteDesktopCommander.log"
-set "RDC_MAX_RETRIES=5"
 set "RDC_RETRY_SECONDS=15"
-set /a RDC_ATTEMPT=0
+set "RDC_PACKAGE=@wonderwhy-er/desktop-commander@0.2.51"
 
 if /I "%~1"=="--self-test" goto :selftest
 
 :run
-set /a RDC_ATTEMPT+=1
-echo [%date% %time%] Iniciando Remote Desktop Commander tentativa %RDC_ATTEMPT%/%RDC_MAX_RETRIES%... >> "%RDC_LOG%"
+echo [%date% %time%] RDC supervisor starting %RDC_PACKAGE%... >> "%RDC_LOG%"
 
-REM npx no Windows resolve para npx.cmd. CALL e obrigatorio para devolver controle a este batch.
-call npx --yes @wonderwhy-er/desktop-commander@latest remote >> "%RDC_LOG%" 2>&1
+REM CALL is mandatory for npx.cmd so control returns to this supervisor.
+call npx --yes %RDC_PACKAGE% remote >> "%RDC_LOG%" 2>&1
 set "RDC_EXIT=%ERRORLEVEL%"
 
-echo [%date% %time%] Remote Desktop Commander terminou com codigo %RDC_EXIT%. >> "%RDC_LOG%"
-if "%RDC_EXIT%"=="0" exit /b 0
-if %RDC_ATTEMPT% GEQ %RDC_MAX_RETRIES% exit /b %RDC_EXIT%
-
-echo [%date% %time%] Reinicio controlado em %RDC_RETRY_SECONDS%s. >> "%RDC_LOG%"
+echo [%date% %time%] RDC child exited code=%RDC_EXIT%; restart in %RDC_RETRY_SECONDS%s. >> "%RDC_LOG%"
 timeout /t %RDC_RETRY_SECONDS% /nobreak >nul
 goto :run
 
 :selftest
-call npx --version >> "%RDC_LOG%" 2>&1
+call npx --yes %RDC_PACKAGE% --version >> "%RDC_LOG%" 2>&1
 set "RDC_EXIT=%ERRORLEVEL%"
-echo [%date% %time%] RDC_SELF_TEST terminou com codigo %RDC_EXIT%. >> "%RDC_LOG%"
+echo [%date% %time%] RDC_SELF_TEST package=%RDC_PACKAGE% code=%RDC_EXIT%. >> "%RDC_LOG%"
 exit /b %RDC_EXIT%
 '''.replace("\n", "\r\n")
 
@@ -66,24 +63,28 @@ def inspect(path: Path) -> dict[str, object]:
         raise FileNotFoundError(path)
     payload = path.read_bytes()
     text = payload.decode("utf-8-sig", errors="replace")
+    marker = "v3" if V3_MARKER in text else "v2" if V2_MARKER in text else "legacy"
     return {
         "path": str(path),
         "sha256": sha256_bytes(payload),
         "size": len(payload),
-        "already_fixed": MARKER in text,
+        "marker": marker,
+        "already_fixed": marker == "v3",
         "contains_call_npx": "call npx " in text.casefold(),
         "contains_self_test": "rdc_self_test" in text.casefold(),
+        "contains_pinned_package": PINNED_PACKAGE.casefold() in text.casefold(),
+        "contains_watchdog_loop": "goto :run" in text.casefold(),
     }
 
 
-def apply(path: Path, expected_sha256: str) -> dict[str, object]:
+def apply(path: Path, expected_sha256: list[str]) -> dict[str, object]:
     before = inspect(path)
     if before["already_fixed"]:
         return {"result": "already_fixed", "before": before, "after": before, "backup": None}
-    if str(before["sha256"]).lower() != expected_sha256.lower():
-        raise ValueError(
-            f"launcher hash changed: expected={expected_sha256.lower()} actual={before['sha256']}"
-        )
+    allowed = {value.lower() for value in expected_sha256 if value}
+    actual = str(before["sha256"]).lower()
+    if actual not in allowed:
+        raise ValueError(f"launcher hash changed: allowed={sorted(allowed)} actual={actual}")
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup = path.with_name(path.name + f".bak-{timestamp}")
     shutil.copy2(path, backup)
@@ -91,7 +92,14 @@ def apply(path: Path, expected_sha256: str) -> dict[str, object]:
     temp.write_bytes(NEW_CONTENT.encode("utf-8"))
     os.replace(temp, path)
     after = inspect(path)
-    if not after["already_fixed"] or not after["contains_call_npx"] or not after["contains_self_test"]:
+    required = (
+        after["already_fixed"],
+        after["contains_call_npx"],
+        after["contains_self_test"],
+        after["contains_pinned_package"],
+        after["contains_watchdog_loop"],
+    )
+    if not all(required):
         shutil.copy2(backup, path)
         raise RuntimeError("post-write validation failed; backup restored")
     return {"result": "fixed", "before": before, "after": after, "backup": str(backup)}
@@ -100,7 +108,7 @@ def apply(path: Path, expected_sha256: str) -> dict[str, object]:
 def self_test(path: Path) -> dict[str, object]:
     state = inspect(path)
     if not state["already_fixed"] or not state["contains_self_test"]:
-        raise ValueError("launcher does not contain governed self-test")
+        raise ValueError("launcher does not contain resilient governed self-test")
     comspec = os.environ.get("COMSPEC", "cmd.exe")
     completed = subprocess.run(
         [comspec, "/d", "/c", str(path), "--self-test"],
@@ -109,7 +117,7 @@ def self_test(path: Path) -> dict[str, object]:
         encoding="utf-8",
         errors="replace",
         shell=False,
-        timeout=60,
+        timeout=120,
         check=False,
     )
     return {
@@ -120,22 +128,28 @@ def self_test(path: Path) -> dict[str, object]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Guarded RDC launcher remediation")
+    parser = argparse.ArgumentParser(description="Guarded resilient RDC launcher remediation")
     parser.add_argument("--launcher", required=True)
-    parser.add_argument("--expected-sha256", default=EXPECTED_OLD_SHA256)
+    parser.add_argument(
+        "--expected-sha256",
+        action="append",
+        default=[],
+        help="Allowed source hash; may be supplied more than once.",
+    )
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     ns = parser.parse_args()
     try:
         target = validate_target(ns.launcher)
+        allowed = ns.expected_sha256 or [LEGACY_V1_SHA256, V2_SHA256]
         if ns.apply and ns.self_test:
             raise ValueError("choose only one action: --apply or --self-test")
         if ns.apply:
-            result = apply(target, ns.expected_sha256)
+            result = apply(target, allowed)
         elif ns.self_test:
             result = self_test(target)
         else:
-            result = {"result": "dry_run", "state": inspect(target)}
+            result = {"result": "dry_run", "state": inspect(target), "allowed_source_hashes": allowed}
         print(json.dumps(result, ensure_ascii=True, sort_keys=True))
         return 0 if result.get("result") != "self_test_failed" else 3
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
