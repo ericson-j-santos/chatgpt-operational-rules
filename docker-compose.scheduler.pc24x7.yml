@@ -1,0 +1,29 @@
+name: todo-global-scheduler
+
+services:
+  scheduler:
+    build:
+      context: .
+      dockerfile: services/todo_gateway/Dockerfile.pc24x7
+    restart: unless-stopped
+    environment:
+      TODO_GATEWAY_URL: http://gateway:8000
+      TODO_GATEWAY_TOKEN: ${TODO_GATEWAY_TOKEN}
+      GITHUB_SCHEDULE_REPOSITORY: ericson-j-santos/chatgpt-operational-rules
+      GITHUB_SCHEDULE_WORKFLOW: todo-global-hourly-cycle.yml
+      GITHUB_SCHEDULE_BRANCH: main
+      GITHUB_SCHEDULE_STATE_FILE: /var/lib/todo-scheduler/state.json
+    command: ["python", "-m", "scripts.github_schedule_bridge", "--interval-seconds", "60"]
+    volumes:
+      - todo_scheduler_state:/var/lib/todo-scheduler
+    networks:
+      - todo_global_runtime
+
+volumes:
+  todo_scheduler_state:
+    name: todo_global_scheduler_state
+
+networks:
+  todo_global_runtime:
+    external: true
+    name: todo-global-24x7_default
