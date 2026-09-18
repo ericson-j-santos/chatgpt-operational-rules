@@ -40,6 +40,7 @@ SERVICE_WIN32_OWN_PROCESS = 0x00000010
 SERVICE_AUTO_START = 0x00000002
 SERVICE_ERROR_NORMAL = 0x00000001
 SERVICE_NO_CHANGE = 0xFFFFFFFF
+SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 3
 SC_STATUS_PROCESS_INFO = 0
 SERVICE_RUNNING = 0x00000004
 SERVICE_STOPPED = 0x00000001
@@ -52,6 +53,10 @@ FILES = (
     "host_router.py",
     "ha_database_guard.py",
 )
+
+
+class SERVICE_DELAYED_AUTO_START_INFO(ctypes.Structure):
+    _fields_ = [("fDelayedAutostart", wintypes.BOOL)]
 
 
 class SERVICE_STATUS_PROCESS(ctypes.Structure):
@@ -86,6 +91,8 @@ advapi32.ChangeServiceConfigW.argtypes = [
     wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
 ]
 advapi32.ChangeServiceConfigW.restype = wintypes.BOOL
+advapi32.ChangeServiceConfig2W.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_void_p]
+advapi32.ChangeServiceConfig2W.restype = wintypes.BOOL
 advapi32.StartServiceW.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.LPCWSTR)]
 advapi32.StartServiceW.restype = wintypes.BOOL
 advapi32.QueryServiceStatusEx.argtypes = [
@@ -193,6 +200,16 @@ def create_or_update_service() -> wintypes.HANDLE:
         return service
     finally:
         advapi32.CloseServiceHandle(scm)
+
+
+def enable_delayed_auto_start(service: wintypes.HANDLE) -> None:
+    info = SERVICE_DELAYED_AUTO_START_INFO(True)
+    if not advapi32.ChangeServiceConfig2W(
+        service,
+        SERVICE_CONFIG_DELAYED_AUTO_START_INFO,
+        ctypes.byref(info),
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
 
 
 def query_service(service: wintypes.HANDLE) -> SERVICE_STATUS_PROCESS:
@@ -327,6 +344,7 @@ def main() -> int:
     materialize_package()
     service = create_or_update_service()
     try:
+        enable_delayed_auto_start(service)
         status = ensure_service_running(service)
         age = wait_service_heartbeat(values)
     finally:
@@ -343,7 +361,7 @@ def main() -> int:
     print(json.dumps({
         "status": "ok",
         "service_name": SERVICE_NAME,
-        "start_type": "automatic",
+        "start_type": "automatic_delayed",
         "service_account": "LocalSystem",
         "service_pid": int(status.dwProcessId),
         "service_heartbeat_age_seconds": age,
