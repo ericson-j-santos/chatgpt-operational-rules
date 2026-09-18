@@ -6,7 +6,6 @@ from pathlib import Path
 import win32com.client  # type: ignore
 import win32cred  # type: ignore
 import win32net  # type: ignore
-import win32netcon  # type: ignore
 import win32security  # type: ignore
 
 ACCOUNT = "ReqSysRdcSvc"
@@ -24,13 +23,12 @@ def credential_metadata() -> dict[str, object]:
             "credential_target": item.get("TargetName") == CRED_TARGET,
             "credential_user_present": bool(item.get("UserName")),
             "credential_blob_present": bool(item.get("CredentialBlob")),
-            "secret_value_exposed": False,
         }
     except Exception as exc:
         return {
             "credential_present": False,
             "credential_error_type": type(exc).__name__,
-            "secret_value_exposed": False,
+            "credential_winerror": getattr(exc, "winerror", None),
         }
 
 
@@ -48,24 +46,55 @@ def main() -> int:
         "secret_value_exposed": False,
     }
 
+    if RECEIPT_FILE.is_file():
+        try:
+            receipt = json.loads(RECEIPT_FILE.read_text(encoding="utf-8"))
+            result["receipt_result"] = receipt.get("result")
+            result["receipt_stage"] = receipt.get("stage")
+            result["receipt_identity_validated"] = bool(receipt.get("identity_validated"))
+            result["receipt_last_task_result"] = receipt.get("last_task_result")
+            result["receipt_secret_value_exposed"] = bool(receipt.get("secret_value_exposed"))
+            result["receipt_error_type"] = receipt.get("error_type")
+            result["receipt_winerror"] = receipt.get("winerror")
+        except Exception as exc:
+            result["receipt_read_error_type"] = type(exc).__name__
+
     try:
         win32net.NetUserGetInfo(None, ACCOUNT, 1)
         result["account_exists"] = True
-        groups = [str(x).casefold() for x in win32net.NetUserGetLocalGroups(None, ACCOUNT, 0, win32netcon.LG_INCLUDE_INDIRECT)]
-        result["is_administrator"] = any(x in {"administrators", "administradores"} for x in groups)
+    except Exception as exc:
+        result["account_error_type"] = type(exc).__name__
+        result["account_winerror"] = getattr(exc, "winerror", None)
 
-        sid, _, _ = win32security.LookupAccountName(None, ACCOUNT)
-        policy = win32security.LsaOpenPolicy(None, win32security.POLICY_LOOKUP_NAMES)
+    if result["account_exists"]:
         try:
-            rights = {str(x) for x in win32security.LsaEnumerateAccountRights(policy, sid)}
-        except Exception:
-            rights = set()
-        result["batch_logon"] = "SeBatchLogonRight" in rights
-        result["interactive_logon_denied"] = "SeDenyInteractiveLogonRight" in rights
-        result["remote_interactive_logon_denied"] = "SeDenyRemoteInteractiveLogonRight" in rights
+            groups = [str(x).casefold() for x in win32net.NetUserGetLocalGroups(None, ACCOUNT, 0)]
+            result["is_administrator"] = any(x in {"administrators", "administradores"} for x in groups)
+            result["local_group_count"] = len(groups)
+        except Exception as exc:
+            result["groups_error_type"] = type(exc).__name__
 
-        result.update(credential_metadata())
+        try:
+            sid, _, _ = win32security.LookupAccountName(None, ACCOUNT)
+            policy = win32security.LsaOpenPolicy(None, win32security.POLICY_LOOKUP_NAMES)
+            try:
+                rights = {str(x) for x in win32security.LsaEnumerateAccountRights(policy, sid)}
+            except Exception as exc:
+                if getattr(exc, "winerror", None) in (2,):
+                    rights = set()
+                else:
+                    raise
+            result["batch_logon"] = "SeBatchLogonRight" in rights
+            result["interactive_logon_denied"] = "SeDenyInteractiveLogonRight" in rights
+            result["remote_interactive_logon_denied"] = "SeDenyRemoteInteractiveLogonRight" in rights
+            result["account_rights_count"] = len(rights)
+        except Exception as exc:
+            result["rights_error_type"] = type(exc).__name__
+            result["rights_winerror"] = getattr(exc, "winerror", None)
 
+    result.update(credential_metadata())
+
+    try:
         service = win32com.client.Dispatch("Schedule.Service")
         service.Connect()
         folder = service.GetFolder(TASK_FOLDER)
@@ -74,16 +103,8 @@ def main() -> int:
             result["test_task_present"] = True
         except Exception:
             result["test_task_present"] = False
-
-        if RECEIPT_FILE.is_file():
-            receipt = json.loads(RECEIPT_FILE.read_text(encoding="utf-8"))
-            result["receipt_result"] = receipt.get("result")
-            result["receipt_stage"] = receipt.get("stage")
-            result["receipt_identity_validated"] = bool(receipt.get("identity_validated"))
-            result["receipt_last_task_result"] = receipt.get("last_task_result")
-            result["receipt_secret_value_exposed"] = bool(receipt.get("secret_value_exposed"))
     except Exception as exc:
-        result["status_error_type"] = type(exc).__name__
+        result["task_scheduler_error_type"] = type(exc).__name__
 
     ok = (
         result.get("account_exists") is True
