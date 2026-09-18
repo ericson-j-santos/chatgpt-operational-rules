@@ -17,9 +17,19 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         text = COMPOSE.read_text(encoding="utf-8")
         self.assertIn("postgres:16-alpine", text)
         self.assertIn("todo_global_pgdata:/var/lib/postgresql/data", text)
-        self.assertEqual(text.count("restart: unless-stopped"), 4)
+        self.assertEqual(text.count("restart: unless-stopped"), 5)
         self.assertIn("127.0.0.1:${TODO_GATEWAY_PORT:-8094}:8000", text)
         self.assertIn("condition: service_healthy", text)
+
+
+    def test_scheduler_bridge_is_supervised_and_uses_internal_gateway(self):
+        text = COMPOSE.read_text(encoding="utf-8")
+        self.assertIn("scheduler:", text)
+        self.assertIn("scripts.github_schedule_bridge", text)
+        self.assertIn("TODO_GATEWAY_URL: http://gateway:8000", text)
+        self.assertIn("GITHUB_SCHEDULE_WORKFLOW: todo-global-hourly-cycle.yml", text)
+        self.assertIn("todo_scheduler_state:/var/lib/todo-scheduler", text)
+        self.assertNotIn("GITHUB_TOKEN:", text)
 
     def test_gateway_uses_runtime_env_and_does_not_require_notion(self):
         text = COMPOSE.read_text(encoding="utf-8")
