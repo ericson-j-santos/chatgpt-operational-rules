@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T15:47:51.520182+00:00",
+  "generated_at": "2026-09-18T17:21:22.289405+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -204,8 +204,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "44818d79cedc040b65fcf5b939eea4c8b31b88d3be0c806c1f3592457ff538fd",
-      "size": 3203
+      "sha256": "06b8eeaf292b6c1cd77bfbd6ac83125bbb58e0f73473d868bfe647f4178e19da",
+      "size": 3830
     },
     {
       "path": "scripts/dual_host_preflight.py",
@@ -489,8 +489,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "038623075dfd542c586fb420f1e24ba30da74966b4eb0096c1d7705a8007efe4",
-      "size": 1260
+      "sha256": "ab82bbd7eb354243f4e3ad10f7fe2d03ba397fc3293cb9e4e4dd3c325c8e0682",
+      "size": 3249
     },
     {
       "path": "tests/test_dual_host_preflight.py",
