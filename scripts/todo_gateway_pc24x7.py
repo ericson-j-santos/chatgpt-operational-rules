@@ -124,6 +124,23 @@ def ensure_port_setting(path: Path) -> None:
     path.write_text("\n".join(updated) + "\n", encoding="utf-8", newline="\n")
 
 
+def _read_neon_dsn(path: Path) -> str:
+    from urllib.parse import urlparse
+
+    if not path.is_file():
+        raise RuntimeError("canonical Neon secret file missing")
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if raw.startswith("DATABASE_URL="):
+            dsn = raw.split("=", 1)[1].strip()
+            parsed = urlparse(dsn)
+            if not (parsed.hostname or "").endswith(".neon.tech"):
+                raise RuntimeError("canonical DATABASE_URL is not Neon")
+            if (parsed.path or "").lstrip("/") != "todo_global_bus_dev_ha":
+                raise RuntimeError("canonical DATABASE_URL database mismatch")
+            return dsn
+    raise RuntimeError("DATABASE_URL missing from canonical Neon secret file")
+
+
 def ensure_runtime_env() -> Path:
     root = runtime_dir()
     root.mkdir(parents=True, exist_ok=True)
@@ -133,13 +150,17 @@ def ensure_runtime_env() -> Path:
         return path
     password = secrets.token_urlsafe(32)
     token = secrets.token_urlsafe(40)
+    neon_dsn = _read_neon_dsn(root / "neon-ha.env")
     content = "\n".join(
         [
             "POSTGRES_DB=todo_global_bus_dev",
             "POSTGRES_USER=todo_global_bus_dev_user",
             f"POSTGRES_PASSWORD={password}",
             f"TODO_GATEWAY_TOKEN={token}",
-            f"DATABASE_URL=postgresql://todo_global_bus_dev_user:{password}@db:5432/todo_global_bus_dev",
+            f"DATABASE_URL={neon_dsn}",
+            "HA_MODE=enabled",
+            "HA_DATABASE_REQUIRED_HOST_SUFFIX=.neon.tech",
+            "HA_DATABASE_REQUIRED_NAME=todo_global_bus_dev_ha",
             f"TODO_GATEWAY_PORT={PORT}",
             "",
         ]
