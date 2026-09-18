@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "todo_gateway_windows_headless_boot.py"
 E2E = ROOT / "scripts" / "todo_gateway_pc24x7_e2e.py"
 INSTALLER = ROOT / "scripts" / "install_todo_gateway_windows_s4u.ps1"
+NOTERI_INSTALLER = ROOT / "scripts" / "install_pc24x7_noteri_windows_s4u.ps1"
+BOOT_SURVIVAL = ROOT / "scripts" / "pc24x7_boot_survival_dev.py"
 LISTENER = ROOT / "scripts" / "todo_gateway_headless_beacon_listener.py"
 
 
@@ -86,6 +88,28 @@ def test_installer_uses_s4u_at_startup_without_password_and_passes_repo_root():
     assert "StartWhenAvailable" in text
     assert "[Parameter(Mandatory=$true)][string]$RepoRoot" in text
     assert '--repo-root "' in text
+
+
+def test_noteri_installer_uses_s4u_at_startup_without_password():
+    text = NOTERI_INSTALLER.read_text(encoding="utf-8")
+    assert "New-ScheduledTaskTrigger -AtStartup" in text
+    assert "-LogonType S4U" in text
+    assert "-RunLevel Limited" in text
+    assert "Password" not in text
+    assert "StartWhenAvailable" in text
+    assert "deploy_pc24x7_noteri_ha_worker_dev.py" in text
+
+
+def test_boot_survival_installer_is_versioned_and_never_reboots():
+    text = BOOT_SURVIVAL.read_text(encoding="utf-8")
+    ast.parse(text)
+    assert "schtasks.exe" in text
+    assert "install_desktop" in text
+    assert "install_noteri" in text
+    assert "shutdown" not in text.casefold()
+    assert "restart-computer" not in text.casefold()
+    assert '"S4U"' in text
+    assert '"BootTrigger"' in text
 
 
 def test_beacon_listener_collects_progress_until_terminal_or_timeout():
