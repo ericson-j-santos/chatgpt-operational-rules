@@ -28,9 +28,50 @@ class TOKEN_PRIVILEGES(ctypes.Structure):
     _fields_ = [("PrivilegeCount", wintypes.DWORD), ("Privileges", LUID_AND_ATTRIBUTES * 1)]
 
 
-def enable_shutdown_privilege() -> None:
+def windows_apis():
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+
+    kernel32.GetCurrentProcess.argtypes = []
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    advapi32.OpenProcessToken.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    ]
+    advapi32.OpenProcessToken.restype = wintypes.BOOL
+    advapi32.LookupPrivilegeValueW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        ctypes.POINTER(LUID),
+    ]
+    advapi32.LookupPrivilegeValueW.restype = wintypes.BOOL
+    advapi32.AdjustTokenPrivileges.argtypes = [
+        wintypes.HANDLE,
+        wintypes.BOOL,
+        ctypes.POINTER(TOKEN_PRIVILEGES),
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    advapi32.AdjustTokenPrivileges.restype = wintypes.BOOL
+    advapi32.InitiateSystemShutdownExW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.BOOL,
+        wintypes.BOOL,
+        wintypes.DWORD,
+    ]
+    advapi32.InitiateSystemShutdownExW.restype = wintypes.BOOL
+    return kernel32, advapi32
+
+
+def enable_shutdown_privilege() -> None:
+    kernel32, advapi32 = windows_apis()
     token = wintypes.HANDLE()
     if not advapi32.OpenProcessToken(
         kernel32.GetCurrentProcess(),
@@ -66,7 +107,7 @@ def enable_shutdown_privilege() -> None:
 
 
 def schedule_restart(delay_seconds: int) -> None:
-    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    _, advapi32 = windows_apis()
     reason = (
         SHTDN_REASON_MAJOR_APPLICATION
         | SHTDN_REASON_MINOR_MAINTENANCE
