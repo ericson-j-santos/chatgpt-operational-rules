@@ -14,6 +14,8 @@ CRED_TARGET="ReqSys/RdcSvc/TaskScheduler"
 TASK_FOLDER=r"\Automation"
 TASK_NAME="ReqSysRdcSvcNodeProbe"
 RUNTIME=Path(r"C:\ProgramData\ReqSys\RdcSvc")
+BIN_DIR=RUNTIME/"bin"
+SERVICE_NODE=BIN_DIR/"node.exe"
 JS=RUNTIME/"node-probe.cjs"
 OUT=RUNTIME/"node-probe.json"
 RECEIPT=RUNTIME/"node-probe-receipt.json"
@@ -49,13 +51,26 @@ def credential()->tuple[str,str]:
     return user,pwd
 
 
+def provision_service_node()->Path:
+    source=shutil.which("node.exe") or shutil.which("node")
+    if not source:
+        raise RuntimeError("node_missing")
+    BIN_DIR.mkdir(parents=True,exist_ok=True)
+    source_path=Path(source)
+    if not SERVICE_NODE.exists() or SERVICE_NODE.stat().st_size != source_path.stat().st_size:
+        shutil.copy2(source_path,SERVICE_NODE)
+    return SERVICE_NODE
+
+
 def main()->int:
-    node=shutil.which("node.exe") or shutil.which("node")
-    if not node:
-        payload={"result":"blocked","reason":"node_missing"}
+    try:
+        node=provision_service_node()
+    except Exception as exc:
+        payload={"result":"blocked","reason":"node_provision_failed","error_type":type(exc).__name__}
         write_receipt(payload)
         print(json.dumps({**payload,"secret_value_exposed":False},sort_keys=True))
         return 2
+
     RUNTIME.mkdir(parents=True,exist_ok=True)
     OUT.unlink(missing_ok=True)
     JS.write_text(
@@ -84,7 +99,7 @@ def main()->int:
     d.Principal.LogonType=TASK_LOGON_PASSWORD
     d.Principal.RunLevel=TASK_RUNLEVEL_LUA
     a=d.Actions.Create(TASK_ACTION_EXEC)
-    a.Path=node
+    a.Path=str(node)
     a.Arguments=f'"{JS}"'
     a.WorkingDirectory=str(RUNTIME)
     task=folder.RegisterTaskDefinition(TASK_NAME,d,TASK_CREATE_OR_UPDATE,user,pwd,TASK_LOGON_PASSWORD)
@@ -96,7 +111,8 @@ def main()->int:
     last=int(task.LastTaskResult)
     payload={
         "result":"ready" if OUT.exists() and last==0 else "blocked",
-        "node_path_system_level":str(node).casefold().startswith(r"c:\program files"),
+        "service_node_present":node.is_file(),
+        "service_node_under_programdata":str(node).casefold().startswith(str(RUNTIME).casefold()),
         "receipt_present":OUT.exists(),
         "task_state":state,
         "last_task_result":last,
