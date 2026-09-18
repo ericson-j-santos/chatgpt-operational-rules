@@ -13,6 +13,11 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+try:
+    from scripts.host_operating_profile import default_profile_path, load_profile
+except ModuleNotFoundError:
+    from host_operating_profile import default_profile_path, load_profile
+
 
 @dataclass(frozen=True)
 class Continuation:
@@ -181,6 +186,49 @@ def process_batch(queue: Queue, *, limit: int = 10, lease_seconds: int = 120,
     return counts
 
 
+def process_cycle(
+    queue: Queue,
+    *,
+    profile: str,
+    limit: int = 10,
+    lease_seconds: int = 120,
+    max_attempts: int = 3,
+    backoff_seconds: int = 30,
+) -> dict[str, int]:
+    normalized = str(profile or "").strip().upper()
+    if normalized == "ESTUDO":
+        return {
+            "reserved": 0,
+            "completed": 0,
+            "human_gate": 0,
+            "retry": 0,
+            "dlq": 0,
+            "study_mode": 1,
+            "profile_blocked": 0,
+        }
+    if normalized != "NORMAL":
+        return {
+            "reserved": 0,
+            "completed": 0,
+            "human_gate": 0,
+            "retry": 0,
+            "dlq": 0,
+            "study_mode": 0,
+            "profile_blocked": 1,
+        }
+
+    result = process_batch(
+        queue,
+        limit=limit,
+        lease_seconds=lease_seconds,
+        max_attempts=max_attempts,
+        backoff_seconds=backoff_seconds,
+    )
+    result["study_mode"] = 0
+    result["profile_blocked"] = 0
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Worker contínuo de continuações")
     parser.add_argument("--once", action="store_true")
@@ -188,12 +236,27 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--lease-seconds", type=int, default=120)
     parser.add_argument("--worker-id", default=os.environ.get("WORKER_ID", "continuation-worker-pc24x7"))
+    parser.add_argument(
+        "--profile-file",
+        type=Path,
+        default=Path(os.environ.get("WORKER_PROFILE_FILE") or default_profile_path()),
+    )
     args = parser.parse_args()
     if not 1 <= args.limit <= 100 or not 1 <= args.lease_seconds <= 3600:
         raise SystemExit("invalid worker limits")
     queue = PostgresContinuationQueue(os.environ.get("DATABASE_URL", ""))
     while True:
-        result = process_batch(queue, limit=args.limit, lease_seconds=args.lease_seconds)
+        try:
+            profile = str(load_profile(args.profile_file)["profile"])
+        except (OSError, ValueError, json.JSONDecodeError):
+            profile = "INVALID"
+
+        result = process_cycle(
+            queue,
+            profile=profile,
+            limit=args.limit,
+            lease_seconds=args.lease_seconds,
+        )
         queue.heartbeat(args.worker_id, result)
         print(json.dumps(result, sort_keys=True), flush=True)
         if args.once:
