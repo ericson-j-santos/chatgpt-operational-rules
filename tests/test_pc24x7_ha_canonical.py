@@ -65,8 +65,9 @@ class HaCanonicalRuntimeTests(unittest.TestCase):
         self.assertIn('"service_account": "LocalSystem"', installer)
         self.assertIn("continuation-worker-Noteri-ha-service", installer)
         self.assertNotIn("DefaultPassword", installer)
-        self.assertLess(installer.index("wait_service_heartbeat(values)"), installer.index("retire_legacy_worker()"))
-        self.assertLess(installer.index("wait_service_heartbeat(values)"), installer.index("remove_logon_fallback()"))
+        main_body = installer.split("def main() -> int:", 1)[1]
+        self.assertLess(main_body.index("wait_service_heartbeat(values)"), main_body.index("retire_legacy_worker()"))
+        self.assertLess(main_body.index("wait_service_heartbeat(values)"), main_body.index("remove_logon_fallback()"))
 
     def test_runtime_rule_declares_neon_canonical_and_local_rollback_manual(self):
         text = RUNTIME_RULE.read_text(encoding="utf-8")
