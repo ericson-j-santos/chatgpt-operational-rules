@@ -13,13 +13,20 @@ RENDER_WORKFLOW = ROOT / ".github" / "workflows" / "render-todo-gateway-bootstra
 
 
 class Pc24x7RuntimeTests(unittest.TestCase):
-    def test_compose_has_persistent_postgres_and_restart_policy(self):
+    def test_compose_uses_neon_ha_and_local_postgres_is_rollback_only(self):
         text = COMPOSE.read_text(encoding="utf-8")
         self.assertIn("postgres:16-alpine", text)
+        self.assertIn('db:\n    profiles: ["rollback"]', text)
         self.assertIn("todo_global_pgdata:/var/lib/postgresql/data", text)
-        self.assertEqual(text.count("restart: unless-stopped"), 4)
         self.assertIn("127.0.0.1:${TODO_GATEWAY_PORT:-8094}:8000", text)
-        self.assertIn("condition: service_healthy", text)
+        gateway_block = text.split("  gateway:", 1)[1].split("  worker:", 1)[0]
+        worker_block = text.split("  worker:", 1)[1].split("  ingest:", 1)[0]
+        self.assertNotIn("depends_on:\n      db:", gateway_block)
+        self.assertNotIn("depends_on:\n      db:", worker_block)
+        self.assertIn('HA_MODE: "enabled"', gateway_block)
+        self.assertIn('HA_MODE: "enabled"', worker_block)
+        self.assertIn('HA_DATABASE_REQUIRED_NAME: "todo_global_bus_dev_ha"', gateway_block)
+        self.assertIn('HA_DATABASE_REQUIRED_NAME: "todo_global_bus_dev_ha"', worker_block)
 
     def test_gateway_uses_runtime_env_and_does_not_require_notion(self):
         text = COMPOSE.read_text(encoding="utf-8")
