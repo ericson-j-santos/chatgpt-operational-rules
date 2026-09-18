@@ -7,6 +7,8 @@ DESKTOP = ROOT / "scripts" / "cutover_todo_bus_neon_desktop_dev.py"
 NOTERI = ROOT / "scripts" / "cutover_todo_bus_neon_noteri_dev.py"
 NOTERI_DEPLOY = ROOT / "scripts" / "deploy_pc24x7_noteri_ha_worker_dev.py"
 INDEPENDENCE_E2E = ROOT / "scripts" / "pc24x7_neon_independence_e2e_dev.py"
+PHYSICAL_CYCLE_NOTERI = ROOT / "scripts" / "pc24x7_physical_cycle_noteri_e2e_dev.py"
+PHYSICAL_CYCLE_DESKTOP = ROOT / "scripts" / "pc24x7_physical_cycle_desktop_dev.py"
 
 
 def read(path: Path) -> str:
@@ -61,3 +63,25 @@ def test_neon_independence_e2e_removes_local_db_dependency_and_requires_noteri()
     assert 'run(["docker", "start", WORKER])' in text
     assert '"desktop_local_db_stopped": True' in text
     assert '"local_database_preserved_for_rollback": True' in text
+
+
+def test_physical_cycle_noteri_proves_failover_failback_and_single_execution():
+    text = read(PHYSICAL_CYCLE_NOTERI)
+    assert 'DESKTOP = "DESKTOP-PDQK954"' in text
+    assert 'NOTERI = "Noteri"' in text
+    assert 'assert_execution(failover, NOTERI)' in text
+    assert 'assert_execution(failback, DESKTOP)' in text
+    assert 'if proof["attempts"] != 1' in text
+    assert 'route idempotency failed' in text
+    assert '"single_execution": True' in text
+    assert '"waiting_desktop_return"' in text
+
+
+def test_physical_cycle_desktop_is_host_pinned_restart_only():
+    text = read(PHYSICAL_CYCLE_DESKTOP)
+    assert 'TARGET = "DESKTOP-PDQK954"' in text
+    assert '"shutdown.exe"' in text
+    assert '"/r"' in text
+    assert '"/s"' not in text
+    assert 'refusing physical cycle on unexpected host' in text
+    assert 'delay_seconds = 10' in text
