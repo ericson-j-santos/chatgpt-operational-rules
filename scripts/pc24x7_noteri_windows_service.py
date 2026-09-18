@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "service-config.json"
 LOG = ROOT / "worker-service.log"
 CHILD_PID = ROOT / "worker-service.pid"
+RESTART_BASE_SECONDS = 5
+RESTART_MAX_SECONDS = 60
 
 _stop_event = threading.Event()
 _status_handle = None
@@ -151,6 +153,12 @@ def start_worker() -> subprocess.Popen:
     return proc
 
 
+def log_supervisor(event: str, **fields: object) -> None:
+    payload = {"supervisor_event": event, "observed_at_epoch": time.time(), **fields}
+    with LOG.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, sort_keys=True) + "\n")
+
+
 def stop_worker(proc: subprocess.Popen | None) -> None:
     CHILD_PID.unlink(missing_ok=True)
     if proc is None or proc.poll() is not None:
@@ -169,19 +177,44 @@ def service_main(argc, argv):
     _status_handle = advapi32.RegisterServiceCtrlHandlerExW(SERVICE_NAME, handler, None)
     if not _status_handle:
         return
+
+    set_status(SERVICE_START_PENDING, wait_hint=20000)
+    set_status(SERVICE_RUNNING)
+    failures = 0
     try:
-        set_status(SERVICE_START_PENDING, wait_hint=20000)
-        _child = start_worker()
-        time.sleep(2)
-        if _child.poll() is not None:
-            raise RuntimeError(f"worker exited rc={_child.returncode}")
-        set_status(SERVICE_RUNNING)
-        while not _stop_event.wait(1):
-            if _child.poll() is not None:
-                raise RuntimeError(f"worker exited unexpectedly rc={_child.returncode}")
+        while not _stop_event.is_set():
+            try:
+                _child = start_worker()
+                log_supervisor("worker_started", pid=_child.pid, failure_count=failures)
+                while not _stop_event.wait(1):
+                    rc = _child.poll()
+                    if rc is not None:
+                        failures += 1
+                        log_supervisor("worker_exited", returncode=rc, failure_count=failures)
+                        break
+                if _stop_event.is_set():
+                    break
+            except Exception as exc:
+                failures += 1
+                log_supervisor(
+                    "worker_start_failed",
+                    error_type=type(exc).__name__,
+                    error=str(exc)[-800:],
+                    failure_count=failures,
+                )
+            finally:
+                stop_worker(_child)
+                _child = None
+
+            delay = min(RESTART_MAX_SECONDS, RESTART_BASE_SECONDS * (2 ** min(failures - 1, 4)))
+            log_supervisor("worker_retry_wait", delay_seconds=delay, failure_count=failures)
+            if _stop_event.wait(delay):
+                break
+
         stop_worker(_child)
         set_status(SERVICE_STOPPED)
-    except Exception:
+    except Exception as exc:
+        log_supervisor("service_fatal_error", error_type=type(exc).__name__, error=str(exc)[-800:])
         stop_worker(_child)
         try:
             set_status(SERVICE_STOPPED, win32_exit=1)
