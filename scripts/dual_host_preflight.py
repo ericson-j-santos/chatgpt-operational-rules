@@ -17,6 +17,9 @@ REQUIRED_TRUE = (
     "gateway_ok",
 )
 
+VALID_PROFILES = {"NORMAL", "ESTUDO"}
+DEVELOPMENT_WORKLOADS = {"development", "build", "test", "e2e", "agent", "code"}
+
 
 def _as_int(value: Any, default: int = 0) -> int:
     try:
@@ -29,9 +32,15 @@ def evaluate_host(
     host: dict[str, Any],
     required_rules_sha: str,
     requested_worktree: str | None,
+    requested_workload: str,
 ) -> dict[str, Any]:
     name = str(host.get("name") or "").strip() or "unknown"
     blockers: list[str] = []
+    profile = str(host.get("profile") or "NORMAL").strip().upper()
+    if profile not in VALID_PROFILES:
+        blockers.append("invalid_profile")
+    elif profile == "ESTUDO" and requested_workload in DEVELOPMENT_WORKLOADS:
+        blockers.append("profile_estudo")
     for field in REQUIRED_TRUE:
         if host.get(field) is not True:
             blockers.append(field)
@@ -62,6 +71,8 @@ def evaluate_host(
         "route_score": route_score,
         "active_tasks": active_tasks,
         "controller_version": str(host.get("controller_version") or "unknown"),
+        "profile": profile,
+        "accepts_new_development": profile == "NORMAL",
     }
 
 
@@ -74,12 +85,16 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(hosts, list) or len(hosts) < 2:
         raise ValueError("hosts deve conter pelo menos dois hosts")
 
+    requested_workload = str(payload.get("requested_workload") or "development").strip().lower()
+    if not requested_workload:
+        requested_workload = "development"
+
     requested_worktree = payload.get("requested_worktree")
     if requested_worktree is not None:
         requested_worktree = str(requested_worktree).strip() or None
 
     evaluated = [
-        evaluate_host(host, required_sha, requested_worktree)
+        evaluate_host(host, required_sha, requested_worktree, requested_workload)
         for host in hosts
         if isinstance(host, dict)
     ]
@@ -114,6 +129,7 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
         "warnings": warnings,
         "required_rules_sha": required_sha.lower(),
         "requested_worktree": requested_worktree,
+        "requested_workload": requested_workload,
         "correlation_id": payload.get("correlation_id"),
         "evaluated_hosts": evaluated,
     }

@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T17:24:57.986516+00:00",
+  "generated_at": "2026-09-18T15:47:51.520182+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "967175f49da223d4f0a81a63f15d57f699dbbd6a5100ad5cc9caa12f24478531",
-      "size": 3098
+      "sha256": "4d07b81617cc1f844b869f3106a8abafad49f1d9e8aa22e03f296d81db1182e3",
+      "size": 3222
     },
     {
       "path": ".gitignore",
@@ -36,11 +36,6 @@
       "path": "CHANGELOG.md",
       "sha256": "a94c6855a1bd82d5aa8f5ecf0dc854f776dc19acb0cdce11916705b937e5ccc0",
       "size": 8478
-    },
-    {
-      "path": "README.md",
-      "sha256": "f6979c0bf8d404402fdc740c4c40789420f3d76161596a007beb4fe8d61742aa",
-      "size": 4324
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -83,6 +78,11 @@
       "size": 2349
     },
     {
+      "path": "README.md",
+      "sha256": "f6979c0bf8d404402fdc740c4c40789420f3d76161596a007beb4fe8d61742aa",
+      "size": 4324
+    },
+    {
       "path": "render.yaml",
       "sha256": "0f57bcb00b655912558544aba02dad5449ce5564ae053c1ce057d7bee14a3346",
       "size": 983
@@ -114,8 +114,8 @@
     },
     {
       "path": "rules/dual-host-routing.md",
-      "sha256": "270db1f200ea1d5a67c35b3030c358710d26cb80cb09d09a4e5a90ce27dcbf49",
-      "size": 1696
+      "sha256": "b3308012a724aa3869137cafad964258b96a1e948a41b36b53d1da7cfe6f6c36",
+      "size": 2599
     },
     {
       "path": "rules/e2e-validation.md",
@@ -178,14 +178,14 @@
       "size": 2212
     },
     {
-      "path": "scripts/command_gateway.py",
-      "sha256": "9e904309054f846c18deb6a0ff4393bab5577278c39636b5ced6f48d0a953602",
-      "size": 22283
-    },
-    {
       "path": "scripts/command_gateway_e2e.py",
       "sha256": "eac8b99332cb8dc55200f7b1df4a8cdc2fa1d7873c216e08026523ba131be539",
       "size": 6729
+    },
+    {
+      "path": "scripts/command_gateway.py",
+      "sha256": "9e904309054f846c18deb6a0ff4393bab5577278c39636b5ced6f48d0a953602",
+      "size": 22283
     },
     {
       "path": "scripts/configure_pc24x7_gitlab_webhook.py",
@@ -194,8 +194,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "5656af87cbf708d77382d1844a7b2b9201e68d5997344cce784914a563e4aa51",
-      "size": 8873
+      "sha256": "9a551a768e0eaddc9cfe841ffe9ae4a00b96ccff4a3326b20c6dbcf29c4e3a4a",
+      "size": 10491
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -209,8 +209,8 @@
     },
     {
       "path": "scripts/dual_host_preflight.py",
-      "sha256": "d93aa00123fb5c894e0f6b6fdd32fd4eda92d50350436e46a8af301ede9b387f",
-      "size": 4698
+      "sha256": "ba7174ca5a6a554d0066327f794afd1dcf6ef283e2a3b48fc646ed03564a35d9",
+      "size": 5441
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -231,6 +231,11 @@
       "path": "scripts/host_health_check.py",
       "sha256": "82a12ed90b8f922fb6a44677b3fcf450c9418ca133e9b45441f3fe798b797b3f",
       "size": 2450
+    },
+    {
+      "path": "scripts/host_operating_profile.py",
+      "sha256": "e0436acbdcb854aa0a07d51cbe06421cf5dc6ceef26f0c3ac873f5372d30ce05",
+      "size": 3815
     },
     {
       "path": "scripts/install_command_gateway_host.py",
@@ -293,19 +298,14 @@
       "size": 6511
     },
     {
-      "path": "scripts/session_bootstrap.py",
-      "sha256": "f05963931b731eb945e24dcce6954c0aa09ca4d4d267263d61022d7cb40f93c4",
-      "size": 9252
-    },
-    {
       "path": "scripts/session_bootstrap_e2e.py",
       "sha256": "b24d29445afa738265b65ccdf2959a89b6bea1719d1a2b239dce67c1d0279a1e",
       "size": 5889
     },
     {
-      "path": "scripts/session_launcher.py",
-      "sha256": "4d5568bcf52162e3b234c948c78144f42a29c9719eb31c275afe15a163e224c9",
-      "size": 14582
+      "path": "scripts/session_bootstrap.py",
+      "sha256": "f05963931b731eb945e24dcce6954c0aa09ca4d4d267263d61022d7cb40f93c4",
+      "size": 9252
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -313,14 +313,19 @@
       "size": 9802
     },
     {
-      "path": "scripts/session_preflight.py",
-      "sha256": "91d4ba8268a5b17bb3231fe1010489a3562ae94430e06a9b8366e65ecccdde27",
-      "size": 7022
+      "path": "scripts/session_launcher.py",
+      "sha256": "4d5568bcf52162e3b234c948c78144f42a29c9719eb31c275afe15a163e224c9",
+      "size": 14582
     },
     {
       "path": "scripts/session_preflight_e2e.py",
       "sha256": "922fc8c2c227cf5876ab730b2fc388d8c4730c32d1ebf5b6fa1618c51e9b53a2",
       "size": 6338
+    },
+    {
+      "path": "scripts/session_preflight.py",
+      "sha256": "91d4ba8268a5b17bb3231fe1010489a3562ae94430e06a9b8366e65ecccdde27",
+      "size": 7022
     },
     {
       "path": "scripts/set_owner_risk3_development_mode.py",
@@ -333,14 +338,14 @@
       "size": 915
     },
     {
-      "path": "scripts/todo_event_bus.py",
-      "sha256": "734701a82700a5a305350be6f49f490aaf0fc35f05ae5836c03e96d43ebccc2b",
-      "size": 17257
-    },
-    {
       "path": "scripts/todo_event_bus_e2e.py",
       "sha256": "199dd6b7778b893f66ad985ded0e0b5326d9ba7ca045679abfb430903e974cef",
       "size": 3234
+    },
+    {
+      "path": "scripts/todo_event_bus.py",
+      "sha256": "734701a82700a5a305350be6f49f490aaf0fc35f05ae5836c03e96d43ebccc2b",
+      "size": 17257
     },
     {
       "path": "scripts/todo_gateway_debian_e2e.py",
@@ -363,11 +368,6 @@
       "size": 2913
     },
     {
-      "path": "scripts/todo_gateway_pc24x7.py",
-      "sha256": "4e50c13cf943bb50e1ecc21e2112d31746aa40f6e4e97382cdf5309804ca55dc",
-      "size": 8193
-    },
-    {
       "path": "scripts/todo_gateway_pc24x7_e2e.py",
       "sha256": "a1e260c3280e0d785db3b5c556b10b6701045885be6a3eba41e65a4a70483036",
       "size": 9904
@@ -376,6 +376,11 @@
       "path": "scripts/todo_gateway_pc24x7_resilience.py",
       "sha256": "f1eb9ca1b1264983b0591e6e1baab9fcbd5ea9aa231e96671f2c11d7b02c806a",
       "size": 5930
+    },
+    {
+      "path": "scripts/todo_gateway_pc24x7.py",
+      "sha256": "4e50c13cf943bb50e1ecc21e2112d31746aa40f6e4e97382cdf5309804ca55dc",
+      "size": 8193
     },
     {
       "path": "scripts/todo_gateway_windows_headless_boot.py",
@@ -389,23 +394,13 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "ef641cd044c4d402d290f8fc4751e4a586d5cedad318a163d378abfbada2e1f0",
-      "size": 8970
+      "sha256": "5c68dc59261dc90743f1991d1bc3faf31283325fec9a99590d5b25e4f2f5cde4",
+      "size": 9051
     },
     {
       "path": "services/__init__.py",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size": 0
-    },
-    {
-      "path": "services/todo_gateway/Dockerfile.pc24x7",
-      "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd91cbbf6ffed79477c0729",
-      "size": 371
-    },
-    {
-      "path": "services/todo_gateway/README.md",
-      "sha256": "0ab40398a115e1dbad18d73f8779e1a0ededf84977cdd34b7272320abdeed269",
-      "size": 1922
     },
     {
       "path": "services/todo_gateway/__init__.py",
@@ -416,6 +411,11 @@
       "path": "services/todo_gateway/asgi.py",
       "sha256": "c7d6727c559185f04cf1bb7483c64b2d37f82b02d131c90b34e10e669e8fffad",
       "size": 91
+    },
+    {
+      "path": "services/todo_gateway/Dockerfile.pc24x7",
+      "sha256": "ae2c0f705265b4f1e6ada5a130b958d33f3e8d2dcdd91cbbf6ffed79477c0729",
+      "size": 371
     },
     {
       "path": "services/todo_gateway/gateway.py",
@@ -431,6 +431,11 @@
       "path": "services/todo_gateway/notion_sink.py",
       "sha256": "d3c21897949cbac65e556c8a22f0814d270ecd89b60ab1941ecec0fd87404d6f",
       "size": 5854
+    },
+    {
+      "path": "services/todo_gateway/README.md",
+      "sha256": "0ab40398a115e1dbad18d73f8779e1a0ededf84977cdd34b7272320abdeed269",
+      "size": 1922
     },
     {
       "path": "services/todo_gateway/repository.py",
@@ -479,8 +484,8 @@
     },
     {
       "path": "tests/test_continuation_worker.py",
-      "sha256": "b217048c878915fbe25aa5579790aa56377f74c8a23a5f90694b5def376a643a",
-      "size": 3280
+      "sha256": "44333468db67dbea960327d8824671101b35d77510a42fb0784ed9ca49d21368",
+      "size": 4445
     },
     {
       "path": "tests/test_continuous_source_ingest.py",
@@ -494,8 +499,8 @@
     },
     {
       "path": "tests/test_dual_host_preflight.py",
-      "sha256": "ddf4376e5350d01164ef351efb2be03364850f0a663cf9a83ba82a3d3931a2c5",
-      "size": 4061
+      "sha256": "b67d69fc8241a75ce7dfdc7d4275112e946df56dc11c704af1d3d5eab8a97bcb",
+      "size": 5764
     },
     {
       "path": "tests/test_gitlab_webhook.py",
@@ -511,6 +516,11 @@
       "path": "tests/test_host_health_check.py",
       "sha256": "a02e22c20722707baa120fd1b15b87e5414067e06ab2af2a50bdd1d67e61f4f7",
       "size": 1743
+    },
+    {
+      "path": "tests/test_host_operating_profile.py",
+      "sha256": "0808baf84e3dcf586d00ef39fda068a0a97e7f5d8b97bc8355a892458b802e74",
+      "size": 2014
     },
     {
       "path": "tests/test_owner_risk3_development_mode.py",
@@ -573,14 +583,14 @@
       "size": 4664
     },
     {
-      "path": "tests/test_todo_gateway_service.py",
-      "sha256": "2932b859fe1290f90d7e436abd653b6769840621fccbec9efd8d34482b8ea23e",
-      "size": 9707
-    },
-    {
       "path": "tests/test_todo_gateway_service_main.py",
       "sha256": "8ee8889c50166a47e64e35a7e923177d11c7eb56cb0ca8f982ed541be34d0255",
       "size": 4827
+    },
+    {
+      "path": "tests/test_todo_gateway_service.py",
+      "sha256": "2932b859fe1290f90d7e436abd653b6769840621fccbec9efd8d34482b8ea23e",
+      "size": 9707
     },
     {
       "path": "tests/test_todo_gateway_windows_s4u.py",

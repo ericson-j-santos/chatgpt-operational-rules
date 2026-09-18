@@ -108,6 +108,46 @@ class DualHostPreflightTests(unittest.TestCase):
         self.assertFalse(result["ready"])
         self.assertIsNone(result["selected_host"])
 
+    def test_estudo_profile_routes_development_to_other_host(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "requested_workload": "development",
+            "preferred_host": "Noteri",
+            "hosts": [
+                host("Noteri", profile="ESTUDO", capacity_score=100),
+                host("DESKTOP-PDQK954", profile="NORMAL", capacity_score=50),
+            ],
+        })
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
+        self.assertIn("profile_estudo", result["blocked_hosts"]["Noteri"])
+        self.assertFalse(next(x for x in result["evaluated_hosts"] if x["name"] == "Noteri")["accepts_new_development"])
+
+    def test_estudo_profile_keeps_monitoring_eligible(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "requested_workload": "monitoring",
+            "preferred_host": "Noteri",
+            "hosts": [
+                host("Noteri", profile="ESTUDO"),
+                host("DESKTOP-PDQK954", profile="NORMAL"),
+            ],
+        })
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["selected_host"], "Noteri")
+        self.assertNotIn("Noteri", result["blocked_hosts"])
+
+    def test_invalid_profile_fails_closed(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri", profile="UNKNOWN"),
+                host("DESKTOP-PDQK954"),
+            ],
+        })
+        self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
+        self.assertIn("invalid_profile", result["blocked_hosts"]["Noteri"])
+
     def test_invalid_sha_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             dhp.evaluate({
