@@ -80,8 +80,10 @@ def test_physical_cycle_noteri_proves_failover_failback_and_single_execution():
 def test_physical_cycle_desktop_is_host_pinned_restart_only():
     text = read(PHYSICAL_CYCLE_DESKTOP)
     assert 'TARGET = "DESKTOP-PDQK954"' in text
-    assert '"shutdown.exe"' in text
-    assert '"/r"' in text
-    assert '"/s"' not in text
+    assert "SeShutdownPrivilege" in text
+    assert "InitiateSystemShutdownExW" in text
+    assert "enable_shutdown_privilege()" in text
+    assert "schedule_restart(delay_seconds)" in text
     assert 'refusing physical cycle on unexpected host' in text
     assert 'delay_seconds = 10' in text
+    assert '"shutdown.exe"' not in text
