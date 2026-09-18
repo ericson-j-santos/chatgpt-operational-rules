@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "scripts" / "migrate_todo_bus_to_neon_dev.py"
 DESKTOP = ROOT / "scripts" / "cutover_todo_bus_neon_desktop_dev.py"
 NOTERI = ROOT / "scripts" / "cutover_todo_bus_neon_noteri_dev.py"
+NOTERI_DEPLOY = ROOT / "scripts" / "deploy_pc24x7_noteri_ha_worker_dev.py"
 
 
 def read(path: Path) -> str:
@@ -40,3 +41,9 @@ def test_noteri_cutover_has_config_rollback_and_removes_bridge_dependency():
     assert "stop_worker()" in text
     assert '"local_bridge_no_longer_required": True' in text
     assert "print(dsn)" not in text
+
+
+def test_noteri_deploy_accepts_default_postgres_port():
+    text = read(NOTERI_DEPLOY)
+    assert "port = parsed.port or 5432" in text
+    assert "socket.create_connection((parsed.hostname, port)" in text
