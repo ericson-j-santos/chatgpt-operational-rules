@@ -21,6 +21,19 @@ Executar `scripts/dual_host_preflight.py` com a evidência coletada.
 O roteador considera capacidade declarada e quantidade de tarefas ativas.
 Uma preferência de host pode desempatar, mas nunca pode superar um bloqueio de segurança.
 
+## Perfis operacionais
+
+Cada host físico pode declarar um perfil operacional:
+
+- `NORMAL`: aceita novas tarefas de desenvolvimento, build, teste, E2E e agentes.
+- `ESTUDO`: permanece elegível para controle e monitoramento, mas não recebe novas tarefas de desenvolvimento.
+
+O perfil ausente é interpretado como `NORMAL` para compatibilidade. Perfil desconhecido deve falhar fechado.
+
+No `ESTUDO`, o worker de continuação deve concluir somente o trabalho já reservado e, a partir do ciclo seguinte, parar de reservar novos itens. Como a fila é durável e compartilhada, itens ainda `PENDING` permanecem disponíveis para outro worker em `NORMAL`, priorizando o Desktop quando elegível.
+
+A mudança de perfil deve ser persistida de forma atômica, auditável por `correlation_id` e reavaliada a cada ciclo do worker. O retorno a `NORMAL` reabre a capacidade sem recriar a fila ou duplicar itens.
+
 ## Concorrência
 Cada tarefa deve ter `session_id`, `correlation_id`, branch/SHA e worktree próprios.
 Não permitir duas sessões gravarem no mesmo working tree do mesmo host.
