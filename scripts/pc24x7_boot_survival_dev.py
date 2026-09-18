@@ -69,9 +69,13 @@ def install_desktop() -> None:
     source = ROOT / "scripts" / "todo_gateway_windows_headless_boot.py"
     target = runtime / "headless_boot_runner.py"
     shutil.copy2(source, target)
+    postboot_source = ROOT / "scripts" / "pc24x7_desktop_postboot_runner_dev.py"
     postboot = runtime / "postboot_runner.py"
-    if not postboot.is_file():
-        raise SystemExit(f"postboot runner missing: {postboot}")
+    shutil.copy2(postboot_source, postboot)
+    validator_source = ROOT / "scripts" / "pc24x7_desktop_postboot_validate_dev.py"
+    validator = runtime / "postboot_validate.py"
+    shutil.copy2(validator_source, validator)
+    (runtime / "active-repo-root.txt").write_text(str(ROOT) + "\n", encoding="utf-8")
     if task_core_valid(audit_task("desktop")):
         return
     installer = ROOT / "scripts" / "install_todo_gateway_windows_s4u.ps1"
