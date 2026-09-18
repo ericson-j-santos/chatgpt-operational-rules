@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from scripts.continuation_worker import Continuation, HumanGate, execute, process_batch
+from scripts.continuation_worker import Continuation, HumanGate, PostgresContinuationQueue, execute, process_batch
 
 
 class FakeQueue:
@@ -30,6 +30,22 @@ def item(request_id, attempts=1):
 
 
 class WorkerTest(unittest.TestCase):
+
+    def test_postgres_heartbeat_uses_canonical_database_function(self):
+        queue = PostgresContinuationQueue("postgresql://example.invalid/test")
+        connection = MagicMock()
+        cursor = MagicMock()
+        connection.__enter__.return_value = connection
+        connection.cursor.return_value.__enter__.return_value = cursor
+
+        with patch.object(queue, "_connect", return_value=connection):
+            queue.heartbeat("desktop-worker-01", {"completed": 1, "retry": 0})
+
+        cursor.execute.assert_called_once_with(
+            "SELECT todo_bus.touch_worker_heartbeat(%s,%s::jsonb)",
+            ("desktop-worker-01", '{"completed": 1, "retry": 0}'),
+        )
+
     @patch("scripts.continuation_worker.execute")
     def test_success_does_not_block_next_item(self, execute):
         q = FakeQueue([item("one"), item("two")])
