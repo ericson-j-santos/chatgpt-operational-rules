@@ -114,8 +114,9 @@ def latest_desktop_survival(conn: psycopg.Connection) -> dict[str, object]:
         "coalesce(d.node_id,''),coalesce(d.reason,''),coalesce(d.fencing_token,0) "
         "FROM todo_bus.continuation_requests c "
         "LEFT JOIN todo_bus.host_route_decisions d ON d.correlation_id=c.correlation_id "
-        "WHERE c.correlation_id LIKE 'noteri-physical-cycle-desktop-survival-%' "
+        "WHERE c.correlation_id LIKE %s "
         "ORDER BY c.created_at DESC LIMIT 1",
+        ("noteri-physical-cycle-desktop-survival-%",),
     )
     if not rows:
         raise AssertionError("desktop survival continuation not found")
