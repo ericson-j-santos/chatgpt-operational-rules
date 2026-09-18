@@ -2,6 +2,10 @@ name: todo-global-24x7
 
 services:
   db_bridge:
+    profiles: ["rollback"]
+    depends_on:
+      db:
+        condition: service_healthy
     build:
       context: .
       dockerfile: services/todo_gateway/Dockerfile.pc24x7
