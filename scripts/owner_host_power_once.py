@@ -11,6 +11,7 @@ host after a short-lived, owner-bound authorization has been materialized.
 from __future__ import annotations
 
 import argparse
+import ctypes
 import getpass
 import hashlib
 import json
@@ -22,6 +23,7 @@ import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from ctypes import wintypes
 from typing import Any
 
 EXIT_POLICY = 20
@@ -231,52 +233,176 @@ def consume_authorization(
     return consumed
 
 
-def shutdown_executable() -> Path:
-    root = os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\\Windows"
-    return Path(root) / "System32" / "shutdown.exe"
+SHTDN_REASON_MAJOR_APPLICATION = 0x00040000
+SHTDN_REASON_MINOR_MAINTENANCE = 0x00000001
+SHTDN_REASON_FLAG_PLANNED = 0x80000000
+TOKEN_ADJUST_PRIVILEGES = 0x0020
+TOKEN_QUERY = 0x0008
+SE_PRIVILEGE_ENABLED = 0x00000002
+ERROR_NOT_ALL_ASSIGNED = 1300
 
 
-def shutdown_environment() -> dict[str, str]:
-    env = os.environ.copy()
-    root = env.get("SystemRoot") or env.get("WINDIR") or r"C:\\Windows"
-    if not env.get("SystemRoot"):
-        env["SystemRoot"] = root
-    if not env.get("WINDIR"):
-        env["WINDIR"] = root
-    if not env.get("ComSpec"):
-        env["ComSpec"] = str(Path(root) / "System32" / "cmd.exe")
-    return env
+class LUID(ctypes.Structure):
+    _fields_ = [
+        ("LowPart", wintypes.DWORD),
+        ("HighPart", wintypes.LONG),
+    ]
+
+
+class LUID_AND_ATTRIBUTES(ctypes.Structure):
+    _fields_ = [
+        ("Luid", LUID),
+        ("Attributes", wintypes.DWORD),
+    ]
+
+
+class TOKEN_PRIVILEGES_ONE(ctypes.Structure):
+    _fields_ = [
+        ("PrivilegeCount", wintypes.DWORD),
+        ("Privileges", LUID_AND_ATTRIBUTES * 1),
+    ]
+
+
+def planned_application_maintenance_reason() -> int:
+    return (
+        SHTDN_REASON_MAJOR_APPLICATION
+        | SHTDN_REASON_MINOR_MAINTENANCE
+        | SHTDN_REASON_FLAG_PLANNED
+    )
+
+
+def windows_shutdown_api():
+    if os.name != "nt":
+        raise HostPowerError("reboot governado suportado somente no Windows")
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+
+    kernel32.GetCurrentProcess.argtypes = []
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    advapi32.OpenProcessToken.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    ]
+    advapi32.OpenProcessToken.restype = wintypes.BOOL
+    advapi32.LookupPrivilegeValueW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        ctypes.POINTER(LUID),
+    ]
+    advapi32.LookupPrivilegeValueW.restype = wintypes.BOOL
+    advapi32.AdjustTokenPrivileges.argtypes = [
+        wintypes.HANDLE,
+        wintypes.BOOL,
+        ctypes.POINTER(TOKEN_PRIVILEGES_ONE),
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    advapi32.AdjustTokenPrivileges.restype = wintypes.BOOL
+    advapi32.InitiateSystemShutdownExW.argtypes = [
+        wintypes.LPWSTR,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+        wintypes.BOOL,
+        wintypes.BOOL,
+        wintypes.DWORD,
+    ]
+    advapi32.InitiateSystemShutdownExW.restype = wintypes.BOOL
+    return kernel32, advapi32
+
+
+def enable_shutdown_privilege(kernel32, advapi32) -> None:
+    token = wintypes.HANDLE()
+    if not advapi32.OpenProcessToken(
+        kernel32.GetCurrentProcess(),
+        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+        ctypes.byref(token),
+    ):
+        raise HostPowerError(
+            f"OpenProcessToken falhou com win32={ctypes.get_last_error()}",
+            EXIT_COMMAND,
+        )
+
+    try:
+        luid = LUID()
+        if not advapi32.LookupPrivilegeValueW(
+            None,
+            "SeShutdownPrivilege",
+            ctypes.byref(luid),
+        ):
+            raise HostPowerError(
+                f"LookupPrivilegeValueW falhou com win32={ctypes.get_last_error()}",
+                EXIT_COMMAND,
+            )
+
+        privileges = TOKEN_PRIVILEGES_ONE()
+        privileges.PrivilegeCount = 1
+        privileges.Privileges[0].Luid = luid
+        privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED
+
+        ctypes.set_last_error(0)
+        if not advapi32.AdjustTokenPrivileges(
+            token,
+            False,
+            ctypes.byref(privileges),
+            0,
+            None,
+            None,
+        ):
+            raise HostPowerError(
+                f"AdjustTokenPrivileges falhou com win32={ctypes.get_last_error()}",
+                EXIT_COMMAND,
+            )
+        privilege_error = ctypes.get_last_error()
+        if privilege_error == ERROR_NOT_ALL_ASSIGNED:
+            raise HostPowerError(
+                "SeShutdownPrivilege não está atribuído ao usuário atual",
+                EXIT_COMMAND,
+            )
+        if privilege_error != 0:
+            raise HostPowerError(
+                f"AdjustTokenPrivileges retornou win32={privilege_error}",
+                EXIT_COMMAND,
+            )
+    finally:
+        kernel32.CloseHandle(token)
 
 
 def submit_reboot(delay_seconds: int) -> subprocess.CompletedProcess[str]:
-    if os.name != "nt":
-        raise HostPowerError("reboot governado suportado somente no Windows")
     if delay_seconds < 5 or delay_seconds > 60:
         raise HostPowerError("delay de reboot deve estar entre 5 e 60 segundos")
-    executable = shutdown_executable()
-    if not executable.is_file():
-        raise HostPowerError("shutdown.exe não encontrado no System32")
-    return subprocess.run(
-        [
-            str(executable),
-            "/r",
-            "/t",
-            str(delay_seconds),
-            "/d",
-            "p:4:1",
-            "/c",
-            "ReqSys governed one-time reboot validation",
-        ],
-        text=True,
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        shell=False,
-        timeout=15,
-        check=False,
-        env=shutdown_environment(),
-    )
 
+    kernel32, advapi32 = windows_shutdown_api()
+    enable_shutdown_privilege(kernel32, advapi32)
+
+    ctypes.set_last_error(0)
+    accepted = advapi32.InitiateSystemShutdownExW(
+        None,
+        "ReqSys governed one-time reboot validation",
+        delay_seconds,
+        False,
+        True,
+        planned_application_maintenance_reason(),
+    )
+    if not accepted:
+        error = ctypes.get_last_error()
+        return subprocess.CompletedProcess(
+            ["InitiateSystemShutdownExW"],
+            error or 1,
+            stdout="",
+            stderr=f"win32={error}",
+        )
+    return subprocess.CompletedProcess(
+        ["InitiateSystemShutdownExW"],
+        0,
+        stdout="accepted",
+        stderr="",
+    )
 
 def execute(
     *,
