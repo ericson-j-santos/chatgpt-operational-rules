@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse, json, socket, time
 
 SAFE_HOSTS = {"DESKTOP-PDQK954"}
-SAFE_PORTS = {8210, 18097}
+SAFE_PORTS = {135, 445, 2375, 2376, 5985, 5986, 8210, 18097}
 
 
 def probe(host: str, port: int, timeout: float) -> dict:
