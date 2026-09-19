@@ -82,6 +82,26 @@ class OwnerHostPowerOnceTest(unittest.TestCase):
             )
         self.assertEqual(ctx.exception.exit_code, m.EXIT_EXPIRED)
 
+    def test_shutdown_executable_uses_absolute_system32_path(self) -> None:
+        with patch.dict(
+            m.os.environ,
+            {"SystemRoot": r"C:\\Windows", "WINDIR": r"C:\\Windows"},
+            clear=False,
+        ):
+            resolved = str(m.shutdown_executable()).replace("\\\\", "/").lower()
+            self.assertEqual(
+                resolved,
+                "c:/windows/system32/shutdown.exe",
+            )
+            env = m.shutdown_environment()
+            self.assertEqual(env["SystemRoot"], r"C:\\Windows")
+            self.assertEqual(env["WINDIR"], r"C:\\Windows")
+            self.assertTrue(
+                env["ComSpec"].replace("\\\\", "/").lower().endswith(
+                    "/system32/cmd.exe"
+                )
+            )
+
     def test_execute_consumes_before_submitting_reboot(self) -> None:
         self.authorize()
         observed = {}
