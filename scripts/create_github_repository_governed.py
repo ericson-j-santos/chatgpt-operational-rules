@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -20,11 +21,38 @@ class RepoCreateError(RuntimeError):
     pass
 
 
-def token_from_env() -> str:
+def token_from_secure_sources() -> tuple[str, str]:
     token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or "").strip()
+    if token:
+        return token, "environment"
+
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        proc = subprocess.run(
+            ["git", "credential", "fill"],
+            input="protocol=https\nhost=github.com\n\n",
+            text=True,
+            capture_output=True,
+            timeout=15,
+            check=False,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RepoCreateError("credencial GitHub não disponível no cofre Git") from exc
+
+    if proc.returncode != 0:
+        raise RepoCreateError("credencial GitHub não disponível no cofre Git")
+
+    fields: dict[str, str] = {}
+    for line in proc.stdout.splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            fields[key.strip()] = value.strip()
+    token = fields.get("password", "")
     if not token:
-        raise RepoCreateError("GITHUB_TOKEN/GH_TOKEN não provisionado")
-    return token
+        raise RepoCreateError("credencial GitHub não disponível no cofre Git")
+    return token, "git-credential-manager"
 
 
 def request_json(method: str, path: str, token: str, payload: dict | None = None) -> tuple[int, dict]:
@@ -114,7 +142,9 @@ def main() -> int:
         return 2
 
     try:
-        result = create_private_repo(args.owner, args.name, args.description, token_from_env())
+        token, credential_source = token_from_secure_sources()
+        result = create_private_repo(args.owner, args.name, args.description, token)
+        result["credential_source"] = credential_source
     except RepoCreateError as exc:
         print(json.dumps({"result": "BLOCKED", "error": str(exc)}, ensure_ascii=False))
         return 1
