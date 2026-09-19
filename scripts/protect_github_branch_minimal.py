@@ -81,13 +81,24 @@ def main() -> int:
     parser.add_argument("--branch", default="main")
     parser.add_argument("--required-check", required=True)
     parser.add_argument("--confirm", required=True)
+    parser.add_argument("--result-file")
     args = parser.parse_args()
 
-    if args.confirm != "PROTECT-CENTRALHAB-MAIN":
-        print(json.dumps({"result": "BLOCKED", "error": "confirmação inválida"}, ensure_ascii=False))
-        return 2
+    def emit(payload: dict, code: int) -> int:
+        rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        if args.result_file:
+            with open(args.result_file, "w", encoding="utf-8") as handle:
+                handle.write(rendered + "\n")
+        print(rendered)
+        return code
 
-    token = credential()
+    if args.confirm != "PROTECT-CENTRALHAB-MAIN":
+        return emit({"result": "BLOCKED", "error": "confirmação inválida"}, 2)
+
+    try:
+        token = credential()
+    except ProtectionError as exc:
+        return emit({"result": "BLOCKED", "error": str(exc)}, 1)
     path = f"/repos/{args.owner}/{args.repo}/branches/{args.branch}/protection"
     payload = {
         "required_status_checks": {
@@ -109,13 +120,11 @@ def main() -> int:
     status, body = request_json("PUT", path, token, payload)
     if status != 200:
         message = str(body.get("message", "erro não especificado"))[:200]
-        print(json.dumps({"result": "BLOCKED", "http_status": status, "error": message}, ensure_ascii=False))
-        return 1
+        return emit({"result": "BLOCKED", "http_status": status, "error": message}, 1)
 
     read_status, verified = request_json("GET", path, token)
     if read_status != 200:
-        print(json.dumps({"result": "BLOCKED", "error": f"leitura pós-alteração falhou: HTTP {read_status}"}, ensure_ascii=False))
-        return 1
+        return emit({"result": "BLOCKED", "error": f"leitura pós-alteração falhou: HTTP {read_status}"}, 1)
 
     checks = [
         item.get("context")
@@ -127,24 +136,22 @@ def main() -> int:
     admins = bool(verified.get("enforce_admins", {}).get("enabled"))
     conversations = bool(verified.get("required_conversation_resolution", {}).get("enabled"))
     if args.required_check not in checks or not admins:
-        print(json.dumps({
+        return emit({
             "result": "BLOCKED",
             "error": "proteção aplicada parcialmente",
             "required_checks": checks,
             "enforce_admins": admins,
             "required_conversation_resolution": conversations,
-        }, ensure_ascii=False, sort_keys=True))
-        return 1
+        }, 1)
 
-    print(json.dumps({
+    return emit({
         "result": "PROTECTION_OK",
         "repository": f"{args.owner}/{args.repo}",
         "branch": args.branch,
         "required_checks": checks,
         "enforce_admins": admins,
         "required_conversation_resolution": conversations,
-    }, ensure_ascii=False, sort_keys=True))
-    return 0
+    }, 0)
 
 
 if __name__ == "__main__":
