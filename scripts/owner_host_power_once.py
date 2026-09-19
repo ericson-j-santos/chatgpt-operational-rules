@@ -271,6 +271,17 @@ def planned_application_maintenance_reason() -> int:
     )
 
 
+def set_windows_last_error(value: int) -> None:
+    setter = getattr(ctypes, "set_last_error", None)
+    if setter is not None:
+        setter(value)
+
+
+def get_windows_last_error() -> int:
+    getter = getattr(ctypes, "get_last_error", None)
+    return int(getter()) if getter is not None else 0
+
+
 def windows_shutdown_api():
     if os.name != "nt":
         raise HostPowerError("reboot governado suportado somente no Windows")
@@ -324,7 +335,7 @@ def enable_shutdown_privilege(kernel32, advapi32) -> None:
         ctypes.byref(token),
     ):
         raise HostPowerError(
-            f"OpenProcessToken falhou com win32={ctypes.get_last_error()}",
+            f"OpenProcessToken falhou com win32={get_windows_last_error()}",
             EXIT_COMMAND,
         )
 
@@ -336,7 +347,7 @@ def enable_shutdown_privilege(kernel32, advapi32) -> None:
             ctypes.byref(luid),
         ):
             raise HostPowerError(
-                f"LookupPrivilegeValueW falhou com win32={ctypes.get_last_error()}",
+                f"LookupPrivilegeValueW falhou com win32={get_windows_last_error()}",
                 EXIT_COMMAND,
             )
 
@@ -345,7 +356,7 @@ def enable_shutdown_privilege(kernel32, advapi32) -> None:
         privileges.Privileges[0].Luid = luid
         privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED
 
-        ctypes.set_last_error(0)
+        set_windows_last_error(0)
         if not advapi32.AdjustTokenPrivileges(
             token,
             False,
@@ -355,10 +366,10 @@ def enable_shutdown_privilege(kernel32, advapi32) -> None:
             None,
         ):
             raise HostPowerError(
-                f"AdjustTokenPrivileges falhou com win32={ctypes.get_last_error()}",
+                f"AdjustTokenPrivileges falhou com win32={get_windows_last_error()}",
                 EXIT_COMMAND,
             )
-        privilege_error = ctypes.get_last_error()
+        privilege_error = get_windows_last_error()
         if privilege_error == ERROR_NOT_ALL_ASSIGNED:
             raise HostPowerError(
                 "SeShutdownPrivilege não está atribuído ao usuário atual",
@@ -380,7 +391,7 @@ def submit_reboot(delay_seconds: int) -> subprocess.CompletedProcess[str]:
     kernel32, advapi32 = windows_shutdown_api()
     enable_shutdown_privilege(kernel32, advapi32)
 
-    ctypes.set_last_error(0)
+    set_windows_last_error(0)
     accepted = advapi32.InitiateSystemShutdownExW(
         None,
         "ReqSys governed one-time reboot validation",
@@ -390,7 +401,7 @@ def submit_reboot(delay_seconds: int) -> subprocess.CompletedProcess[str]:
         planned_application_maintenance_reason(),
     )
     if not accepted:
-        error = ctypes.get_last_error()
+        error = get_windows_last_error()
         return subprocess.CompletedProcess(
             ["InitiateSystemShutdownExW"],
             error or 1,
