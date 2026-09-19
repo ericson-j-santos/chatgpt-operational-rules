@@ -35,6 +35,18 @@ class RdcHostFixTests(unittest.TestCase):
             self.assertTrue(state["contains_pinned_package"])
             self.assertTrue(state["contains_watchdog_loop"])
 
+    def test_v4_launcher_is_recognized_as_fixed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / rhf.ALLOWED_NAME
+            path.write_text(
+                "@echo off\n" + rhf.V4_MARKER + "\nif /I \"%~1\"==\"--self-test\" exit /b 0\n",
+                encoding="utf-8",
+            )
+            state = rhf.inspect(path)
+            self.assertEqual(state["marker"], "v4")
+            self.assertTrue(state["already_fixed"])
+            self.assertTrue(state["contains_self_test"])
+
     def test_rejects_unexpected_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / rhf.ALLOWED_NAME
