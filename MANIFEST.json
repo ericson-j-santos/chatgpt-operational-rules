@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-19T00:10:19.294780+00:00",
+  "generated_at": "2026-09-19T00:11:11.395359+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -289,8 +289,8 @@
     },
     {
       "path": "scripts/owner_host_power_once.py",
-      "sha256": "e66405300d80dc1562f11ad46e4970499cf549e06ca72827dc66019f4e51cab3",
-      "size": 17100
+      "sha256": "9bf1eb6f2b0804e8b10ff0c125b68f044ced90d29abe47ea87ba7f0d3e72d44e",
+      "size": 17405
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
