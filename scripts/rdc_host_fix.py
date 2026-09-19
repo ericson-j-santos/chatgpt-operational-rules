@@ -17,6 +17,7 @@ V2_SHA256 = "001cb4f595d305ea757c4b251b7fefaee9b0df7732f7a373ae742c7a6f850767"
 V2_MARKER = "REM RDC_LAUNCHER_V2_GOVERNED"
 V3_MARKER = "REM RDC_LAUNCHER_V3_RESILIENT"
 V4_MARKER = "REM RDC_LAUNCHER_V4_ARBITRATED"
+V5_MARKER = "REM RDC_LAUNCHER_V5_READY_CLAIM"
 PINNED_PACKAGE = "@wonderwhy-er/desktop-commander@0.2.51"
 NEW_CONTENT = r'''@echo off
 setlocal EnableExtensions
@@ -64,13 +65,13 @@ def inspect(path: Path) -> dict[str, object]:
         raise FileNotFoundError(path)
     payload = path.read_bytes()
     text = payload.decode("utf-8-sig", errors="replace")
-    marker = "v4" if V4_MARKER in text else "v3" if V3_MARKER in text else "v2" if V2_MARKER in text else "legacy"
+    marker = "v5" if V5_MARKER in text else "v4" if V4_MARKER in text else "v3" if V3_MARKER in text else "v2" if V2_MARKER in text else "legacy"
     return {
         "path": str(path),
         "sha256": sha256_bytes(payload),
         "size": len(payload),
         "marker": marker,
-        "already_fixed": marker in {"v3", "v4"},
+        "already_fixed": marker in {"v3", "v4", "v5"},
         "contains_call_npx": "call npx " in text.casefold(),
         "contains_self_test": "rdc_self_test" in text.casefold() or "--self-test" in text.casefold(),
         "contains_pinned_package": PINNED_PACKAGE.casefold() in text.casefold(),
