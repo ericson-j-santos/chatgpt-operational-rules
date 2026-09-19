@@ -82,25 +82,55 @@ class OwnerHostPowerOnceTest(unittest.TestCase):
             )
         self.assertEqual(ctx.exception.exit_code, m.EXIT_EXPIRED)
 
-    def test_shutdown_executable_uses_absolute_system32_path(self) -> None:
-        with patch.dict(
-            m.os.environ,
-            {"SystemRoot": r"C:\\Windows", "WINDIR": r"C:\\Windows"},
-            clear=False,
-        ):
-            resolved = str(m.shutdown_executable()).replace("\\\\", "/").lower()
-            self.assertEqual(
-                resolved,
-                "c:/windows/system32/shutdown.exe",
-            )
-            env = m.shutdown_environment()
-            self.assertEqual(env["SystemRoot"], r"C:\\Windows")
-            self.assertEqual(env["WINDIR"], r"C:\\Windows")
-            self.assertTrue(
-                env["ComSpec"].replace("\\\\", "/").lower().endswith(
-                    "/system32/cmd.exe"
+    def test_native_reboot_uses_planned_maintenance_and_no_force_close(self) -> None:
+        observed = {}
+
+        class FakeAdvapi:
+            def InitiateSystemShutdownExW(
+                self,
+                machine,
+                message,
+                delay,
+                force_apps_closed,
+                reboot_after_shutdown,
+                reason,
+            ):
+                observed.update(
+                    {
+                        "machine": machine,
+                        "message": message,
+                        "delay": delay,
+                        "force": force_apps_closed,
+                        "reboot": reboot_after_shutdown,
+                        "reason": reason,
+                    }
                 )
-            )
+                return True
+
+        fake_kernel = object()
+        fake_advapi = FakeAdvapi()
+        with (
+            patch.object(
+                m,
+                "windows_shutdown_api",
+                return_value=(fake_kernel, fake_advapi),
+            ),
+            patch.object(m, "enable_shutdown_privilege") as privilege,
+        ):
+            result = m.submit_reboot(5)
+
+        self.assertEqual(result.returncode, 0)
+        privilege.assert_called_once_with(fake_kernel, fake_advapi)
+        self.assertIsNone(observed["machine"])
+        self.assertEqual(observed["delay"], 5)
+        self.assertFalse(observed["force"])
+        self.assertTrue(observed["reboot"])
+        self.assertEqual(
+            observed["reason"],
+            m.SHTDN_REASON_MAJOR_APPLICATION
+            | m.SHTDN_REASON_MINOR_MAINTENANCE
+            | m.SHTDN_REASON_FLAG_PLANNED,
+        )
 
     def test_execute_consumes_before_submitting_reboot(self) -> None:
         self.authorize()
@@ -111,7 +141,7 @@ class OwnerHostPowerOnceTest(unittest.TestCase):
             observed["consumed_before_submit"] = bool(payload["consumed_at"])
             observed["delay"] = delay_seconds
             return subprocess.CompletedProcess(
-                ["shutdown.exe"], 0, stdout="scheduled", stderr=""
+                ["InitiateSystemShutdownExW"], 0, stdout="accepted", stderr=""
             )
 
         with patch.object(m, "submit_reboot", fake_submit):
