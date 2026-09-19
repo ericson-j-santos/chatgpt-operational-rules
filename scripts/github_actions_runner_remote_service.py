@@ -15,9 +15,18 @@ def run(args:list[str], timeout:int=30)->subprocess.CompletedProcess[str]:
     return subprocess.run(args,text=True,capture_output=True,encoding="utf-8",errors="replace",shell=False,timeout=timeout,check=False)
 
 
-def list_services(host:str)->list[dict]:
+def list_services(host:str)->dict:
     target=f"\\\\{host}"
     q=run(["sc.exe",target,"query","type=","service","state=","all"])
+    combined=((q.stdout or "")+"\n"+(q.stderr or "")).lower()
+    error_class=None
+    if q.returncode!=0:
+        if "access is denied" in combined or "acesso negado" in combined:
+            error_class="access_denied"
+        elif "rpc server is unavailable" in combined or "servidor rpc" in combined:
+            error_class="rpc_unavailable"
+        else:
+            error_class="query_failed"
     names=sorted(set(SERVICE_RE.findall(q.stdout if q.returncode==0 else "")),key=str.casefold)
     rows=[]
     for name in names:
@@ -26,7 +35,7 @@ def list_services(host:str)->list[dict]:
         state=re.search(r"(?im)^\s*STATE\s*:\s*\d+\s+(\w+)",s.stdout)
         start=re.search(r"(?im)^\s*START_TYPE\s*:\s*\d+\s+(\w+)",qc.stdout)
         rows.append({"name":name,"state":state.group(1).upper() if state else "UNKNOWN","start_type":start.group(1).upper() if start else "UNKNOWN","query_rc":s.returncode,"qc_rc":qc.returncode})
-    return rows
+    return {"query_returncode":q.returncode,"error_class":error_class,"items":rows}
 
 
 def main()->int:
@@ -42,7 +51,7 @@ def main()->int:
     if ns.start:
         if not ns.service or not ns.service.lower().startswith("actions.runner."):
             raise SystemExit("service_not_allowlisted")
-        if ns.service not in {x["name"] for x in before}:
+        if ns.service not in {x["name"] for x in before["items"]}:
             raise SystemExit("service_not_found")
         target=f"\\\\{ns.host}"
         started=run(["sc.exe",target,"start",ns.service])
