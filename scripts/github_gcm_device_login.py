@@ -30,7 +30,8 @@ def main() -> int:
     result_file.parent.mkdir(parents=True, exist_ok=True)
 
     env = dict(os.environ)
-    env["GIT_TERMINAL_PROMPT"] = "0"
+    # Device-flow authentication is explicitly authorized by the owner.
+    # Do not disable GCM's own OAuth prompt; the resulting token remains in the OS vault.
 
     # GCM owns the OAuth flow and secure credential persistence.
     # We only stream the device-flow instructions; no access token is read here.
@@ -42,7 +43,6 @@ def main() -> int:
             "login",
             "--device",
             "--force",
-            "--no-ui",
             "--username",
             args.username,
         ],
