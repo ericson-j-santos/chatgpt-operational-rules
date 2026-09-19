@@ -42,8 +42,14 @@ class DualHostPreflightTests(unittest.TestCase):
         self.assertTrue(result["ready"])
         self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
         self.assertEqual(result["secondary_host"], "Noteri")
+        desktop = next(
+            item for item in result["evaluated_hosts"]
+            if item["name"] == "DESKTOP-PDQK954"
+        )
+        self.assertTrue(desktop["host_reachable"])
+        self.assertEqual(desktop["availability_state"], "controller_online")
 
-    def test_offline_host_is_blocked(self) -> None:
+    def test_controller_offline_host_unknown_is_blocked(self) -> None:
         result = dhp.evaluate({
             "required_rules_sha": SHA,
             "hosts": [
@@ -53,6 +59,85 @@ class DualHostPreflightTests(unittest.TestCase):
         })
         self.assertEqual(result["selected_host"], "Noteri")
         self.assertIn("controller_online", result["blocked_hosts"]["DESKTOP-PDQK954"])
+        desktop = next(
+            item for item in result["evaluated_hosts"]
+            if item["name"] == "DESKTOP-PDQK954"
+        )
+        self.assertIsNone(desktop["host_reachable"])
+        self.assertEqual(
+            desktop["availability_state"], "controller_offline_host_unknown"
+        )
+        self.assertEqual(desktop["recovery_action"], "probe_host_independently")
+
+    def test_reachable_host_with_controller_offline_is_not_called_offline(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri"),
+                host(
+                    "DESKTOP-PDQK954",
+                    controller_online=False,
+                    host_reachable=True,
+                ),
+            ],
+        })
+        self.assertEqual(result["selected_host"], "Noteri")
+        self.assertIn("controller_online", result["blocked_hosts"]["DESKTOP-PDQK954"])
+        desktop = next(
+            item for item in result["evaluated_hosts"]
+            if item["name"] == "DESKTOP-PDQK954"
+        )
+        self.assertTrue(desktop["host_reachable"])
+        self.assertFalse(desktop["eligible"])
+        self.assertEqual(
+            desktop["availability_state"], "host_reachable_controller_offline"
+        )
+        self.assertEqual(desktop["recovery_action"], "restart_controller")
+
+    def test_independent_signal_proves_host_reachable_without_controller(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri"),
+                host(
+                    "DESKTOP-PDQK954",
+                    controller_online=False,
+                    reachability_signals={
+                        "windows_rpc": True,
+                        "rdc_heartbeat": False,
+                    },
+                ),
+            ],
+        })
+        desktop = next(
+            item for item in result["evaluated_hosts"]
+            if item["name"] == "DESKTOP-PDQK954"
+        )
+        self.assertTrue(desktop["host_reachable"])
+        self.assertEqual(desktop["reachability_signals"], ["windows_rpc"])
+        self.assertEqual(
+            desktop["availability_state"], "host_reachable_controller_offline"
+        )
+
+    def test_explicit_host_unreachable_stays_distinct_from_controller_state(self) -> None:
+        result = dhp.evaluate({
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri"),
+                host(
+                    "DESKTOP-PDQK954",
+                    controller_online=False,
+                    host_reachable=False,
+                ),
+            ],
+        })
+        desktop = next(
+            item for item in result["evaluated_hosts"]
+            if item["name"] == "DESKTOP-PDQK954"
+        )
+        self.assertFalse(desktop["host_reachable"])
+        self.assertEqual(desktop["availability_state"], "host_unreachable")
+        self.assertEqual(desktop["recovery_action"], "restore_host_or_network")
 
     def test_sha_mismatch_fails_closed(self) -> None:
         result = dhp.evaluate({
@@ -64,6 +149,7 @@ class DualHostPreflightTests(unittest.TestCase):
         })
         self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
         self.assertIn("rules_sha_mismatch", result["blocked_hosts"]["Noteri"])
+
     def test_reserved_worktree_is_not_reused(self) -> None:
         worktree = r"C:\dev\chatgpt-workers\wt-chat-task-123"
         result = dhp.evaluate({
@@ -97,6 +183,7 @@ class DualHostPreflightTests(unittest.TestCase):
             ],
         })
         self.assertEqual(result["selected_host"], "Noteri")
+
     def test_no_eligible_hosts_returns_not_ready(self) -> None:
         result = dhp.evaluate({
             "required_rules_sha": SHA,

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.4 - 2026-09-19
+- O preflight dual-host passa a distinguir alcance do computador de conectividade do Remote Desktop Commander, evitando classificar ausência de heartbeat como PC desligado.
+- Hosts alcançáveis com controller desconectado permanecem fail-closed para execução e recebem ação explícita de recuperação do controller.
+- O supervisor RDC ganha modo headless governado com tarefa AtStartup + S4U, watchdog/restart e execução sem depender de login interativo.
+
 ## 1.6.3 - 2026-09-19
 - O Command Gateway passa a aceitar `git_state_timeout_seconds` configurável, com faixa segura de 5 a 120 segundos.
 - O perfil operacional usa 60 segundos para estado Git, evitando falsos bloqueios em hosts PC24x7 com I/O mais lento sem relaxar o fail-closed.

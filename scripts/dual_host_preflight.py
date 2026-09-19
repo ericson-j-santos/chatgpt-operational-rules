@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 REQUIRED_TRUE = (
-    "controller_online",
     "auth_valid",
     "session_launch_ok",
     "state_validated",
@@ -28,6 +27,40 @@ def _as_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _reachability(host: dict[str, Any]) -> tuple[bool | None, list[str]]:
+    """Separa alcance físico/rede do heartbeat do controller."""
+    controller_online = host.get("controller_online") is True
+    raw_signals = host.get("reachability_signals")
+    positive_signals: list[str] = []
+    if isinstance(raw_signals, dict):
+        positive_signals = sorted(
+            str(name)
+            for name, value in raw_signals.items()
+            if value is True and str(name).strip()
+        )
+
+    explicit = host.get("host_reachable")
+    if explicit is True:
+        return True, positive_signals
+    if explicit is False:
+        return False, positive_signals
+    if controller_online or positive_signals:
+        return True, positive_signals
+    return None, positive_signals
+
+
+def _availability_state(
+    *, controller_online: bool, host_reachable: bool | None
+) -> tuple[str, str | None]:
+    if controller_online:
+        return "controller_online", None
+    if host_reachable is True:
+        return "host_reachable_controller_offline", "restart_controller"
+    if host_reachable is False:
+        return "host_unreachable", "restore_host_or_network"
+    return "controller_offline_host_unknown", "probe_host_independently"
+
+
 def evaluate_host(
     host: dict[str, Any],
     required_rules_sha: str,
@@ -41,6 +74,16 @@ def evaluate_host(
         blockers.append("invalid_profile")
     elif profile == "ESTUDO" and requested_workload in DEVELOPMENT_WORKLOADS:
         blockers.append("profile_estudo")
+
+    controller_online = host.get("controller_online") is True
+    host_reachable, reachability_signals = _reachability(host)
+    availability_state, recovery_action = _availability_state(
+        controller_online=controller_online,
+        host_reachable=host_reachable,
+    )
+    if not controller_online:
+        blockers.append("controller_online")
+
     for field in REQUIRED_TRUE:
         if host.get(field) is not True:
             blockers.append(field)
@@ -71,6 +114,12 @@ def evaluate_host(
         "route_score": route_score,
         "active_tasks": active_tasks,
         "controller_version": str(host.get("controller_version") or "unknown"),
+        "controller_online": controller_online,
+        "host_reachable": host_reachable,
+        "reachability_signals": reachability_signals,
+        "availability_state": availability_state,
+        "recovery_required": recovery_action is not None,
+        "recovery_action": recovery_action,
         "profile": profile,
         "accepts_new_development": profile == "NORMAL",
     }

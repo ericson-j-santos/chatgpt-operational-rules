@@ -1,6 +1,6 @@
 {
-  "version": "1.6.3",
-  "generated_at": "2026-09-19T15:45:00+00:00",
+  "version": "1.6.4",
+  "generated_at": "2026-09-19T16:06:00+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,18 +39,18 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "7e425114660b9afba01fe350e15aa4fe223b37be1116b3b9955e5efc5605c5b8",
-      "size": 8874
+      "sha256": "01ef801a94210504e463098358aff79b84b5c5276bb386ea4358c721cc9370f7",
+      "size": 9361
     },
     {
       "path": "README.md",
-      "sha256": "78c378e7d3f244dc72037aba959b4442b724eb7fb1d8c64cdd7c851f913e292a",
+      "sha256": "a3b185532e111e2b728e3d14e4d0319bb7d297d8783cb8c2e6708e33096f3ebb",
       "size": 4324
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "d22ede7f9c3a87761b6fe1d35269dfdef52cd8532337b6e1ef5ff226ba03debd",
-      "size": 1026
+      "sha256": "991c8edb693da2876e94a8d849630bc56e9a74664b46b1cbc41aa590079e4c9f",
+      "size": 1198
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -129,8 +129,8 @@
     },
     {
       "path": "rules/dual-host-routing.md",
-      "sha256": "b3308012a724aa3869137cafad964258b96a1e948a41b36b53d1da7cfe6f6c36",
-      "size": 2599
+      "sha256": "e50d985f4a94f226becd1d90402a82c816873ebb011e8a375dd138d2c4c4f3fd",
+      "size": 4373
     },
     {
       "path": "rules/e2e-validation.md",
@@ -224,8 +224,8 @@
     },
     {
       "path": "scripts/dual_host_preflight.py",
-      "sha256": "ba7174ca5a6a554d0066327f794afd1dcf6ef283e2a3b48fc646ed03564a35d9",
-      "size": 5441
+      "sha256": "2203e5d6aa1d5a8b9602da585b31b3bfc3d4ed85b7572269c54caaf013ce441a",
+      "size": 7308
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -344,8 +344,8 @@
     },
     {
       "path": "scripts/rdc_task_resilience.py",
-      "sha256": "d3d6a346a7fc263cca2438d5a8be27bda2e16cbeb7f47f05762c93c02e59b03e",
-      "size": 5968
+      "sha256": "7e80c46c80a636bfc749776a69e7f204b1060c260f84a5f37a34cb70eea92705",
+      "size": 9008
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -564,8 +564,8 @@
     },
     {
       "path": "tests/test_dual_host_preflight.py",
-      "sha256": "b67d69fc8241a75ce7dfdc7d4275112e946df56dc11c704af1d3d5eab8a97bcb",
-      "size": 5764
+      "sha256": "ea6e7441c528c39fc2f3cb88fee75398c7ac2304d8d2843225da6ee94ba7e319",
+      "size": 9077
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
@@ -639,8 +639,8 @@
     },
     {
       "path": "tests/test_rdc_task_resilience.py",
-      "sha256": "6162feda13b7b9939c3644ed30f7308daaecb6267de9e546b177770eccc098fa",
-      "size": 3958
+      "sha256": "3e8b82f20cd67da04c06c923c8c7a33d87d6281f02dc47c76b12002b26b8ebf8",
+      "size": 7182
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",

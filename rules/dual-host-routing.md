@@ -16,6 +16,30 @@ Antes de distribuir trabalho entre dois ou mais hosts, coletar evidência atual 
 
 A decisão deve ser fail-closed: qualquer requisito obrigatório ausente torna o host inelegível para aquela tarefa.
 
+## Disponibilidade em camadas
+
+`controller_online=false` significa somente que o canal do Remote Desktop Commander não está conectado. Esse sinal, isoladamente, **não prova que o computador está desligado ou sem rede**.
+
+O preflight deve distinguir:
+- `controller_online`: heartbeat/conectividade do controlador;
+- `host_reachable`: evidência independente de que o Windows/host respondeu;
+- `reachability_signals`: sinais positivos independentes, por exemplo RPC/serviço governado/probe de rede;
+- `availability_state`: classificação consolidada sem relaxar os gates do worker.
+
+Estados esperados:
+- `controller_online`: host e controlador disponíveis;
+- `host_reachable_controller_offline`: computador alcançável, mas controlador desconectado;
+- `controller_offline_host_unknown`: controlador desconectado e sem evidência independente suficiente;
+- `host_unreachable`: probe independente comprovou indisponibilidade do host.
+
+Um host com controlador offline permanece inelegível para execução, mesmo quando `host_reachable=true`. A diferença é operacional: primeiro recuperar o controlador, em vez de declarar o PC desligado.
+
+Quando o controlador estiver offline:
+1. coletar evidência independente de alcance antes de concluir que o host está offline;
+2. se o host responder, tentar somente recuperação governada do controlador/watchdog;
+3. revalidar heartbeat, autenticação, sessão e Gateway;
+4. reboot, power-on ou mudança administrativa continuam operações separadas e não podem ser disparadas apenas pela ausência de heartbeat do controlador.
+
 ## Seleção
 Executar `scripts/dual_host_preflight.py` com a evidência coletada.
 O roteador considera capacidade declarada e quantidade de tarefas ativas.
@@ -42,6 +66,7 @@ Hosts distintos podem usar caminhos textualmente iguais porque os sistemas de ar
 ## Evidência
 Persistir ou registrar o JSON de entrada e o JSON de saída do preflight.
 O resultado deve identificar `selected_host`, `secondary_host`, hosts bloqueados e respectivos motivos.
+Para controlador offline, registrar também `host_reachable`, `availability_state` e `recovery_action`, evitando converter ausência de heartbeat em afirmação sobre energia/rede do computador.
 
 ## Versão do controller
 Diferença de versão do Remote Desktop Commander gera aviso quando os demais requisitos estão íntegros.
