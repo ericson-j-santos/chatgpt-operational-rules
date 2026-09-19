@@ -71,7 +71,7 @@ class PostgresContinuationQueue:
 
     def heartbeat(self, worker_id: str, counts: dict[str, int]) -> None:
         with self._connect() as conn, conn.cursor() as cur:
-            cur.execute("SELECT todo_bus.record_worker_heartbeat(%s,%s::jsonb)",
+            cur.execute("SELECT todo_bus.touch_worker_heartbeat(%s,%s::jsonb)",
                         (worker_id, json.dumps(counts, sort_keys=True)))
 
 
