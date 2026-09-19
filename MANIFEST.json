@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-19T14:05:41.425846+00:00",
+  "generated_at": "2026-09-19T14:08:30+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "642fc00a0eb0f3ca4b5cd38fd6aa39cba399bcd1feb294cae0a481a52d87a721",
-      "size": 3770
+      "sha256": "7f04d39c64f83d4e9bac3d391d84331c9e7abd040d3cfd135056775d59b3c64b",
+      "size": 3908
     },
     {
       "path": ".gitignore",
@@ -334,8 +334,13 @@
     },
     {
       "path": "scripts/rdc_host_fix.py",
-      "sha256": "fcaad5dcfdd1df5f180065062c773746baebbd13acbc105752f712323be3a8e0",
-      "size": 5924
+      "sha256": "72ff5f4726f38b4993b45650df5baa0b83b34c33c60b0a59f773407d411ad6c5",
+      "size": 6044
+    },
+    {
+      "path": "scripts/rdc_owner_arbitration.py",
+      "sha256": "11e86a026185ade42fc732a0b934b6bcba12912844e374c2b8a798068c14ab80",
+      "size": 10119
     },
     {
       "path": "scripts/rdc_task_resilience.py",
@@ -444,8 +449,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "b73eeb67e33f78396f46c3ad4628e96005dd3811d059ed35c8a1e95393d85be8",
-      "size": 9115
+      "sha256": "8836269aeed321ce20baa7d59d81f8b1d2ec4581b8d1d9e647a64f996de591f2",
+      "size": 9151
     },
     {
       "path": "services/__init__.py",
@@ -624,8 +629,13 @@
     },
     {
       "path": "tests/test_rdc_host_fix.py",
-      "sha256": "3977bbbfe2b57887c43255f2b5c8153408b1c4b46fa75bf54f77bfd7c673643a",
-      "size": 1803
+      "sha256": "3590d72c81e393e1afdc33e2af18a208bdc350fb283dab250c05dacf924e64a8",
+      "size": 2338
+    },
+    {
+      "path": "tests/test_rdc_owner_arbitration.py",
+      "sha256": "a7a4d9f4efda4a32956e31b76db0fd3288c27647b59d64689ae3bbf59e7afde4",
+      "size": 3741
     },
     {
       "path": "tests/test_rdc_task_resilience.py",
