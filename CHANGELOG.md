@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.3 - 2026-09-19
+- O Command Gateway passa a aceitar `git_state_timeout_seconds` configurável, com faixa segura de 5 a 120 segundos.
+- O perfil operacional usa 60 segundos para estado Git, evitando falsos bloqueios em hosts PC24x7 com I/O mais lento sem relaxar o fail-closed.
+- `session_launcher` e `session_bootstrap` reutilizam o mesmo timeout de política para `git status` rastreado.
+
 ## 1.6.2 - 2026-09-16
 - Generalizada a seleção de runtime para aplicar o princípio `PC24x7-first` antes de criar infraestrutura paga adicional quando o workload for compatível.
 - Definidos critérios objetivos de elegibilidade: execução supervisionável, persistência e backup, HTTPS estável quando necessário, segredo fora do Git/chat, restart automático, isolamento/disponibilidade adequados e E2E verificável.
