@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-19T00:02:49.921051+00:00",
+  "generated_at": "2026-09-19T00:06:10.531835+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -289,8 +289,8 @@
     },
     {
       "path": "scripts/owner_host_power_once.py",
-      "sha256": "f60a09727a3fcbe12bddccd03dbb239a267f4628ac3f0aebe69d8a2fafa004f8",
-      "size": 12714
+      "sha256": "16663d372ce540e1e0f8730c886cb86072a8be51813e12996cff036dca8dc259",
+      "size": 13496
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
@@ -589,8 +589,8 @@
     },
     {
       "path": "tests/test_owner_host_power_once.py",
-      "sha256": "702c2425441b4c39c99a18572a86653d4aba077f51e03e0c09b045da956b6ebf",
-      "size": 5790
+      "sha256": "90e27cbd373c43d2c53170a20b55b44283c448fdb509edd779bbdf4c543e06af",
+      "size": 6565
     },
     {
       "path": "tests/test_owner_risk3_development_mode.py",
