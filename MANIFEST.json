@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-19T00:02:30+00:00",
+  "generated_at": "2026-09-19T00:02:49.921051+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1a4eb6848607db3a8542f9cf5fafbb440ad103ab53d66587ad2c9dc9587aedbb",
-      "size": 3506
+      "sha256": "d3e7c3685adad8aa3d6936b5d7a68921dac0cbbf9db4ae56d85d919feed39064",
+      "size": 3631
     },
     {
       "path": ".gitignore",
@@ -589,8 +589,8 @@
     },
     {
       "path": "tests/test_owner_host_power_once.py",
-      "sha256": "d16a49685da6366b7dddbe5d9bb8e6eb31a530ff50d0ac47b790d76c9acab0b3",
-      "size": 5132
+      "sha256": "702c2425441b4c39c99a18572a86653d4aba077f51e03e0c09b045da956b6ebf",
+      "size": 5790
     },
     {
       "path": "tests/test_owner_risk3_development_mode.py",
