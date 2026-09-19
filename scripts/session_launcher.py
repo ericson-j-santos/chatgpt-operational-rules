@@ -86,10 +86,11 @@ def validate_sync_ref(value: str | None) -> tuple[str, str] | None:
     return match.group("remote"), match.group("branch")
 
 
-def tracked_tree_dirty(repo: Path) -> bool:
+def tracked_tree_dirty(repo: Path, policy: dict) -> bool:
     result = cg.run_capture(
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"],
         repo,
+        timeout=int(policy.get("git_state_timeout_seconds", 15)),
     )
     if result.returncode != 0 or result.stderr.strip():
         raise cg.GatewayError(
@@ -264,7 +265,7 @@ def sync_expected_head(
             cg.EXIT_STATE_CHANGED,
         )
 
-    if tracked_tree_dirty(repo):
+    if tracked_tree_dirty(repo, policy):
         isolated = _prepare_isolated_base(
             repo=repo,
             policy=policy,
@@ -291,7 +292,7 @@ def sync_expected_head(
 
     final = cg.git_state(repo, True, policy)
     assert final is not None
-    if tracked_tree_dirty(repo):
+    if tracked_tree_dirty(repo, policy):
         raise cg.GatewayError(
             "sincronização incompleta: base deixou de estar limpa após fast-forward",
             cg.EXIT_STATE_CHANGED,

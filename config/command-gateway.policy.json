@@ -14,11 +14,12 @@
   "require_git_repo": true,
   "risk2_requires_clean_tree": true,
   "max_timeout_seconds": 900,
+  "git_state_timeout_seconds": 60,
   "state_dir": "%LOCALAPPDATA%\\ReqSys\\CommandGateway",
   "git_untracked_excludes": [".tmp/**"],
   "require_session_bootstrap": true,
   "worktree_root": "C:\\dev\\chatgpt-workers",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.6.2",
+  "rules_version": "1.6.3",
   "require_preflight_snapshot": true
 }

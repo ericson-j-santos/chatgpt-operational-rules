@@ -120,6 +120,36 @@ class CommandGatewayTests(unittest.TestCase):
         finally:
             cg.run_capture = original
 
+    def test_git_state_uses_policy_timeout_for_git_commands(self) -> None:
+        original = cg.run_capture
+        seen: list[int] = []
+        responses = iter([
+            subprocess.CompletedProcess(["git"], 0, "/tmp/repo\n", ""),
+            subprocess.CompletedProcess(["git"], 0, "a" * 40 + "\n", ""),
+            subprocess.CompletedProcess(["git"], 0, "main\n", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
+            subprocess.CompletedProcess(["git"], 0, "", ""),
+        ])
+        try:
+            def fake_run_capture(*args, **kwargs):
+                seen.append(kwargs.get("timeout", 15))
+                return next(responses)
+            cg.run_capture = fake_run_capture
+            state = cg.git_state(Path("/tmp/repo"), True, {"git_state_timeout_seconds": 60})
+            self.assertIsNotNone(state)
+            self.assertTrue(seen)
+            self.assertTrue(all(value == 60 for value in seen))
+        finally:
+            cg.run_capture = original
+
+    def test_git_state_timeout_policy_is_bounded(self) -> None:
+        for invalid in (4, 121):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(cg.GatewayError):
+                    cg.git_state(Path("."), False, {"git_state_timeout_seconds": invalid})
+
     def test_load_policy_rejects_wrong_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "policy.json"

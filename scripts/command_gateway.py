@@ -164,7 +164,10 @@ def run_capture(args: Sequence[str], cwd: Path, timeout: int = 15) -> subprocess
 
 
 def git_state(cwd: Path, require_repo: bool = True, policy: dict[str, Any] | None = None) -> GitState | None:
-    root = run_capture(["git", "rev-parse", "--show-toplevel"], cwd)
+    state_timeout = int((policy or {}).get("git_state_timeout_seconds", 15))
+    if state_timeout < 5 or state_timeout > 120:
+        raise GatewayError("git_state_timeout_seconds deve estar entre 5 e 120s")
+    root = run_capture(["git", "rev-parse", "--show-toplevel"], cwd, timeout=state_timeout)
     if root.returncode != 0:
         if require_repo:
             raise GatewayError("diretório não é repositório Git")
@@ -172,14 +175,14 @@ def git_state(cwd: Path, require_repo: bool = True, policy: dict[str, Any] | Non
     if root.stderr.strip():
         raise GatewayError("estado Git incompleto: rev-parse produziu aviso/erro em stderr", EXIT_STATE_CHANGED)
     repo_root = Path(root.stdout.strip())
-    head = run_capture(["git", "rev-parse", "HEAD"], repo_root)
-    branch = run_capture(["git", "branch", "--show-current"], repo_root)
-    tracked = run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo_root)
-    index = run_capture(["git", "ls-files", "-s", "-z"], repo_root)
+    head = run_capture(["git", "rev-parse", "HEAD"], repo_root, timeout=state_timeout)
+    branch = run_capture(["git", "branch", "--show-current"], repo_root, timeout=state_timeout)
+    tracked = run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo_root, timeout=state_timeout)
+    index = run_capture(["git", "ls-files", "-s", "-z"], repo_root, timeout=state_timeout)
     pathspec = ["."] + [f":(exclude){item}" for item in (policy or {}).get("git_untracked_excludes", [])]
-    untracked = run_capture(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *pathspec], repo_root)
+    untracked = run_capture(["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *pathspec], repo_root, timeout=state_timeout)
     checks = (head, branch, tracked, index, untracked)
-    modified = run_capture(["git", "ls-files", "-m", "-d", "-z"], repo_root)
+    modified = run_capture(["git", "ls-files", "-m", "-d", "-z"], repo_root, timeout=state_timeout)
     checks = (head, branch, tracked, index, modified, untracked)
     if any(item.returncode != 0 for item in checks):
         raise GatewayError("não foi possível obter estado Git")
