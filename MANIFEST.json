@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-19T00:11:11.395359+00:00",
+  "generated_at": "2026-09-19T14:05:41.425846+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "d3e7c3685adad8aa3d6936b5d7a68921dac0cbbf9db4ae56d85d919feed39064",
-      "size": 3631
+      "sha256": "642fc00a0eb0f3ca4b5cd38fd6aa39cba399bcd1feb294cae0a481a52d87a721",
+      "size": 3770
     },
     {
       "path": ".gitignore",
@@ -291,6 +291,11 @@
       "path": "scripts/owner_host_power_once.py",
       "sha256": "9bf1eb6f2b0804e8b10ff0c125b68f044ced90d29abe47ea87ba7f0d3e72d44e",
       "size": 17405
+    },
+    {
+      "path": "scripts/owner_remote_host_power_once.py",
+      "sha256": "ce8d44702612defd638fab7007f1f761abb4f1841477ea70591a6a56895cd337",
+      "size": 14481
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
@@ -591,6 +596,11 @@
       "path": "tests/test_owner_host_power_once.py",
       "sha256": "c35ae2ebbecfa3891b4577bfe34334352740d16bf9d08853ed888451566ecd24",
       "size": 7453
+    },
+    {
+      "path": "tests/test_owner_remote_host_power_once.py",
+      "sha256": "7eacacb4261e4477e1ea19068ca8c5cacf9027fe878cdd9e3fd64341985a8dd2",
+      "size": 7097
     },
     {
       "path": "tests/test_owner_risk3_development_mode.py",
