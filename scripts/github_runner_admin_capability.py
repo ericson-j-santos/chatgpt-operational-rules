@@ -27,7 +27,17 @@ def main()->int:
     who=run([gh,"api","user","--jq",".login"])
     identity=who.stdout.strip() if who.returncode==0 else None
     if ns.status_only:
-        print(json.dumps({"gh_present":True,"authenticated":who.returncode==0,"identity":identity,"secret_values_exposed":False},sort_keys=True))
+        headers=run([gh,"api","-i","user"])
+        scopes=[]
+        accepted=[]
+        if headers.returncode==0:
+            for line in headers.stdout.splitlines():
+                low=line.lower()
+                if low.startswith("x-oauth-scopes:"):
+                    scopes=[x.strip() for x in line.split(":",1)[1].split(",") if x.strip()]
+                elif low.startswith("x-accepted-oauth-scopes:"):
+                    accepted=[x.strip() for x in line.split(":",1)[1].split(",") if x.strip()]
+        print(json.dumps({"gh_present":True,"authenticated":who.returncode==0,"identity":identity,"oauth_scopes":scopes,"accepted_oauth_scopes":accepted,"secret_values_exposed":False},sort_keys=True))
         return 0 if who.returncode==0 else 5
     req=run([gh,"api","--method","POST",f"repos/{REPO}/actions/runners/registration-token"])
     result={"gh_present":True,"identity":identity,"request_returncode":req.returncode,"registration_token_created":False,"expires_at":None,"secret_values_exposed":False}
