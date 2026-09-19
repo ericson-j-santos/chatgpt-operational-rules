@@ -47,6 +47,13 @@ def bearer_ok(header: str | None) -> bool:
     return hmac.compare_digest(header[7:], expected)
 
 
+def target_reader_ok(header: str | None) -> bool:
+    expected = os.environ.get("TARGET_READ_TOKEN", "")
+    if not expected or not header or not header.startswith("Bearer "):
+        return False
+    return hmac.compare_digest(header[7:], expected)
+
+
 def probe_target(target: str) -> bool:
     try:
         with urlopen(Request(target + "/readyz", headers={"Accept": "application/json"}), timeout=10) as response:
@@ -87,6 +94,16 @@ class Handler(BaseHTTPRequestHandler):
             target = get_target()
             ready = bool(target) and probe_target(target)
             self._json(200 if ready else 503, {"status": "ready" if ready else "not_ready", "target_set": bool(target)})
+            return
+        if self.path == "/admin/target":
+            if not target_reader_ok(self.headers.get("Authorization")):
+                self._json(401, {"detail": "unauthorized"})
+                return
+            target = get_target()
+            if not target:
+                self._json(503, {"detail": "target unavailable"})
+                return
+            self._json(200, {"status": "ok", "base_url": target})
             return
         self._json(404, {"detail": "not found"})
 
