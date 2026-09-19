@@ -8,13 +8,19 @@ def txt(ctrl):
     try: return " ".join((ctrl.window_text() or "").split())
     except Exception: return ""
 
-def find_browser():
+def find_browser(browser: str):
     wins=Desktop(backend="uia").windows()
     preferred=[]
     for w in wins:
         try:
             t=txt(w)
-            if t.endswith(" - Google Chrome") or t.endswith(" - Microsoft Edge"):
+            chrome=t.endswith(" - Google Chrome")
+            edge=t.endswith(" - Microsoft Edge")
+            if browser=="chrome" and chrome:
+                preferred.append(w)
+            elif browser=="edge" and edge:
+                preferred.append(w)
+            elif browser=="any" and (chrome or edge):
                 preferred.append(w)
         except Exception:
             pass
@@ -48,8 +54,9 @@ def snapshot(win, limit=140):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--url",required=True)
+    p.add_argument("--browser",choices=["any","chrome","edge"],default="any")
     args=p.parse_args()
-    win=find_browser()
+    win=find_browser(args.browser)
     if not win:
         print(json.dumps({"result":"BLOCKED","error":"Chrome/Edge window not found"}))
         return 1
