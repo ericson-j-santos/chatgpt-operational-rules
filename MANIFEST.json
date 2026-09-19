@@ -209,8 +209,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "9a551a768e0eaddc9cfe841ffe9ae4a00b96ccff4a3326b20c6dbcf29c4e3a4a",
-      "size": 10491
+      "sha256": "2b4f113e8d9c79dbeb73125dd2fbf2f0012e4ac03aeb31d98d1e5c3c7f07aff0",
+      "size": 10490
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -549,8 +549,8 @@
     },
     {
       "path": "tests/test_continuation_worker.py",
-      "sha256": "44333468db67dbea960327d8824671101b35d77510a42fb0784ed9ca49d21368",
-      "size": 4445
+      "sha256": "3ce9216a6eed93e9e1dbd99c87ca72928bc53d09dae7e41c087749def24c8d60",
+      "size": 5168
     },
     {
       "path": "tests/test_continuous_source_ingest.py",
