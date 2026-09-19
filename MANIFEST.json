@@ -1,6 +1,6 @@
 {
   "version": "1.6.2",
-  "generated_at": "2026-09-18T23:47:48.412437+00:00",
+  "generated_at": "2026-09-19T00:11:11.395359+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1a4eb6848607db3a8542f9cf5fafbb440ad103ab53d66587ad2c9dc9587aedbb",
-      "size": 3506
+      "sha256": "d3e7c3685adad8aa3d6936b5d7a68921dac0cbbf9db4ae56d85d919feed39064",
+      "size": 3631
     },
     {
       "path": ".gitignore",
@@ -66,6 +66,11 @@
       "path": "docker-compose.scheduler.pc24x7.yml",
       "sha256": "67306f7eab3474321975722b9ba4627d2cf375652e8d9f1f64690fb24d06a7e5",
       "size": 877
+    },
+    {
+      "path": "docs/OWNER_HOST_POWER_ONCE.md",
+      "sha256": "c53dccf0d54ff59bb374b93526e94ab9235e7bf2a8262204697b2e6701010631",
+      "size": 1872
     },
     {
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
@@ -281,6 +286,11 @@
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
       "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
       "size": 1503
+    },
+    {
+      "path": "scripts/owner_host_power_once.py",
+      "sha256": "9bf1eb6f2b0804e8b10ff0c125b68f044ced90d29abe47ea87ba7f0d3e72d44e",
+      "size": 17405
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
@@ -576,6 +586,11 @@
       "path": "tests/test_host_operating_profile.py",
       "sha256": "0808baf84e3dcf586d00ef39fda068a0a97e7f5d8b97bc8355a892458b802e74",
       "size": 2014
+    },
+    {
+      "path": "tests/test_owner_host_power_once.py",
+      "sha256": "c35ae2ebbecfa3891b4577bfe34334352740d16bf9d08853ed888451566ecd24",
+      "size": 7453
     },
     {
       "path": "tests/test_owner_risk3_development_mode.py",
