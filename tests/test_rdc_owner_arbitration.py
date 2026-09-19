@@ -12,35 +12,34 @@ import rdc_owner_arbitration as roa
 
 
 class RdcOwnerArbitrationTests(unittest.TestCase):
-    def test_launcher_v4_delegates_to_supervisor(self) -> None:
-        self.assertIn(roa.V4_MARKER, roa.LAUNCHER_V4)
-        self.assertIn("rdc-interactive-supervisor.ps1", roa.LAUNCHER_V4)
-        self.assertIn("--self-test", roa.LAUNCHER_V4.casefold())
-        self.assertNotIn(" npx ", roa.LAUNCHER_V4.casefold())
+    def test_launcher_v5_delegates_to_ready_claim_supervisor(self) -> None:
+        self.assertIn(roa.V5_MARKER, roa.LAUNCHER_V5)
+        self.assertIn("rdc-interactive-supervisor.ps1", roa.LAUNCHER_V5)
+        self.assertIn("--self-test", roa.LAUNCHER_V5.casefold())
+        self.assertNotIn(" npx ", roa.LAUNCHER_V5.casefold())
 
-    def test_interactive_supervisor_is_fail_closed_and_yields(self) -> None:
+    def test_interactive_supervisor_uses_fresh_claim_not_task_acl(self) -> None:
         text = roa.SUPERVISOR_PS1
         self.assertIn(roa.PS1_MARKER, text)
+        self.assertIn("rdc-headless-owner.json", text)
+        self.assertIn("$ClaimMaxAgeSeconds = 8", text)
         self.assertIn('return "error"', text)
-        self.assertIn('if ($state -eq "error")', text)
-        self.assertIn('interactive_yield', text)
-        self.assertIn('taskkill.exe', text)
-        self.assertIn(roa.PINNED_PACKAGE, text)
+        self.assertIn("interactive_yield", text)
+        self.assertNotIn("Schedule.Service", text)
+        self.assertNotIn("RemoteDesktopCommanderHeadless", text)
 
-    def test_headless_runner_claims_before_child_and_restarts_forever(self) -> None:
-        text = roa.HEADLESS_RUNNER_V2
+    def test_headless_claim_only_after_ready_and_clears_on_exit(self) -> None:
+        text = roa.HEADLESS_RUNNER_V3
         self.assertIn(roa.HEADLESS_MARKER, text)
-        claim = text.index("headless_claim grace_seconds=5")
-        delay = text.index("await delay(5000)")
-        child = text.index("child_start")
-        loop = text.index("while (true)")
-        retry = text.index("await delay(15000)")
-        self.assertLess(claim, delay)
-        self.assertLess(delay, child)
-        self.assertLess(loop, child)
-        self.assertGreater(retry, child)
+        ready_probe = text.index("Device ready:")
+        claim_call = text.index("writeClaim(child.pid)")
+        self.assertLess(ready_probe, claim_call)
+        self.assertIn("owner_claim ready=true", text)
+        self.assertIn("setInterval", text)
+        self.assertIn("clearClaim();", text)
+        self.assertIn("child.on('exit'", text)
 
-    def test_apply_migrates_governed_v3_and_is_idempotent(self) -> None:
+    def test_apply_migrates_v4_and_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             launcher = root / "start-remote-desktop-commander.cmd"
@@ -48,22 +47,28 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
             headless = root / "rdc-headless-runner.cjs"
             backups = root / "backups"
             launcher.write_text(
-                "@echo off\n" + roa.V3_MARKER + "\ncall npx --yes "
-                + roa.PINNED_PACKAGE + " remote\ngoto :run\n",
+                "@echo off\n" + roa.V4_MARKER + "\n"
+                "powershell.exe -File rdc-interactive-supervisor.ps1\n",
+                encoding="utf-8",
+            )
+            supervisor.write_text(
+                "# RDC_INTERACTIVE_OWNER_SUPERVISOR_V1\n",
                 encoding="utf-8",
             )
             headless.write_text(
+                "// RDC_HEADLESS_V2_PRIMARY_OWNER\n"
                 "const { spawn } = require('child_process');\n"
                 "spawn(process.execPath, ['C:/desktop-commander/dist/index.js', 'remote']);\n",
                 encoding="utf-8",
             )
 
             result = roa.apply(launcher, supervisor, headless, backups)
-            self.assertEqual(result["result"], "OWNER_ARBITRATION_APPLIED")
-            self.assertEqual(roa.inspect(launcher, supervisor, headless)["launcher_marker"], "v4")
-            self.assertTrue(roa.inspect(launcher, supervisor, headless)["supervisor_marker"])
-            self.assertTrue(roa.inspect(launcher, supervisor, headless)["headless_marker"])
-            self.assertEqual(len(result["backups"]), 2)
+            self.assertEqual(result["result"], "READY_CLAIM_ARBITRATION_APPLIED")
+            state = roa.inspect(launcher, supervisor, headless)
+            self.assertEqual(state["launcher_marker"], "v5")
+            self.assertTrue(state["supervisor_marker"])
+            self.assertTrue(state["headless_marker"])
+            self.assertEqual(len(result["backups"]), 3)
 
             replay = roa.apply(launcher, supervisor, headless, backups)
             self.assertEqual(replay["result"], "already_applied")
@@ -74,7 +79,7 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
             launcher = root / "start-remote-desktop-commander.cmd"
             supervisor = root / "rdc-interactive-supervisor.ps1"
             headless = root / "rdc-headless-runner.cjs"
-            launcher.write_text("@echo off\n" + roa.V3_MARKER + "\n", encoding="utf-8")
+            launcher.write_text("@echo off\n" + roa.V4_MARKER + "\n", encoding="utf-8")
             headless.write_text("console.log('unknown');\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "headless runner structure"):
                 roa.apply(launcher, supervisor, headless, root / "backups")
