@@ -2,20 +2,27 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import getpass
 import json
 import os
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
 TASK_FOLDER = r"\Automation"
 TASK_NAME = "RemoteDesktopCommander"
+HEADLESS_TASK_NAME = "RemoteDesktopCommanderHeadless"
 LAUNCHER = Path(r"C:\RemoteDesktopCommander\start-remote-desktop-commander.cmd")
+HEADLESS_RUNNER = Path(r"C:\ProgramData\ReqSys\RdcSvc\rdc-headless-runner.cjs")
+HEADLESS_CONFIRM = "INSTALL-RDC-HEADLESS"
 TASK_CREATE_OR_UPDATE = 6
+TASK_LOGON_S4U = 2
 TASK_LOGON_INTERACTIVE_TOKEN = 3
 TASK_RUNLEVEL_LUA = 0
-TASK_TRIGGER_LOGON = 9
 TASK_TRIGGER_DAILY = 2
+TASK_TRIGGER_BOOT = 8
+TASK_TRIGGER_LOGON = 9
 TASK_ACTION_EXEC = 0
 TASK_INSTANCES_IGNORE_NEW = 2
 
@@ -26,8 +33,18 @@ def identity() -> str:
     return f"{domain}\\{user}" if domain else user
 
 
+def is_admin() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
+
+
 def connect():
     import win32com.client
+
     svc = win32com.client.Dispatch("Schedule.Service")
     svc.Connect()
     root = svc.GetFolder("\\")
@@ -38,7 +55,20 @@ def connect():
     return svc, folder
 
 
-def configure(definition, *, start_in_seconds: int) -> None:
+def resolve_node() -> str:
+    value = shutil.which("node")
+    if not value:
+        raise FileNotFoundError("node.exe não encontrado para o runner headless")
+    return value
+
+
+def configure(
+    definition,
+    *,
+    start_in_seconds: int,
+    headless: bool = False,
+    node_executable: str | None = None,
+) -> None:
     definition.RegistrationInfo.Description = (
         "Governed resilient Remote Desktop Commander supervisor"
     )
@@ -58,13 +88,19 @@ def configure(definition, *, start_in_seconds: int) -> None:
 
     principal = definition.Principal
     principal.UserId = identity()
-    principal.LogonType = TASK_LOGON_INTERACTIVE_TOKEN
+    principal.LogonType = (
+        TASK_LOGON_S4U if headless else TASK_LOGON_INTERACTIVE_TOKEN
+    )
     principal.RunLevel = TASK_RUNLEVEL_LUA
 
     triggers = definition.Triggers
-    logon = triggers.Create(TASK_TRIGGER_LOGON)
-    logon.Enabled = True
-    logon.UserId = identity()
+    if headless:
+        boot = triggers.Create(TASK_TRIGGER_BOOT)
+        boot.Enabled = True
+    else:
+        logon = triggers.Create(TASK_TRIGGER_LOGON)
+        logon.Enabled = True
+        logon.UserId = identity()
 
     daily = triggers.Create(TASK_TRIGGER_DAILY)
     daily.Enabled = True
@@ -77,8 +113,18 @@ def configure(definition, *, start_in_seconds: int) -> None:
     daily.Repetition.StopAtDurationEnd = False
 
     action = definition.Actions.Create(TASK_ACTION_EXEC)
-    action.Path = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
-    action.Arguments = f'/d /c ""{LAUNCHER}""'
+    if headless:
+        if not HEADLESS_RUNNER.is_file():
+            raise FileNotFoundError(HEADLESS_RUNNER)
+        action.Path = node_executable or resolve_node()
+        action.Arguments = f'"{HEADLESS_RUNNER}"'
+    else:
+        action.Path = os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "System32",
+            "cmd.exe",
+        )
+        action.Arguments = f'/d /c ""{LAUNCHER}""'
 
 
 def snapshot(task) -> dict[str, object]:
@@ -91,7 +137,9 @@ def snapshot(task) -> dict[str, object]:
         "disallow_start_on_battery": bool(settings.DisallowStartIfOnBatteries),
         "stop_on_battery": bool(settings.StopIfGoingOnBatteries),
         "execution_time_limit": str(settings.ExecutionTimeLimit),
-        "run_only_if_network_available": bool(getattr(settings, "RunOnlyIfNetworkAvailable", False)),
+        "run_only_if_network_available": bool(
+            getattr(settings, "RunOnlyIfNetworkAvailable", False)
+        ),
         "multiple_instances": int(settings.MultipleInstances),
         "restart_count": int(settings.RestartCount),
         "restart_interval": str(settings.RestartInterval),
@@ -102,20 +150,48 @@ def snapshot(task) -> dict[str, object]:
     }
 
 
-def apply(start_in_seconds: int) -> dict[str, object]:
-    if not LAUNCHER.is_file():
+def apply(
+    start_in_seconds: int,
+    *,
+    headless: bool = False,
+    confirm: str = "",
+) -> dict[str, object]:
+    if headless:
+        if confirm != HEADLESS_CONFIRM:
+            raise PermissionError("confirmação headless inválida")
+        if not is_admin():
+            raise PermissionError("instalação headless exige elevação administrativa")
+        if not HEADLESS_RUNNER.is_file():
+            raise FileNotFoundError(HEADLESS_RUNNER)
+    elif not LAUNCHER.is_file():
         raise FileNotFoundError(LAUNCHER)
+
     svc, folder = connect()
     definition = svc.NewTask(0)
-    configure(definition, start_in_seconds=start_in_seconds)
+    node_executable = resolve_node() if headless else None
+    configure(
+        definition,
+        start_in_seconds=start_in_seconds,
+        headless=headless,
+        node_executable=node_executable,
+    )
+    task_name = HEADLESS_TASK_NAME if headless else TASK_NAME
+    logon_type = TASK_LOGON_S4U if headless else TASK_LOGON_INTERACTIVE_TOKEN
+    password = "" if headless else None
     task = folder.RegisterTaskDefinition(
-        TASK_NAME,
+        task_name,
         definition,
         TASK_CREATE_OR_UPDATE,
         identity(),
-        None,
-        TASK_LOGON_INTERACTIVE_TOKEN,
+        password,
+        logon_type,
     )
+
+    start_requested = False
+    if headless:
+        task.Run("")
+        start_requested = True
+
     state = snapshot(task)
     expected = {
         "enabled": True,
@@ -127,7 +203,7 @@ def apply(start_in_seconds: int) -> dict[str, object]:
         "multiple_instances": TASK_INSTANCES_IGNORE_NEW,
         "restart_count": 999,
         "restart_interval": "PT1M",
-        "principal_logon_type": TASK_LOGON_INTERACTIVE_TOKEN,
+        "principal_logon_type": logon_type,
         "principal_run_level": TASK_RUNLEVEL_LUA,
         "trigger_count": 2,
         "action_count": 1,
@@ -138,28 +214,72 @@ def apply(start_in_seconds: int) -> dict[str, object]:
         if state.get(key) != value
     }
     if mismatches:
-        raise RuntimeError("task validation failed: " + json.dumps(mismatches, sort_keys=True))
-    return {"result": "TASK_RESILIENCE_APPLIED", **state}
+        raise RuntimeError(
+            "task validation failed: " + json.dumps(mismatches, sort_keys=True)
+        )
+    return {
+        "result": (
+            "TASK_RESILIENCE_HEADLESS_APPLIED"
+            if headless
+            else "TASK_RESILIENCE_APPLIED"
+        ),
+        "headless": headless,
+        "requires_user_logon": not headless,
+        "start_requested": start_requested,
+        **state,
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--confirm", default="")
     parser.add_argument("--start-in-seconds", type=int, default=30)
     args = parser.parse_args()
     try:
         if not 20 <= args.start_in_seconds <= 120:
             raise ValueError("start-in-seconds must be 20..120")
         if not args.apply:
-            print(json.dumps({"result": "dry_run", "identity": identity(), "launcher_exists": LAUNCHER.is_file()}, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "dry_run",
+                        "identity": identity(),
+                        "launcher_exists": LAUNCHER.is_file(),
+                        "headless_runner_exists": HEADLESS_RUNNER.is_file(),
+                        "headless_requested": args.headless,
+                        "admin": is_admin(),
+                    },
+                    sort_keys=True,
+                )
+            )
             return 0
-        print(json.dumps(apply(args.start_in_seconds), sort_keys=True))
+        print(
+            json.dumps(
+                apply(
+                    args.start_in_seconds,
+                    headless=args.headless,
+                    confirm=args.confirm,
+                ),
+                sort_keys=True,
+            )
+        )
         return 0
     except Exception as exc:
-        payload = {"result": "blocked", "error": str(exc), "error_type": type(exc).__name__}
+        payload = {
+            "result": "blocked",
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+        }
         try:
-            error_path = Path(r"C:\RemoteDesktopCommander\rdc-task-resilience-error.json")
-            error_path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+            error_path = Path(
+                r"C:\RemoteDesktopCommander\rdc-task-resilience-error.json"
+            )
+            error_path.write_text(
+                json.dumps(payload, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
         except OSError:
             pass
         print(json.dumps(payload, sort_keys=True))
