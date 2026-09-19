@@ -28,6 +28,8 @@ jobs:
         run: python scripts/validate_rules.py --self-test
       - name: Run one-time host power exception tests
         run: python -m unittest -v tests/test_owner_host_power_once.py
+      - name: Run one-time remote host power exception tests
+        run: python -m unittest -v tests/test_owner_remote_host_power_once.py
       - name: Run PR CI Self Heal unit tests
         run: python -m unittest -v tests/test_pr_ci_self_heal.py
       - name: Run governed workflow dispatch unit tests
