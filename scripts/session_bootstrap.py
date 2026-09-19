@@ -54,8 +54,12 @@ def write_reservation(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True), encoding="utf-8", newline="\n")
 
 
-def tracked_tree_clean(repo: Path) -> bool:
-    result = cg.run_capture(["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"], repo)
+def tracked_tree_clean(repo: Path, policy: dict) -> bool:
+    result = cg.run_capture(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"],
+        repo,
+        timeout=int(policy.get("git_state_timeout_seconds", 15)),
+    )
     if result.returncode != 0 or result.stderr.strip():
         raise cg.GatewayError("não foi possível validar alterações rastreadas", cg.EXIT_STATE_CHANGED)
     return not result.stdout
@@ -128,7 +132,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
     if collisions:
         details = "; ".join(f"{left} <-> {right}" for left, right in collisions[:5])
         raise cg.GatewayError(f"base possui caminhos rastreados que colidem por casing: {details}", cg.EXIT_STATE_CHANGED)
-    if not tracked_tree_clean(repo):
+    if not tracked_tree_clean(repo, policy):
         raise cg.GatewayError("base possui alterações rastreadas; materialização bloqueada", cg.EXIT_STATE_CHANGED)
     rc = cg.execute(
         cwd=repo,
