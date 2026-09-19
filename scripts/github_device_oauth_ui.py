@@ -80,7 +80,7 @@ def click_named(win, names):
 
 def main() -> int:
     p=argparse.ArgumentParser()
-    p.add_argument("--stage", choices=["open","inspect","enter","approve"], required=True)
+    p.add_argument("--stage", choices=["open","navigate","inspect","enter","approve"], required=True)
     p.add_argument("--code")
     args=p.parse_args()
 
@@ -101,6 +101,36 @@ def main() -> int:
     if opera is None:
         print(json.dumps({"result":"BLOCKED","error":"Opera window not found"}))
         return 1
+
+    if args.stage=="navigate":
+        clicked=click_named(opera,["Nova guia","New tab"])
+        if not clicked:
+            print(json.dumps({"result":"BLOCKED","error":"new tab button not found"}))
+            return 1
+        time.sleep(1)
+        address=None
+        for ctrl in opera.descendants():
+            try:
+                if ctrl.element_info.control_type=="Edit":
+                    t=text(ctrl).casefold()
+                    if "barra de endere" in t or "address" in t:
+                        address=ctrl
+                        break
+            except Exception:
+                continue
+        if address is None:
+            print(json.dumps({"result":"BLOCKED","error":"address bar not found"}))
+            return 1
+        try:
+            address.set_edit_text("https://github.com/login/device")
+        except Exception:
+            address.click_input()
+            address.type_keys("^a")
+            address.type_keys("https://github.com/login/device", with_spaces=False)
+        address.type_keys("{ENTER}")
+        time.sleep(5)
+        print(json.dumps({"result":"GITHUB_DEVICE_PAGE_NAVIGATED"}))
+        return 0
 
     if args.stage=="inspect":
         print(json.dumps({"result":"INSPECT_OK","title":text(opera),"controls":snapshot(opera)},ensure_ascii=False))
