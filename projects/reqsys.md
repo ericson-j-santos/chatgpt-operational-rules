@@ -36,3 +36,20 @@ A evidência deve:
 Ausência, falha, pendência, SHA divergente ou base obsoleta deve bloquear a criação da PR. Não contornar o gate criando a PR diretamente por API, CLI, interface web ou outro executor quando a automação canônica estiver disponível.
 
 `READY_FOR_PR=passed` autoriza somente a abertura da PR. Não substitui `READY_FOR_MERGE`, checks completos, E2E aplicável, revisão, mergeabilidade, autorização de merge, deploy ou promoção de ambiente.
+
+## Merge automático CI-driven
+
+Para o repositório `ericson-j-santos/reqsys-v2-enterprise-real`, o owner mantém autorização operacional para executar merge automaticamente quando o PR estiver integralmente pronto no HEAD atual.
+
+O mecanismo preferencial é o `auto-merge` / `Governed Merge Queue` do próprio GitHub, orientado por eventos de CI e nunca por agendamento periódico.
+
+Fluxo obrigatório:
+1. CI falhou: identificar a menor causa raiz segura, corrigir no mesmo PR e revalidar no novo SHA.
+2. CI verde: revalidar estado real do PR, HEAD SHA, mergeabilidade, conflitos, gates obrigatórios e concorrência.
+3. Somente com PR aberto, não-draft, mergeável, sem conflitos e todos os gates obrigatórios aprovados no HEAD atual, executar o merge automaticamente.
+4. A mutação de merge deve ser protegida pelo SHA esperado (`expected_head_sha` ou campo `sha` equivalente da API GitHub).
+5. Se o SHA mudar ou qualquer gate voltar a falhar/pender, invalidar a decisão anterior, não mergear e reiniciar a validação no novo SHA.
+6. Esta autorização de merge não autoriza deploy, promoção de ambiente, alteração destrutiva, segredo, permissão administrativa, force-push ou outra ação crítica distinta; essas ações continuam exigindo autorização específica quando aplicável.
+
+A autorização não permite bypass de branch protection, revisão, segurança, E2E, evidência ou qualquer gate obrigatório.
+
