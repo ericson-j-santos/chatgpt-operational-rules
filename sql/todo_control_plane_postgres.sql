@@ -238,3 +238,55 @@ RETURNS void LANGUAGE sql AS $$
     VALUES (p_worker_id, clock_timestamp(), coalesce(p_counts, '{}'::jsonb))
     ON CONFLICT (worker_id) DO UPDATE SET heartbeat_at=EXCLUDED.heartbeat_at, last_counts=EXCLUDED.last_counts;
 $$;
+
+
+-- Operational front registry — persistent resumability across chats/sources.
+CREATE TABLE IF NOT EXISTS todo_bus.operational_fronts (
+    front_id text PRIMARY KEY
+        CHECK (length(trim(front_id)) BETWEEN 3 AND 128),
+    title text NOT NULL
+        CHECK (length(trim(title)) > 0),
+    state text NOT NULL
+        CHECK (length(trim(state)) > 0),
+    source_of_truth text NOT NULL
+        CHECK (length(trim(source_of_truth)) > 0),
+    source_ref text NOT NULL
+        CHECK (length(trim(source_ref)) > 0),
+    source_updated_at timestamptz NOT NULL,
+    current_event_id text NOT NULL,
+    correlation_id text NOT NULL
+        CHECK (length(correlation_id) BETWEEN 8 AND 128),
+    last_sha text,
+    last_pr text,
+    last_issue text,
+    last_run text,
+    next_step text,
+    blockers jsonb NOT NULL DEFAULT '[]'::jsonb
+        CHECK (jsonb_typeof(blockers) = 'array'),
+    summary text,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE INDEX IF NOT EXISTS ix_operational_fronts_updated
+    ON todo_bus.operational_fronts (source_updated_at DESC, front_id);
+
+CREATE TABLE IF NOT EXISTS todo_bus.operational_front_history (
+    event_id text PRIMARY KEY,
+    front_id text NOT NULL
+        REFERENCES todo_bus.operational_fronts(front_id)
+        DEFERRABLE INITIALLY DEFERRED,
+    source_of_truth text NOT NULL,
+    source_event_id text NOT NULL,
+    idempotency_key text NOT NULL UNIQUE
+        CHECK (idempotency_key ~ '^[0-9a-f]{64}$'),
+    correlation_id text NOT NULL
+        CHECK (length(correlation_id) BETWEEN 8 AND 128),
+    source_updated_at timestamptz NOT NULL,
+    snapshot jsonb NOT NULL,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE(front_id, source_of_truth, source_event_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_operational_front_history_front
+    ON todo_bus.operational_front_history (front_id, source_updated_at DESC, recorded_at DESC);
