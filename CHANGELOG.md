@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.6.5 - 2026-09-20
+
+- RDC: resultados técnicos deixam de mascarar falhas funcionais; novo guard semântico classifica `NO_CALLBACK`, efeitos vazios e evidência ausente como falha fechada.
+- RDC: recuperação headless passa a usar circuit breaker persistente (3 falhas, cooldown exponencial 5–30 min, half-open) e só publica readiness após 10 s de transporte estável.
+- RDC: reinícios do Scheduler ficam limitados a 3 com intervalo de 5 min, evitando retry storm em múltiplas camadas.
 - O Session Bootstrap passa a reconciliar materialização interrompida quando o diretório já existe e o Git comprova que ele é um worktree registrado da mesma base, detached, limpo e no SHA reservado.
 - Worktree existente não registrado, dirty ou em SHA divergente continua bloqueado em modo fail-closed.
 - Testes unitários e E2E reproduzem interrupção entre `git worktree add` e persistência da reserva, incluindo controle negativo com worktree dirty.
