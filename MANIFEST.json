@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T21:30:31.077323+00:00",
+  "generated_at": "2026-09-20T21:34:01.503270+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -459,8 +459,8 @@
     },
     {
       "path": "scripts/tool_router.py",
-      "sha256": "8923283569b98f4bd21136f3d509717e9f4c0004aa831fb372cd44527735ca6d",
-      "size": 6048
+      "sha256": "9c26f5af755cbd05e9a6a55c7b8db098a50d27509472c3dc906015bb95d7d42a",
+      "size": 6456
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -729,8 +729,8 @@
     },
     {
       "path": "tests/test_tool_router.py",
-      "sha256": "10ec299cbed8129df8f0c7e9409f7e6907e052916730de8531c1d46dc625318f",
-      "size": 3957
+      "sha256": "43cabf4fcdfe57a7fe801119d99b2fee89f9aaa6a9c4bca6eeb84451f0e15ef4",
+      "size": 4746
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
