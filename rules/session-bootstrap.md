@@ -43,6 +43,7 @@ Sem `BOOTSTRAP_OK`, nenhuma execução local subsequente é considerada autoriza
 - A base efetivamente entregue ao bootstrap pode conter arquivos não rastreados, mas não pode ter alterações rastreadas quando o worktree for materializado.
 - O worktree criado deve terminar limpo e no mesmo SHA reservado.
 - Nunca sobrescrever diretório de worktree já existente sem vínculo válido com a mesma reserva.
+- Se uma execução for interrompida após o Git registrar o worktree, mas antes de persistir `status=materialized`, a repetição pode reconciliar a reserva somente quando o caminho estiver registrado por `git worktree list`, continuar no SHA reservado, estiver detached e limpo; qualquer divergência permanece fail-closed.
 
 ## Uso por risco
 
