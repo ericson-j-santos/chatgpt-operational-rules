@@ -25,6 +25,8 @@ TASK_TRIGGER_BOOT = 8
 TASK_TRIGGER_LOGON = 9
 TASK_ACTION_EXEC = 0
 TASK_INSTANCES_IGNORE_NEW = 2
+TASK_RESTART_COUNT = 3
+TASK_RESTART_INTERVAL = "PT5M"
 
 
 def identity() -> str:
@@ -79,8 +81,8 @@ def configure(
     settings.StopIfGoingOnBatteries = False
     settings.ExecutionTimeLimit = "PT0S"
     settings.MultipleInstances = TASK_INSTANCES_IGNORE_NEW
-    settings.RestartCount = 999
-    settings.RestartInterval = "PT1M"
+    settings.RestartCount = TASK_RESTART_COUNT
+    settings.RestartInterval = TASK_RESTART_INTERVAL
     try:
         settings.RunOnlyIfNetworkAvailable = False
     except Exception:
@@ -201,8 +203,8 @@ def apply(
         "execution_time_limit": "PT0S",
         "run_only_if_network_available": False,
         "multiple_instances": TASK_INSTANCES_IGNORE_NEW,
-        "restart_count": 999,
-        "restart_interval": "PT1M",
+        "restart_count": TASK_RESTART_COUNT,
+        "restart_interval": TASK_RESTART_INTERVAL,
         "principal_logon_type": logon_type,
         "principal_run_level": TASK_RUNLEVEL_LUA,
         "trigger_count": 2,
