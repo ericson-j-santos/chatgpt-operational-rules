@@ -26,6 +26,7 @@ EXIT_COMMAND = 22
 EXIT_STATE_CHANGED = 23
 EXIT_TIMEOUT = 24
 EXIT_SESSION_REQUIRED = 25
+EXIT_UNSAFE_GUI_AUTOMATION = 26
 
 SHELL_META = ("&&", "||", ";", "|", ">", "<")
 GIT_DESTRUCTIVE = {
@@ -154,6 +155,47 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> 
         raise GatewayError("operação Git crítica/destrutiva bloqueada")
     if exe == "docker" and any(tail[: len(p)] == p for p in DOCKER_DESTRUCTIVE):
         raise GatewayError("operação Docker destrutiva bloqueada")
+
+
+def python_script_path(args: Sequence[str], cwd: Path) -> Path | None:
+    exe = Path(args[0]).name.casefold()
+    if exe.endswith(".exe"):
+        exe = exe[:-4]
+    if exe not in {"python", "python3"}:
+        return None
+    for arg in args[1:]:
+        if arg in {"-c", "-m"}:
+            return None
+        if arg == "--" or arg.startswith("-"):
+            continue
+        candidate = Path(arg)
+        if candidate.suffix.casefold() != ".py":
+            return None
+        return candidate if candidate.is_absolute() else cwd / candidate
+    return None
+
+
+def assert_safe_gui_automation(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:
+    if not policy.get("block_gui_input_automation", True):
+        return
+    script = python_script_path(args, cwd)
+    if script is None or not script.is_file():
+        return
+    content = script.read_text(encoding="utf-8", errors="replace").casefold()
+    always = tuple(item.casefold() for item in policy.get("blocked_gui_input_markers", [
+        "keybd_event(", "mouse_event(", "pyautogui.write(", "pyautogui.press(",
+        "keyboard.write(", "keyboard.press(", "setclipboardtext("
+    ]))
+    contextual = tuple(item.casefold() for item in policy.get("blocked_gui_context_markers", [
+        ".invoke(", ".type_keys(", ".click_input(", "send_keys(", "win32clipboard"
+    ]))
+    unsafe = any(item in content for item in always)
+    unsafe = unsafe or ("pywinauto" in content and any(item in content for item in contextual))
+    if unsafe:
+        raise GatewayError(
+            "automacao de entrada GUI bloqueada; use transporte nativo governado e validacao semantica",
+            EXIT_UNSAFE_GUI_AUTOMATION,
+        )
 
 
 def run_capture(args: Sequence[str], cwd: Path, timeout: int = 15) -> subprocess.CompletedProcess[str]:
@@ -361,6 +403,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy)
+    assert_safe_gui_automation(args, cwd, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
     if timeout < 1 or timeout > max_timeout:
         raise GatewayError(f"timeout deve estar entre 1 e {max_timeout}s")

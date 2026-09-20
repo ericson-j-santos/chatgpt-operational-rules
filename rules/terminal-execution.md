@@ -101,6 +101,15 @@ Ao atingir padrão ouro, ou antes de qualquer HML/STG/PROD, executar `scripts/se
 - Em processos assíncronos, controlar concorrência, retentativas e encerramento; evitar duplicidade e tempestade de processos.
 - Em falha parcial, interromper propagação destrutiva e preservar evidências para diagnóstico.
 
+## Automação remota de interface
+
+- Digitação por GUI, clipboard, coordenadas, teclado ou mouse não pode ser usada como fallback para executar comandos em outro host.
+- Para comandos remotos, usar transporte nativo governado, fila/worker, API ou MCP com identidade explícita do destino.
+- Automação de UI só pode atuar quando janela, foco e controle-alvo forem identificados de forma inequívoca; divergência deve falhar fechada antes de qualquer entrada.
+- Código de saída zero do transporte não comprova sucesso funcional. NO_CALLBACK, alvo ausente/ambíguo, matched=[], controls=[] e ausência de pós-condição devem ser classificados como falha.
+- Qualquer falha de foco, alvo ou confirmação abre o circuito para novas entradas GUI; retentativa automática permanece bloqueada até o transporte nativo ser revalidado.
+- Nunca enviar segredos ou credenciais por digitação automatizada de interface.
+
 ## Evidência mínima
 
 Ao concluir uma execução relevante, registrar quando aplicável:

@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T21:34:01.503270+00:00",
+  "generated_at": "2026-09-20T21:45:21.668Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "57c5689391012a4de870fa94217af744ed15ebc43eadf2803b15ea628de88735",
-      "size": 1198
+      "sha256": "db6c349cababde7bbbbe3e71ac653d7cadee42e9b6a6b78989b77e8f04c66e36",
+      "size": 1567
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -169,8 +169,8 @@
     },
     {
       "path": "rules/terminal-execution.md",
-      "sha256": "879aa3825b479691391ffec941ef48af8c7fbab0d89bc6c1de15faf2660137a3",
-      "size": 7114
+      "sha256": "b0ccc7d483b95b53e0aa4eff827d9dff02ad50c2dd167da59d41d8977c344807",
+      "size": 8036
     },
     {
       "path": "rules/todo-global.md",
@@ -199,8 +199,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "ed5a4b0fccf27931c98895b0b8f3825b3718cc4f278cce74f9bccc4b42c5267f",
-      "size": 22652
+      "sha256": "d0516a9e430b7acc3a10f327e0e0ba159c8821f624da4b34ed9e63e4a9e8506f",
+      "size": 24432
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -564,8 +564,8 @@
     },
     {
       "path": "tests/test_command_gateway.py",
-      "sha256": "f0a8da4aab68af6a28a469abf86845c0d372e57710365af390667344be64e782",
-      "size": 8127
+      "sha256": "fdf2d558b45999089a8ed5dee8b482c67f2a293f974c7cef819e3a9c55a669f7",
+      "size": 9055
     },
     {
       "path": "tests/test_continuation_worker.py",

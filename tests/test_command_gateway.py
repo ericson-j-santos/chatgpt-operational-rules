@@ -47,6 +47,22 @@ class CommandGatewayTests(unittest.TestCase):
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(["git", "push"], 2, policy)
 
+    def test_gui_input_automation_is_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            unsafe = root / "unsafe.py"
+            unsafe.write_text("from pywinauto import Desktop\nbutton.invoke()\n", encoding="utf-8")
+            with self.assertRaises(cg.GatewayError) as ctx:
+                cg.assert_safe_gui_automation(["python", str(unsafe)], root, {"block_gui_input_automation": True})
+            self.assertEqual(ctx.exception.exit_code, cg.EXIT_UNSAFE_GUI_AUTOMATION)
+
+    def test_gui_read_only_automation_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            safe = root / "safe.py"
+            safe.write_text("from pywinauto import Desktop\nprint(Desktop)\n", encoding="utf-8")
+            cg.assert_safe_gui_automation(["python", str(safe)], root, {"block_gui_input_automation": True})
+
     def test_git_status_warning_is_not_accepted_as_complete_state(self) -> None:
         result = subprocess.CompletedProcess(["git", "status"], 0, "", "warning: permission denied")
         original = cg.run_capture

@@ -52,6 +52,23 @@
     "terraform"
   ],
   "deny_inline_code": true,
+  "block_gui_input_automation": true,
+  "blocked_gui_input_markers": [
+    "keybd_event(",
+    "mouse_event(",
+    "pyautogui.write(",
+    "pyautogui.press(",
+    "keyboard.write(",
+    "keyboard.press(",
+    "SetClipboardText("
+  ],
+  "blocked_gui_context_markers": [
+    ".invoke(",
+    ".type_keys(",
+    ".click_input(",
+    "send_keys(",
+    "win32clipboard"
+  ],
   "require_git_repo": true,
   "risk2_requires_clean_tree": true,
   "max_timeout_seconds": 900,
