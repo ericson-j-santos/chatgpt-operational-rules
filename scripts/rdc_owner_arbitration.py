@@ -21,7 +21,8 @@ V3_MARKER = "REM RDC_LAUNCHER_V3_RESILIENT"
 V4_MARKER = "REM RDC_LAUNCHER_V4_ARBITRATED"
 V5_MARKER = "REM RDC_LAUNCHER_V5_READY_CLAIM"
 PS1_MARKER = "# RDC_INTERACTIVE_OWNER_SUPERVISOR_V2"
-HEADLESS_MARKER = "// RDC_HEADLESS_V3_READY_CLAIM"
+HEADLESS_MARKER_V3 = "// RDC_HEADLESS_V3_READY_CLAIM"
+HEADLESS_MARKER = "// RDC_HEADLESS_V4_TRANSPORT_GUARD"
 PINNED_PACKAGE = "@wonderwhy-er/desktop-commander@0.2.51"
 
 LAUNCHER_V5 = r'''@echo off
@@ -135,7 +136,7 @@ while ($true) {
 }
 '''
 
-HEADLESS_RUNNER_V3 = r'''// RDC_HEADLESS_V3_READY_CLAIM
+HEADLESS_RUNNER_V4 = r'''// RDC_HEADLESS_V4_TRANSPORT_GUARD
 const fs = require('fs');
 const { spawn } = require('child_process');
 
@@ -187,21 +188,55 @@ function runChild() {
       env: process.env,
     });
     let ready = false;
+    let presenceTracked = false;
     let heartbeat = null;
     let rolling = '';
+    let terminating = false;
+
+    const unhealthyMarkers = [
+      'Failed to update transport capability:',
+      'Channel subscription timed out',
+      'Channel error:',
+      'Channel closed',
+    ];
+
+    const revokeTransport = (reason) => {
+      if (terminating) return;
+      terminating = true;
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = null;
+      }
+      clearClaim();
+      log('transport_guard revoke=true pid=' + child.pid + ' reason=' + reason);
+      try {
+        child.kill();
+      } catch (err) {
+        log('transport_guard_kill_error type=' + (err && err.name ? err.name : 'Error'));
+      }
+    };
 
     const consume = (chunk) => {
       try {
         fs.writeSync(out, chunk);
       } catch {}
-      rolling = (rolling + chunk.toString('utf8')).slice(-16384);
-      if (!ready && (
-        rolling.includes('Device ready:') ||
-        rolling.includes('Device marked as online')
-      )) {
+      rolling = (rolling + chunk.toString('utf8')).slice(-32768);
+
+      const unhealthy = unhealthyMarkers.find((marker) => rolling.includes(marker));
+      if (unhealthy) {
+        revokeTransport(unhealthy.replace(/[: ]+$/g, '').replace(/\\s+/g, '_'));
+        return;
+      }
+
+      if (!presenceTracked && rolling.includes('Presence tracked')) {
+        presenceTracked = true;
+        log('transport_guard presence=true pid=' + child.pid);
+      }
+
+      if (!ready && presenceTracked && rolling.includes('Device ready:')) {
         ready = true;
         writeClaim(child.pid);
-        log('owner_claim ready=true pid=' + child.pid);
+        log('owner_claim ready=true transport_proven=true pid=' + child.pid);
         heartbeat = setInterval(() => {
           try {
             writeClaim(child.pid);
@@ -217,7 +252,7 @@ function runChild() {
     child.on('error', (err) => {
       if (heartbeat) clearInterval(heartbeat);
       clearClaim();
-      resolve({ code: 1, signal: 'spawn_error', error: err.name });
+      resolve({ code: 1, signal: 'spawn_error', error: err.name, ready });
     });
     child.on('exit', (code, signal) => {
       if (heartbeat) clearInterval(heartbeat);
@@ -226,7 +261,6 @@ function runChild() {
     });
   });
 }
-
 async function main() {
   log('runner_start mode=primary_owner ready_claim=v1');
   clearClaim();
@@ -330,7 +364,7 @@ def apply(
             backups.append((source, backup))
         _write_atomic(supervisor, SUPERVISOR_PS1)
         _write_atomic(launcher, LAUNCHER_V5)
-        _write_atomic(headless, HEADLESS_RUNNER_V3)
+        _write_atomic(headless, HEADLESS_RUNNER_V4)
         after = inspect(launcher, supervisor, headless)
         if (
             after["launcher_marker"] != "v5"
