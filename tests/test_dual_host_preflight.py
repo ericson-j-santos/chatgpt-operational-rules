@@ -22,6 +22,7 @@ def host(name: str, **overrides):
         "session_launch_ok": True,
         "state_validated": True,
         "gateway_ok": True,
+        "controller_semantic_ok": True,
         "status_count": 0,
         "controller_version": "0.2.51",
         "active_tasks": 0,
@@ -241,6 +242,20 @@ class DualHostPreflightTests(unittest.TestCase):
                 "required_rules_sha": "abc123",
                 "hosts": [host("Noteri"), host("DESKTOP-PDQK954")],
             })
+
+
+    def test_semantic_controller_failure_blocks_host(self) -> None:
+        payload = {
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri", controller_semantic_ok=False),
+                host("DESKTOP-PDQK954"),
+            ],
+        }
+        result = dhp.evaluate(payload)
+        self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
+        self.assertIn("controller_semantic_ok", result["blocked_hosts"]["Noteri"])
+
 
 
 if __name__ == "__main__":

@@ -29,21 +29,37 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
         self.assertNotIn("RemoteDesktopCommanderHeadless", text)
 
     def test_headless_claim_requires_transport_proof_and_clears_on_exit(self) -> None:
-        text = roa.HEADLESS_RUNNER_V4
+        text = roa.HEADLESS_RUNNER_V5
         self.assertIn(roa.HEADLESS_MARKER, text)
-        presence_probe = text.index("Presence tracked")
-        ready_probe = text.index("Device ready:")
-        claim_call = text.index("writeClaim(child.pid)")
+
+        consume = text[
+            text.index("const consume = (chunk) => {"):
+            text.index("startupTimer = setTimeout")
+        ]
+        presence_probe = consume.index("Presence tracked")
+        ready_probe = consume.index("Device ready:")
+        stabilization_probe = consume.index(
+            "setTimeout(publishStableReady, stableReadyMs)"
+        )
         self.assertLess(presence_probe, ready_probe)
-        self.assertLess(ready_probe, claim_call)
+        self.assertLess(ready_probe, stabilization_probe)
+
+        publish = text[
+            text.index("const publishStableReady = () => {"):
+            text.index("const consume = (chunk) => {")
+        ]
+        stable_probe = publish.index("markStable('transport_stable')")
+        claim_call = publish.index("writeClaim(child.pid)")
+        self.assertLess(stable_probe, claim_call)
+
         self.assertIn("presenceTracked", text)
-        self.assertIn("transport_proven=true", text)
+        self.assertIn("transport_proven: true", text)
         self.assertIn("setInterval", text)
         self.assertIn("clearClaim();", text)
         self.assertIn("child.on('exit'", text)
 
     def test_headless_transport_failure_revokes_claim_and_restarts_child(self) -> None:
-        text = roa.HEADLESS_RUNNER_V4
+        text = roa.HEADLESS_RUNNER_V5
         for marker in (
             "Failed to update transport capability:",
             "Channel subscription timed out",
@@ -58,6 +74,19 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
         self.assertIn("transport_guard revoke=true", text)
         self.assertIn("child.kill()", text)
         self.assertIn("clearClaim();", text)
+
+    def test_headless_circuit_breaker_suppresses_retry_until_stable_probe(self) -> None:
+        text = roa.HEADLESS_RUNNER_V5
+        self.assertIn("failureThreshold = 3", text)
+        self.assertIn("baseCooldownMs = 300000", text)
+        self.assertIn("maxCooldownMs = 1800000", text)
+        self.assertIn("stableReadyMs = 10000", text)
+        self.assertIn("circuit_open", text)
+        self.assertIn("circuit_half_open", text)
+        self.assertIn("retry_suppressed", text)
+        self.assertIn("transport_proven: true", text)
+        self.assertIn("markStable('transport_stable')", text)
+        self.assertIn("readiness_timeout", text)
 
     def test_apply_migrates_v4_and_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

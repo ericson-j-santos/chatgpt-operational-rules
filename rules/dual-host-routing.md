@@ -11,6 +11,7 @@ Antes de distribuir trabalho entre dois ou mais hosts, coletar evidência atual 
 - `SESSION_LAUNCH_OK`;
 - `state_validated=true`;
 - Command Gateway funcional;
+- `controller_semantic_ok=true`, derivado de evidência funcional normalizada, não apenas do sucesso técnico da chamada;
 - worktree limpo;
 - worktree solicitado não reservado por outra sessão.
 
@@ -33,6 +34,14 @@ Estados esperados:
 - `host_unreachable`: probe independente comprovou indisponibilidade do host.
 
 Um host com controlador offline permanece inelegível para execução, mesmo quando `host_reachable=true`. A diferença é operacional: primeiro recuperar o controlador, em vez de declarar o PC desligado.
+
+## Resultado funcional e circuit breaker
+
+Para Remote Desktop Commander, `controller_online=true` não basta para liberar o host. O preflight exige `controller_semantic_ok=true`, obtido por `scripts/rdc_semantic_result.py` ou evidência equivalente que comprove o efeito esperado.
+
+Resultados como `NO_CALLBACK`, `matched=[]`, `controls=[]`, `SESSION_LAUNCH_BLOCKED`, ausência de prova funcional ou erro semântico devem tornar o host inelegível. Um `exit code 0` externo não pode sobrescrever essa classificação.
+
+A recuperação do controlador deve usar circuit breaker persistente: após falhas consecutivas, abrir o circuito, suprimir novas tentativas durante o cooldown e permitir somente uma sonda `half_open`. O circuito só fecha depois de transporte estável comprovado; retries concorrentes por interface gráfica são proibidos enquanto o circuito estiver aberto.
 
 Quando o controlador estiver offline:
 1. coletar evidência independente de alcance antes de concluir que o host está offline;

@@ -122,8 +122,10 @@ class RdcTaskResilienceTests(unittest.TestCase):
         self.assertFalse(result["stop_on_battery"])
         self.assertFalse(result["run_only_if_network_available"])
         self.assertEqual(result["execution_time_limit"], "PT0S")
-        self.assertEqual(result["restart_count"], 999)
-        self.assertEqual(result["restart_interval"], "PT1M")
+        self.assertEqual(result["restart_count"], rtr.TASK_RESTART_COUNT)
+        self.assertEqual(result["restart_interval"], rtr.TASK_RESTART_INTERVAL)
+        self.assertEqual(result["restart_count"], 3)
+        self.assertEqual(result["restart_interval"], "PT5M")
         self.assertEqual(
             result["principal_logon_type"],
             rtr.TASK_LOGON_INTERACTIVE_TOKEN,

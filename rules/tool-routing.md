@@ -31,6 +31,9 @@ Remote Desktop é transporte especializado, não executor genérico.
 - quando `remote_calls_left_pct <= 20`, ativar `reserve_mode`: usar Remote apenas para tarefas intrinsecamente locais, recuperação do controlador/host e transporte para bootstrap/Command Gateway;
 - agrupar diagnóstico e execução local em scripts governados para reduzir round-trips;
 - host/controller offline deve seguir `rules/dual-host-routing.md`; ausência de controller não prova que o PC está desligado.
+- sucesso técnico da ferramenta (`exit code 0`, chamada MCP concluída ou `result=ok`) **não** é evidência funcional suficiente; toda operação RDC que afete roteamento/recuperação deve ser normalizada por `scripts/rdc_semantic_result.py`.
+- `NO_CALLBACK`, `SESSION_LAUNCH_BLOCKED`, `matched=[]`, `controls=[]`, flag funcional falsa ou ausência de testemunho semântico devem produzir falha fechada e impedir retry imediato.
+- retries de recuperação devem respeitar o circuit breaker persistente do transporte; não criar loops paralelos de retry em UI, scheduler e runner.
 
 ## Fail-closed
 
