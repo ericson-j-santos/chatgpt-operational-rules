@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T21:27:27.822352+00:00",
+  "generated_at": "2026-09-20T21:27:56.411092+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -584,8 +584,8 @@
     },
     {
       "path": "tests/test_dual_host_preflight.py",
-      "sha256": "817521a1b2331575aa91b74d428750cef20e8ff12a6934e458989d038bf16356",
-      "size": 9458
+      "sha256": "d9e543ec48ff626da93e788dfcf78a10b379c60d8353ecd2eef53ca0166ee3d1",
+      "size": 9589
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
