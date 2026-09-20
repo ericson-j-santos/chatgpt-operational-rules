@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T19:54:29.513838+00:00",
+  "generated_at": "2026-09-20T21:25:42.778165+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "8b0f834abbc37798fc5d4d948216d932fef997b75ee40327e2a84d18e91b2040",
-      "size": 4023
+      "sha256": "2f7c449198468bb362bac566c08f9ae647638f5b7c67aee45891cf6c484eef5f",
+      "size": 4158
     },
     {
       "path": ".gitignore",
@@ -39,13 +39,13 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "dccef771c54ba43714cf61ce44ddcc783b4edb91407c7c9d286ce67c9c60f9e7",
-      "size": 9846
+      "sha256": "949592fc4f808e9f9e87762fb67c13c82dd26c1aa969fa2ccc880be10f9776c9",
+      "size": 10321
     },
     {
       "path": "README.md",
-      "sha256": "31c9bd0742e1ddbe6392d73876bc35b784db718bb66ab14ca035c6796832ff8e",
-      "size": 4672
+      "sha256": "afbcf66b39635350c2bd698b1f9cd303d653350d178e272fb19fa4a6cfe5948f",
+      "size": 5087
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -129,8 +129,8 @@
     },
     {
       "path": "rules/dual-host-routing.md",
-      "sha256": "e50d985f4a94f226becd1d90402a82c816873ebb011e8a375dd138d2c4c4f3fd",
-      "size": 4373
+      "sha256": "94130a047af0485c98637e36927e85a1447e0aac5de9f8e97e5d3ca9e2d6b1c9",
+      "size": 5377
     },
     {
       "path": "rules/e2e-validation.md",
@@ -179,8 +179,8 @@
     },
     {
       "path": "rules/tool-routing.md",
-      "sha256": "3b16ae0b6674c916f9e585e2f89d3a0151cd27396eb7c04b035320fd512b8efb",
-      "size": 2566
+      "sha256": "11309a086123fbbdcb037b1c8794cc3ea7630d1ac67b3673b79eebb915e200fe",
+      "size": 3150
     },
     {
       "path": "schemas/artifact-manifest.schema.json",
@@ -229,8 +229,8 @@
     },
     {
       "path": "scripts/dual_host_preflight.py",
-      "sha256": "2203e5d6aa1d5a8b9602da585b31b3bfc3d4ed85b7572269c54caaf013ce441a",
-      "size": 7308
+      "sha256": "4e13156fa5d21fe3adf1ea7f0b560bbfd1df8b82b70556cbff383506e4049aca",
+      "size": 7338
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -349,13 +349,18 @@
     },
     {
       "path": "scripts/rdc_owner_arbitration.py",
-      "sha256": "917c09d3cbb3af402d18f6b30fe236c659e3161dacb98b989e896570b30769f3",
-      "size": 14039
+      "sha256": "c72b4c31b31533ef4f138049e317d0e260bdbad31aa951d7f1f951662b6c2214",
+      "size": 19238
+    },
+    {
+      "path": "scripts/rdc_semantic_result.py",
+      "sha256": "2ff253b1052382298eea633f7cf40a465612de0f273d0aae98f24afcc1f55831",
+      "size": 6031
     },
     {
       "path": "scripts/rdc_task_resilience.py",
-      "sha256": "7e80c46c80a636bfc749776a69e7f204b1060c260f84a5f37a34cb70eea92705",
-      "size": 9008
+      "sha256": "423b54aa7bb8777ab0c66ae0c0ec3563c9155c567b1c8d9ea235ae38c4cb907a",
+      "size": 9122
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -464,8 +469,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "a24afaaa63a35ae77a0aaf062a1ec75372b8fefb89f7d721db8d83e8595d3330",
-      "size": 9231
+      "sha256": "aad5a7c7a022bebba9c35cd1e73e13a3bc5c7e38ed237a14a47b4a3498b40444",
+      "size": 9302
     },
     {
       "path": "services/__init__.py",
@@ -579,8 +584,8 @@
     },
     {
       "path": "tests/test_dual_host_preflight.py",
-      "sha256": "ea6e7441c528c39fc2f3cb88fee75398c7ac2304d8d2843225da6ee94ba7e319",
-      "size": 9077
+      "sha256": "817521a1b2331575aa91b74d428750cef20e8ff12a6934e458989d038bf16356",
+      "size": 9458
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
@@ -654,13 +659,18 @@
     },
     {
       "path": "tests/test_rdc_owner_arbitration.py",
-      "sha256": "cf28e973024e69c21acc631bf3d54fceafbff3891e3d83007edb5189ba79346f",
-      "size": 5953
+      "sha256": "396f5306faba3d6380c9c15f2c7fb149a62c46aa40100a47030d727b219bfffd",
+      "size": 6602
+    },
+    {
+      "path": "tests/test_rdc_semantic_result.py",
+      "sha256": "d558c3f9b5981027dab73bb4c8a189fbc6deafebe9dd4409d9a48e8fa82c8150",
+      "size": 2436
     },
     {
       "path": "tests/test_rdc_task_resilience.py",
-      "sha256": "3e8b82f20cd67da04c06c923c8c7a33d87d6281f02dc47c76b12002b26b8ebf8",
-      "size": 7182
+      "sha256": "262c926a7439b688fa7a9874bd2aed6519125d19c678a86f0ecf8b5eda4fcd80",
+      "size": 7334
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
