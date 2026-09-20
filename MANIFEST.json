@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T19:09:35.337720+00:00",
+  "generated_at": "2026-09-20T19:54:29.513838+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -296,6 +296,11 @@
       "path": "scripts/owner_host_power_once.py",
       "sha256": "9bf1eb6f2b0804e8b10ff0c125b68f044ced90d29abe47ea87ba7f0d3e72d44e",
       "size": 17405
+    },
+    {
+      "path": "scripts/owner_prelogin_admin_once.py",
+      "sha256": "81a6dfa33da14ba1dc2b45c39c7d3a959685fbeeb91aa1e5c92e1b84a5083ed2",
+      "size": 13728
     },
     {
       "path": "scripts/owner_remote_host_power_once.py",
@@ -611,6 +616,11 @@
       "path": "tests/test_owner_host_power_once.py",
       "sha256": "c35ae2ebbecfa3891b4577bfe34334352740d16bf9d08853ed888451566ecd24",
       "size": 7453
+    },
+    {
+      "path": "tests/test_owner_prelogin_admin_once.py",
+      "sha256": "9cabe48a96d349605254fea84d8f1aa702da8b77c9494780614f39fc85257522",
+      "size": 5753
     },
     {
       "path": "tests/test_owner_remote_host_power_once.py",
