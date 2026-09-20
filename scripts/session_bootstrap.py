@@ -127,7 +127,50 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
             raise cg.GatewayError("worktree materializado diverge da reserva", cg.EXIT_STATE_CHANGED)
         return reservation, "already_materialized"
     if target.exists():
-        raise cg.GatewayError("caminho reservado já existe sem vínculo válido", EXIT_SESSION_CONFLICT)
+        listed = cg.run_capture(
+            ["git", "worktree", "list", "--porcelain"],
+            repo,
+            timeout=int(policy.get("git_state_timeout_seconds", 15)),
+        )
+        if listed.returncode != 0 or listed.stderr.strip():
+            raise cg.GatewayError(
+                "não foi possível validar vínculo do worktree existente",
+                cg.EXIT_STATE_CHANGED,
+            )
+        registered = {
+            cg.norm(line.split(" ", 1)[1])
+            for line in listed.stdout.splitlines()
+            if line.startswith("worktree ") and len(line.split(" ", 1)) == 2
+        }
+        if cg.norm(target) not in registered:
+            raise cg.GatewayError(
+                "caminho reservado já existe sem vínculo válido",
+                EXIT_SESSION_CONFLICT,
+            )
+        ensure_safe_directory(
+            repo,
+            target,
+            policy,
+            correlation_id,
+            reservation["session_id"],
+            reservation["base_head"],
+        )
+        current = cg.git_state(target, True, policy)
+        if (
+            current is None
+            or current.head != reservation.get("base_head")
+            or current.status_count
+            or current.branch != "DETACHED"
+        ):
+            raise cg.GatewayError(
+                "worktree existente registrado diverge da reserva",
+                cg.EXIT_STATE_CHANGED,
+            )
+        reservation["status"] = "materialized"
+        reservation["materialized_at"] = cg.utc_now()
+        reservation["worktree_head"] = current.head
+        write_reservation(session_file(policy, reservation["session_id"]), reservation)
+        return reservation, "reconciled_materialized"
     collisions = cg.tracked_case_collisions(repo)
     if collisions:
         details = "; ".join(f"{left} <-> {right}" for left, right in collisions[:5])
