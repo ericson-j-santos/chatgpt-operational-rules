@@ -31,13 +31,29 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
     def test_headless_claim_requires_transport_proof_and_clears_on_exit(self) -> None:
         text = roa.HEADLESS_RUNNER_V5
         self.assertIn(roa.HEADLESS_MARKER, text)
-        presence_probe = text.index("Presence tracked")
-        ready_probe = text.index("Device ready:")
-        claim_call = text.index("writeClaim(child.pid)")
+
+        consume = text[
+            text.index("const consume = (chunk) => {"):
+            text.index("startupTimer = setTimeout")
+        ]
+        presence_probe = consume.index("Presence tracked")
+        ready_probe = consume.index("Device ready:")
+        stabilization_probe = consume.index(
+            "setTimeout(publishStableReady, stableReadyMs)"
+        )
         self.assertLess(presence_probe, ready_probe)
-        self.assertLess(ready_probe, claim_call)
+        self.assertLess(ready_probe, stabilization_probe)
+
+        publish = text[
+            text.index("const publishStableReady = () => {"):
+            text.index("const consume = (chunk) => {")
+        ]
+        stable_probe = publish.index("markStable('transport_stable')")
+        claim_call = publish.index("writeClaim(child.pid)")
+        self.assertLess(stable_probe, claim_call)
+
         self.assertIn("presenceTracked", text)
-        self.assertIn("transport_proven=true", text)
+        self.assertIn("transport_proven: true", text)
         self.assertIn("setInterval", text)
         self.assertIn("clearClaim();", text)
         self.assertIn("child.on('exit'", text)
