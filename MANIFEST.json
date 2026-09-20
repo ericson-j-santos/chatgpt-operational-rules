@@ -1,6 +1,6 @@
 {
-  "version": "1.6.4",
-  "generated_at": "2026-09-20T17:49:14.950319+00:00",
+  "version": "1.6.5",
+  "generated_at": "2026-09-20T19:21:40.097187+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,17 +39,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "01ef801a94210504e463098358aff79b84b5c5276bb386ea4358c721cc9370f7",
-      "size": 9361
+      "sha256": "dccef771c54ba43714cf61ce44ddcc783b4edb91407c7c9d286ce67c9c60f9e7",
+      "size": 9846
     },
     {
       "path": "README.md",
-      "sha256": "e49b3928bb0963e750826d2e30b2e2b687c29f40a1e559d5f0c5295d955eb791",
+      "sha256": "31c9bd0742e1ddbe6392d73876bc35b784db718bb66ab14ca035c6796832ff8e",
       "size": 4672
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "991c8edb693da2876e94a8d849630bc56e9a74664b46b1cbc41aa590079e4c9f",
+      "sha256": "57c5689391012a4de870fa94217af744ed15ebc43eadf2803b15ea628de88735",
       "size": 1198
     },
     {
@@ -164,8 +164,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "e46b6d52a73148f1e69bb87460bd35ba6c59674a22e9ffa5638deb450e0e7da8",
-      "size": 5550
+      "sha256": "f5ea8cbb99b37af850b7157b0d2776cacc2b420f22a8e05bdfc892d9207fd1f3",
+      "size": 5876
     },
     {
       "path": "rules/terminal-execution.md",
@@ -359,13 +359,13 @@
     },
     {
       "path": "scripts/session_bootstrap.py",
-      "sha256": "307d210ae015033145d8d994fee5f2dd9ec4b2e8b356a7ce1ea8db67026c6622",
-      "size": 9363
+      "sha256": "812517afffe0ca894c14b3d7306efe74654813b2222b4bf53d9e8e595f3986dd",
+      "size": 10976
     },
     {
       "path": "scripts/session_bootstrap_e2e.py",
-      "sha256": "b24d29445afa738265b65ccdf2959a89b6bea1719d1a2b239dce67c1d0279a1e",
-      "size": 5889
+      "sha256": "85cbbcab4e6215acf76060a4a1d94edaacd21fd9f13f34b957b8965668fd79f9",
+      "size": 7517
     },
     {
       "path": "scripts/session_launcher.py",
@@ -659,8 +659,8 @@
     },
     {
       "path": "tests/test_session_bootstrap.py",
-      "sha256": "b8db8e8ee975ba93ae5c68150c91fcfca0ea499992dbfa28e9c8d0cb5e916b1a",
-      "size": 5449
+      "sha256": "bff476a81318349b6aa5254191e7e5f21cec098df027060275851674f725edce",
+      "size": 7593
     },
     {
       "path": "tests/test_session_launcher.py",
