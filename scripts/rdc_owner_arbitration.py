@@ -22,7 +22,8 @@ V4_MARKER = "REM RDC_LAUNCHER_V4_ARBITRATED"
 V5_MARKER = "REM RDC_LAUNCHER_V5_READY_CLAIM"
 PS1_MARKER = "# RDC_INTERACTIVE_OWNER_SUPERVISOR_V2"
 HEADLESS_MARKER_V3 = "// RDC_HEADLESS_V3_READY_CLAIM"
-HEADLESS_MARKER = "// RDC_HEADLESS_V4_TRANSPORT_GUARD"
+HEADLESS_MARKER_V4 = "// RDC_HEADLESS_V4_TRANSPORT_GUARD"
+HEADLESS_MARKER = "// RDC_HEADLESS_V5_CIRCUIT_BREAKER"
 PINNED_PACKAGE = "@wonderwhy-er/desktop-commander@0.2.51"
 
 LAUNCHER_V5 = r'''@echo off
@@ -136,52 +137,150 @@ while ($true) {
 }
 '''
 
-HEADLESS_RUNNER_V4 = r'''// RDC_HEADLESS_V4_TRANSPORT_GUARD
+HEADLESS_RUNNER_V5 = r'''// RDC_HEADLESS_V5_CIRCUIT_BREAKER
 const fs = require('fs');
 const { spawn } = require('child_process');
 
 const logPath = "C:\\ProgramData\\ReqSys\\RdcSvc\\rdc-headless.log";
 const claimPath = "C:\\ProgramData\\ReqSys\\RdcSvc\\rdc-headless-owner.json";
 const claimTemp = claimPath + ".tmp";
+const circuitPath = "C:\\ProgramData\\ReqSys\\RdcSvc\\rdc-transport-circuit.json";
+const circuitTemp = circuitPath + ".tmp";
 const node = process.execPath;
 const entry = "C:\\ProgramData\\ReqSys\\RdcSvc\\app\\node_modules\\@wonderwhy-er\\desktop-commander\\dist\\index.js";
 const out = fs.openSync(logPath, 'a');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const failureThreshold = 3;
+const stableReadyMs = 10000;
+const startupTimeoutMs = 60000;
+const retryFloorMs = 30000;
+const baseCooldownMs = 300000;
+const maxCooldownMs = 1800000;
+const heartbeatMs = 2000;
+
 function log(message) {
-  fs.writeSync(out, new Date().toISOString() + ' ' + message + '\\n');
+  fs.writeSync(out, new Date().toISOString() + ' ' + message + '\n');
+}
+
+function atomicJson(path, temp, payload) {
+  fs.writeFileSync(temp, JSON.stringify(payload) + '\n', 'utf8');
+  fs.renameSync(temp, path);
 }
 
 function clearClaim() {
-  try {
-    fs.unlinkSync(claimPath);
-  } catch (err) {
-    if (!err || err.code !== 'ENOENT') {
-      log('claim_clear_error type=' + (err && err.name ? err.name : 'Error'));
+  for (const path of [claimPath, claimTemp]) {
+    try {
+      fs.unlinkSync(path);
+    } catch (err) {
+      if (!err || err.code !== 'ENOENT') {
+        log('claim_clear_error path=' + path + ' type=' + (err && err.name ? err.name : 'Error'));
+      }
     }
   }
+}
+
+function defaultCircuit() {
+  return {
+    schema: 'rdc-transport-circuit-v1',
+    state: 'closed',
+    consecutive_failures: 0,
+    open_until: null,
+    last_reason: null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function writeCircuit(state) {
+  state.updated_at = new Date().toISOString();
+  atomicJson(circuitPath, circuitTemp, state);
+}
+
+function readCircuit() {
+  if (!fs.existsSync(circuitPath)) return defaultCircuit();
   try {
-    fs.unlinkSync(claimTemp);
-  } catch (err) {
-    if (err && err.code !== 'ENOENT') {
-      log('claim_temp_clear_error type=' + (err.name || 'Error'));
+    const state = JSON.parse(fs.readFileSync(circuitPath, 'utf8'));
+    if (!['closed', 'open', 'half_open'].includes(state.state)) {
+      throw new Error('invalid_state');
     }
+    state.consecutive_failures = Number.isInteger(state.consecutive_failures)
+      ? Math.max(0, state.consecutive_failures)
+      : 0;
+    return state;
+  } catch (err) {
+    const state = defaultCircuit();
+    state.state = 'open';
+    state.consecutive_failures = failureThreshold;
+    state.open_until = new Date(Date.now() + baseCooldownMs).toISOString();
+    state.last_reason = 'circuit_state_invalid';
+    log('circuit_fail_closed reason=circuit_state_invalid');
+    return state;
   }
+}
+
+function markStable(reason) {
+  const state = defaultCircuit();
+  state.last_reason = reason;
+  writeCircuit(state);
+  log('circuit_closed reason=' + reason);
+  return state;
+}
+
+function registerFailure(reason) {
+  const previous = readCircuit();
+  const failures = Math.max(0, Number(previous.consecutive_failures) || 0) + 1;
+  const state = {
+    schema: 'rdc-transport-circuit-v1',
+    state: 'closed',
+    consecutive_failures: failures,
+    open_until: null,
+    last_reason: reason,
+    updated_at: new Date().toISOString(),
+  };
+  if (failures >= failureThreshold) {
+    const exponent = Math.max(0, failures - failureThreshold);
+    const cooldown = Math.min(baseCooldownMs * Math.pow(2, exponent), maxCooldownMs);
+    state.state = 'open';
+    state.open_until = new Date(Date.now() + cooldown).toISOString();
+    log('circuit_open failures=' + failures + ' cooldown_ms=' + cooldown + ' reason=' + reason);
+  }
+  writeCircuit(state);
+  return state;
+}
+
+function gateCircuit() {
+  const state = readCircuit();
+  if (state.state !== 'open') {
+    return { allowed: true, state, waitMs: 0 };
+  }
+  const until = Date.parse(state.open_until || '');
+  if (Number.isFinite(until) && until > Date.now()) {
+    return { allowed: false, state, waitMs: until - Date.now() };
+  }
+  state.state = 'half_open';
+  state.open_until = null;
+  state.last_reason = 'cooldown_elapsed';
+  writeCircuit(state);
+  log('circuit_half_open');
+  return { allowed: true, state, waitMs: 0 };
 }
 
 function writeClaim(pid) {
   const payload = {
-    schema: 'rdc-headless-owner-v1',
+    schema: 'rdc-headless-owner-v2',
     ready: true,
+    transport_proven: true,
+    stable_for_seconds: stableReadyMs / 1000,
+    circuit_state: 'closed',
     pid,
     updated_at: new Date().toISOString(),
   };
-  fs.writeFileSync(claimTemp, JSON.stringify(payload) + '\\n', 'utf8');
-  fs.renameSync(claimTemp, claimPath);
+  atomicJson(claimPath, claimTemp, payload);
 }
 
 function runChild() {
   return new Promise((resolve) => {
+    clearClaim();
     const child = spawn(node, [entry, 'remote'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -189,9 +288,14 @@ function runChild() {
     });
     let ready = false;
     let presenceTracked = false;
+    let readyCandidate = false;
     let heartbeat = null;
+    let stableTimer = null;
+    let startupTimer = null;
     let rolling = '';
     let terminating = false;
+    let settled = false;
+    let failureReason = 'child_exit_before_ready';
 
     const unhealthyMarkers = [
       'Failed to update transport capability:',
@@ -200,19 +304,54 @@ function runChild() {
       'Channel closed',
     ];
 
+    const clearTimers = () => {
+      if (heartbeat) clearInterval(heartbeat);
+      if (stableTimer) clearTimeout(stableTimer);
+      if (startupTimer) clearTimeout(startupTimer);
+      heartbeat = null;
+      stableTimer = null;
+      startupTimer = null;
+    };
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      clearClaim();
+      resolve(result);
+    };
+
     const revokeTransport = (reason) => {
       if (terminating) return;
       terminating = true;
-      if (heartbeat) {
-        clearInterval(heartbeat);
-        heartbeat = null;
-      }
+      failureReason = reason;
+      clearTimers();
       clearClaim();
       log('transport_guard revoke=true pid=' + child.pid + ' reason=' + reason);
       try {
         child.kill();
       } catch (err) {
         log('transport_guard_kill_error type=' + (err && err.name ? err.name : 'Error'));
+      }
+    };
+
+    const publishStableReady = () => {
+      if (terminating || ready) return;
+      try {
+        ready = true;
+        markStable('transport_stable');
+        writeClaim(child.pid);
+        log('owner_claim ready=true transport_proven=true stable_ms=' + stableReadyMs + ' pid=' + child.pid);
+        heartbeat = setInterval(() => {
+          try {
+            writeClaim(child.pid);
+          } catch (err) {
+            log('claim_heartbeat_error type=' + (err && err.name ? err.name : 'Error'));
+            revokeTransport('claim_heartbeat_error');
+          }
+        }, heartbeatMs);
+      } catch (err) {
+        revokeTransport('claim_write_failed');
       }
     };
 
@@ -224,7 +363,7 @@ function runChild() {
 
       const unhealthy = unhealthyMarkers.find((marker) => rolling.includes(marker));
       if (unhealthy) {
-        revokeTransport(unhealthy.replace(/[: ]+$/g, '').replace(/\\s+/g, '_'));
+        revokeTransport(unhealthy.replace(/[: ]+$/g, '').replace(/\s+/g, '_'));
         return;
       }
 
@@ -233,42 +372,59 @@ function runChild() {
         log('transport_guard presence=true pid=' + child.pid);
       }
 
-      if (!ready && presenceTracked && rolling.includes('Device ready:')) {
-        ready = true;
-        writeClaim(child.pid);
-        log('owner_claim ready=true transport_proven=true pid=' + child.pid);
-        heartbeat = setInterval(() => {
-          try {
-            writeClaim(child.pid);
-          } catch (err) {
-            log('claim_heartbeat_error type=' + (err && err.name ? err.name : 'Error'));
-          }
-        }, 2000);
+      if (!readyCandidate && presenceTracked && rolling.includes('Device ready:')) {
+        readyCandidate = true;
+        log('transport_candidate ready=true pid=' + child.pid + ' stabilization_ms=' + stableReadyMs);
+        stableTimer = setTimeout(publishStableReady, stableReadyMs);
       }
     };
+
+    startupTimer = setTimeout(() => {
+      if (!ready) revokeTransport('readiness_timeout');
+    }, startupTimeoutMs);
 
     child.stdout.on('data', consume);
     child.stderr.on('data', consume);
     child.on('error', (err) => {
-      if (heartbeat) clearInterval(heartbeat);
-      clearClaim();
-      resolve({ code: 1, signal: 'spawn_error', error: err.name, ready });
+      failureReason = 'spawn_error_' + (err && err.name ? err.name : 'Error');
+      finish({ code: 1, signal: 'spawn_error', error: err && err.name ? err.name : 'Error', ready, reason: failureReason });
     });
     child.on('exit', (code, signal) => {
-      if (heartbeat) clearInterval(heartbeat);
-      clearClaim();
-      resolve({ code: code ?? 1, signal: signal ?? 'none', ready });
+      if (!failureReason || failureReason === 'child_exit_before_ready') {
+        failureReason = ready ? 'child_exit_after_ready' : 'child_exit_before_ready';
+      }
+      finish({ code: code ?? 1, signal: signal ?? 'none', ready, reason: failureReason });
     });
   });
 }
+
 async function main() {
-  log('runner_start mode=primary_owner ready_claim=v1');
+  log('runner_start mode=primary_owner ready_claim=v2 circuit_breaker=v1');
   clearClaim();
   while (true) {
-    log('child_start');
+    const gate = gateCircuit();
+    if (!gate.allowed) {
+      const sleepMs = Math.max(1000, Math.min(gate.waitMs, 60000));
+      log('retry_suppressed circuit=open failures=' + gate.state.consecutive_failures + ' wait_ms=' + gate.waitMs);
+      await delay(sleepMs);
+      continue;
+    }
+
+    log('child_start circuit=' + gate.state.state + ' failures=' + gate.state.consecutive_failures);
     const result = await runChild();
-    log('child_exit code=' + result.code + ' signal=' + result.signal + ' ready=' + result.ready);
-    await delay(15000);
+    const circuit = registerFailure(result.reason);
+    log(
+      'child_exit code=' + result.code +
+      ' signal=' + result.signal +
+      ' ready=' + result.ready +
+      ' reason=' + result.reason +
+      ' circuit=' + circuit.state +
+      ' failures=' + circuit.consecutive_failures
+    );
+
+    if (circuit.state !== 'open') {
+      await delay(retryFloorMs);
+    }
   }
 }
 
@@ -284,6 +440,9 @@ process.on('SIGINT', () => {
 
 main().catch((err) => {
   clearClaim();
+  try {
+    registerFailure('runner_error_' + (err && err.name ? err.name : 'Error'));
+  } catch {}
   log('runner_error type=' + (err && err.name ? err.name : 'Error'));
   process.exit(1);
 });
@@ -368,7 +527,7 @@ def apply(
             backups.append((source, backup))
         _write_atomic(supervisor, SUPERVISOR_PS1)
         _write_atomic(launcher, LAUNCHER_V5)
-        _write_atomic(headless, HEADLESS_RUNNER_V4)
+        _write_atomic(headless, HEADLESS_RUNNER_V5)
         after = inspect(launcher, supervisor, headless)
         if (
             after["launcher_marker"] != "v5"

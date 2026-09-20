@@ -61,6 +61,7 @@ class ToolRouterTests(unittest.TestCase):
             "task_type": "local_machine",
             "capabilities": {"remote_desktop": True},
             "remote_controller_online": True,
+            "remote_controller_semantic_ok": True,
             "remote_calls_left_pct": 16,
         })
         self.assertTrue(result["reserve_mode"])
@@ -86,12 +87,29 @@ class ToolRouterTests(unittest.TestCase):
         self.assertFalse(result["ready"])
         self.assertEqual(result["next_step"], "dual_host_preflight_or_controller_recovery")
 
+    def test_local_task_with_online_but_semantically_unproven_controller_fails_closed(self) -> None:
+        result = tr.evaluate({
+            "task_type": "host_recovery",
+            "capabilities": {"remote_desktop": True},
+            "remote_controller_online": True,
+            "remote_controller_semantic_ok": False,
+            "remote_calls_left_pct": 16,
+        })
+        self.assertFalse(result["ready"])
+        self.assertIsNone(result["selected_executor"])
+        self.assertIn("remote_controller_semantic_unproven", result["reasons"])
+        self.assertEqual(
+            result["next_step"],
+            "dual_host_preflight_or_controller_recovery",
+        )
+
     def test_invalid_remote_percentage_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             tr.evaluate({
                 "task_type": "local_machine",
                 "capabilities": {"remote_desktop": True},
                 "remote_controller_online": True,
+                "remote_controller_semantic_ok": True,
                 "remote_calls_left_pct": 101,
             })
 
