@@ -95,14 +95,21 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
             selected = None
             reasons.append("browser_automation_unavailable_or_no_budget")
     elif task_type in LOCAL_TYPES:
-        if _bool(capabilities, "remote_desktop") and payload.get("remote_controller_online") is True:
+        remote_available = _bool(capabilities, "remote_desktop")
+        controller_online = payload.get("remote_controller_online") is True
+        semantic_ok = payload.get("remote_controller_semantic_ok") is True
+        if remote_available and controller_online and semantic_ok:
             selected = "remote_desktop"
             reasons.append("task_intrinsically_local")
+            reasons.append("remote_controller_semantic_ok")
             if reserve_mode:
                 reasons.append("remote_reserve_mode_allowed_for_local_task")
         else:
             selected = None
-            reasons.append("remote_or_controller_unavailable")
+            if remote_available and controller_online and not semantic_ok:
+                reasons.append("remote_controller_semantic_unproven")
+            else:
+                reasons.append("remote_or_controller_unavailable")
     else:
         explicit = str(payload.get("preferred_native_executor") or "").strip()
         if explicit and _bool(capabilities, explicit):
