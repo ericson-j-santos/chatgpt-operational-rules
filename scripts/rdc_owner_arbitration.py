@@ -323,12 +323,14 @@ def inspect(
 def _validate_sources(launcher: Path, headless: Path) -> None:
     if not launcher.is_file():
         raise FileNotFoundError(launcher)
-    if not headless.is_file():
-        raise FileNotFoundError(headless)
     launcher_text = launcher.read_text(encoding="utf-8-sig", errors="replace")
-    headless_text = headless.read_text(encoding="utf-8-sig", errors="replace")
     if not any(marker in launcher_text for marker in (V3_MARKER, V4_MARKER, V5_MARKER)):
         raise ValueError("interactive launcher is not a governed V3/V4/V5 source")
+
+    if not headless.is_file():
+        return
+
+    headless_text = headless.read_text(encoding="utf-8-sig", errors="replace")
     if HEADLESS_MARKER not in headless_text:
         required = ("spawn(", "desktop-commander", "'remote'")
         if not all(item in headless_text for item in required):
@@ -355,7 +357,9 @@ def apply(
     backups: list[tuple[Path, Path]] = []
     supervisor_existed = supervisor.exists()
     try:
-        sources = [launcher, headless]
+        sources = [launcher]
+        if headless.exists():
+            sources.append(headless)
         if supervisor_existed:
             sources.append(supervisor)
         for source in sources:

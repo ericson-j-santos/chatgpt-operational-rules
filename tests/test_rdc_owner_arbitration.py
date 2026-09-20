@@ -94,6 +94,31 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
             replay = roa.apply(launcher, supervisor, headless, backups)
             self.assertEqual(replay["result"], "already_applied")
 
+    def test_apply_bootstraps_missing_headless_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            launcher = root / "start-remote-desktop-commander.cmd"
+            supervisor = root / "rdc-interactive-supervisor.ps1"
+            headless = root / "rdc-headless-runner.cjs"
+            backups = root / "backups"
+            launcher.write_text(
+                "@echo off\n" + roa.V3_MARKER + "\n",
+                encoding="utf-8",
+            )
+
+            result = roa.apply(launcher, supervisor, headless, backups)
+
+            self.assertEqual(
+                result["result"],
+                "READY_CLAIM_ARBITRATION_APPLIED",
+            )
+            state = roa.inspect(launcher, supervisor, headless)
+            self.assertEqual(state["launcher_marker"], "v5")
+            self.assertTrue(state["supervisor_marker"])
+            self.assertTrue(state["headless_marker"])
+            self.assertTrue(headless.is_file())
+            self.assertEqual(len(result["backups"]), 1)
+
     def test_rejects_unrecognized_headless_runner(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
