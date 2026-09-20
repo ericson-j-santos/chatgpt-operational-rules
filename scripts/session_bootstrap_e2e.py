@@ -98,6 +98,28 @@ def main() -> int:
         if json.loads(repeated.stdout.splitlines()[-1]).get("materialize_result") != "already_materialized":
             raise AssertionError("materialização repetida não foi idempotente")
 
+        interrupted = ["--policy", str(policy_path), "--repo", str(repo1), "--session-id", "chat-e2e-003"]
+        interrupted_reserved = run_cli(interrupted, 0)
+        interrupted_payload = json.loads(interrupted_reserved.stdout.splitlines()[-1])
+        interrupted_target = Path(interrupted_payload["reserved_worktree"])
+        git(repo1, "worktree", "add", "--detach", str(interrupted_target), interrupted_payload["base_head"])
+        recovered = run_cli([*interrupted, "--materialize"], 0)
+        recovered_payload = json.loads(recovered.stdout.splitlines()[-1])
+        if recovered_payload.get("materialize_result") != "reconciled_materialized":
+            raise AssertionError("materialização interrompida não foi reconciliada")
+        if git(interrupted_target, "rev-parse", "HEAD") != interrupted_payload["base_head"]:
+            raise AssertionError("worktree reconciliado diverge do SHA reservado")
+        if git(interrupted_target, "status", "--porcelain"):
+            raise AssertionError("worktree reconciliado não está limpo")
+
+        dirty = ["--policy", str(policy_path), "--repo", str(repo1), "--session-id", "chat-e2e-004"]
+        dirty_reserved = run_cli(dirty, 0)
+        dirty_payload = json.loads(dirty_reserved.stdout.splitlines()[-1])
+        dirty_target = Path(dirty_payload["reserved_worktree"])
+        git(repo1, "worktree", "add", "--detach", str(dirty_target), dirty_payload["base_head"])
+        (dirty_target / "baseline.txt").write_text("dirty\n", encoding="utf-8", newline="\n")
+        run_cli([*dirty, "--materialize"], 23)
+
         conflict = ["--policy", str(policy_path), "--repo", str(repo2), "--session-id", "chat-e2e-001"]
         run_cli(conflict, 26)
         run_cli(["--policy", str(policy_path), "--repo", str(repo1), "--session-id", "../bad"], 25)
@@ -116,7 +138,7 @@ def main() -> int:
         if source_pycache.exists():
             raise AssertionError("E2E criou __pycache__ na árvore fonte")
 
-        print("SESSION_BOOTSTRAP_E2E_OK positive=4 negative=3 reservation=idempotent worktree=isolated source_tree=clean")
+        print("SESSION_BOOTSTRAP_E2E_OK positive=5 negative=4 reservation=idempotent interrupted_materialization=reconciled fail_closed=dirty_worktree source_tree=clean")
         return 0
     finally:
         if previous_git_config is None:
