@@ -14,6 +14,7 @@ REQUIRED_TRUE = (
     "session_launch_ok",
     "state_validated",
     "gateway_ok",
+    "controller_semantic_ok",
 )
 
 VALID_PROFILES = {"NORMAL", "ESTUDO"}
