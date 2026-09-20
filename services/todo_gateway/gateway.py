@@ -45,7 +45,7 @@ def create_app(queue: Any, gateway_token: str, gitlab_webhook_token: str = "", g
     if not gateway_token:
         raise ValueError("gateway token must be configured")
 
-    app = FastAPI(title="TODO Global Event Gateway", version="1.2.0")
+    app = FastAPI(title="TODO Global Event Gateway", version="1.3.0")
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -163,6 +163,68 @@ def create_app(queue: Any, gateway_token: str, gitlab_webhook_token: str = "", g
         if result is None:
             raise HTTPException(status_code=404, detail="TODO not found")
         return JSONResponse(status_code=202, content={"accepted": True, "duplicate": bool(result.get("duplicate")), "request_id": result["request_id"], "idempotency_key": result["idempotency_key"], "basis_event_id": result["basis_event_id"], "correlation_id": result["correlation_id"], "state": result["state"]})
+
+    @app.get("/v1/fronts")
+    def list_fronts(
+        authorization: str | None = Header(default=None),
+        limit: int = Query(default=100, ge=1, le=200),
+    ) -> dict[str, Any]:
+        _require_authorized(gateway_token, authorization)
+        try:
+            items = list(queue.list_operational_fronts(limit=limit))
+        except Exception:
+            LOGGER.exception("operational front read failed")
+            raise HTTPException(status_code=503, detail="queue unavailable")
+        return {"items": items, "count": len(items)}
+
+    @app.get("/v1/fronts/{front_id}/history")
+    def front_history(
+        front_id: str,
+        authorization: str | None = Header(default=None),
+        limit: int = Query(default=100, ge=1, le=200),
+    ) -> dict[str, Any]:
+        _require_authorized(gateway_token, authorization)
+        try:
+            items = list(queue.list_operational_front_history(front_id, limit=limit))
+        except Exception:
+            LOGGER.exception("operational front history read failed", extra={"front_id": front_id})
+            raise HTTPException(status_code=503, detail="queue unavailable")
+        return {"items": items, "count": len(items)}
+
+    @app.post("/v1/fronts/{front_id}", status_code=202)
+    async def record_front(
+        front_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        _require_authorized(gateway_token, authorization)
+        raw = await request.body()
+        if len(raw) > MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="payload too large")
+        try:
+            body = json_loads(raw)
+            correlation_id = str(body.pop("correlation_id", "") or "").strip()
+            if not correlation_id:
+                correlation_id = f"front-{uuid.uuid4().hex}"
+            result = queue.record_operational_front(front_id, body, correlation_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except Exception:
+            LOGGER.exception("operational front persistence failed", extra={"front_id": front_id})
+            raise HTTPException(status_code=503, detail="queue unavailable")
+        if result.get("outcome") == "CONFLICT":
+            raise HTTPException(status_code=409, detail="same source_updated_at produced conflicting front event")
+        return JSONResponse(
+            status_code=202,
+            content={
+                "accepted": True,
+                "front_id": result["front_id"],
+                "outcome": result["outcome"],
+                "duplicate": bool(result.get("duplicate")),
+                "current_event_id": result["current_event_id"],
+                "source_updated_at": result["source_updated_at"],
+            },
+        )
 
     return app
 
