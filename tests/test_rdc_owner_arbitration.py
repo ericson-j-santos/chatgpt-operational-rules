@@ -28,16 +28,36 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
         self.assertNotIn("Schedule.Service", text)
         self.assertNotIn("RemoteDesktopCommanderHeadless", text)
 
-    def test_headless_claim_only_after_ready_and_clears_on_exit(self) -> None:
-        text = roa.HEADLESS_RUNNER_V3
+    def test_headless_claim_requires_transport_proof_and_clears_on_exit(self) -> None:
+        text = roa.HEADLESS_RUNNER_V4
         self.assertIn(roa.HEADLESS_MARKER, text)
+        presence_probe = text.index("Presence tracked")
         ready_probe = text.index("Device ready:")
         claim_call = text.index("writeClaim(child.pid)")
+        self.assertLess(presence_probe, ready_probe)
         self.assertLess(ready_probe, claim_call)
-        self.assertIn("owner_claim ready=true", text)
+        self.assertIn("presenceTracked", text)
+        self.assertIn("transport_proven=true", text)
         self.assertIn("setInterval", text)
         self.assertIn("clearClaim();", text)
         self.assertIn("child.on('exit'", text)
+
+    def test_headless_transport_failure_revokes_claim_and_restarts_child(self) -> None:
+        text = roa.HEADLESS_RUNNER_V4
+        for marker in (
+            "Failed to update transport capability:",
+            "Channel subscription timed out",
+            "Channel error:",
+            "Channel closed",
+        ):
+            self.assertIn(marker, text)
+        failure_probe = text.index("Failed to update transport capability:")
+        claim_call = text.index("writeClaim(child.pid)")
+        self.assertLess(failure_probe, claim_call)
+        self.assertIn("revokeTransport", text)
+        self.assertIn("transport_guard revoke=true", text)
+        self.assertIn("child.kill()", text)
+        self.assertIn("clearClaim();", text)
 
     def test_apply_migrates_v4_and_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -56,7 +76,7 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
                 encoding="utf-8",
             )
             headless.write_text(
-                "// RDC_HEADLESS_V2_PRIMARY_OWNER\n"
+                roa.HEADLESS_MARKER_V3 + "\n"
                 "const { spawn } = require('child_process');\n"
                 "spawn(process.execPath, ['C:/desktop-commander/dist/index.js', 'remote']);\n",
                 encoding="utf-8",
@@ -68,6 +88,7 @@ class RdcOwnerArbitrationTests(unittest.TestCase):
             self.assertEqual(state["launcher_marker"], "v5")
             self.assertTrue(state["supervisor_marker"])
             self.assertTrue(state["headless_marker"])
+            self.assertIn(roa.HEADLESS_MARKER, headless.read_text(encoding="utf-8"))
             self.assertEqual(len(result["backups"]), 3)
 
             replay = roa.apply(launcher, supervisor, headless, backups)
