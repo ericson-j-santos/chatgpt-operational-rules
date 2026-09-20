@@ -1,6 +1,6 @@
 {
   "version": "1.6.4",
-  "generated_at": "2026-09-19T21:12:09.769948+00:00",
+  "generated_at": "2026-09-20T15:01:39.795501+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -339,8 +339,8 @@
     },
     {
       "path": "scripts/rdc_owner_arbitration.py",
-      "sha256": "4cc568d26c81b96a5c7e86c909df9cc82efbca694517a550d5bb63666fee68f3",
-      "size": 12892
+      "sha256": "e40ce9778475bc15d5e7894baaf6227ebe7dc9476239462e6ecc740d6682ff0c",
+      "size": 14007
     },
     {
       "path": "scripts/rdc_task_resilience.py",
@@ -634,8 +634,8 @@
     },
     {
       "path": "tests/test_rdc_owner_arbitration.py",
-      "sha256": "fd3cefdaab03c092f27c727583128bec67a593e3fed8740cf1fd5fcb2a166401",
-      "size": 3916
+      "sha256": "b6b63bb4f39b9f1742b9cbcf78523503e1360f8dae65c96699764b509119e431",
+      "size": 4899
     },
     {
       "path": "tests/test_rdc_task_resilience.py",
