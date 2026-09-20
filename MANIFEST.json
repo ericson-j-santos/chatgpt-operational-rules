@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T21:27:56.411092+00:00",
+  "generated_at": "2026-09-20T21:30:31.077323+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -659,8 +659,8 @@
     },
     {
       "path": "tests/test_rdc_owner_arbitration.py",
-      "sha256": "396f5306faba3d6380c9c15f2c7fb149a62c46aa40100a47030d727b219bfffd",
-      "size": 6602
+      "sha256": "b9f4f0fedf36ecca40e9f01dd697fdef6ef4be044a285b814a983a46b8253fea",
+      "size": 7153
     },
     {
       "path": "tests/test_rdc_semantic_result.py",
