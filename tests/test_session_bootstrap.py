@@ -121,5 +121,41 @@ class SessionBootstrapTests(unittest.TestCase):
                 cg.tracked_case_collisions = original
 
 
+    def test_materialize_reconciles_registered_clean_worktree_after_interruption(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = self.make_repo(root, "repo")
+            policy = self.policy(root)
+            reservation, _ = sb.reserve(repo, policy, "chat-005", "corr")
+            target = Path(reservation["reserved_worktree"])
+            git(repo, "worktree", "add", "--detach", str(target), reservation["base_head"])
+            git_config = root / "global.gitconfig"
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(git_config)}):
+                updated, result = sb.materialize(reservation, policy, "corr-retry")
+            self.assertEqual(result, "reconciled_materialized")
+            self.assertEqual(updated["status"], "materialized")
+            self.assertEqual(updated["worktree_head"], reservation["base_head"])
+            persisted = json.loads(sb.session_file(policy, "chat-005").read_text(encoding="utf-8"))
+            self.assertEqual(persisted["status"], "materialized")
+            self.assertEqual(cg.git_state(target, True, policy).status_count, 0)
+
+    def test_materialize_reconciliation_fails_closed_for_dirty_worktree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = self.make_repo(root, "repo")
+            policy = self.policy(root)
+            reservation, _ = sb.reserve(repo, policy, "chat-006", "corr")
+            target = Path(reservation["reserved_worktree"])
+            git(repo, "worktree", "add", "--detach", str(target), reservation["base_head"])
+            (target / "baseline.txt").write_text("dirty\n", encoding="utf-8")
+            git_config = root / "global.gitconfig"
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(git_config)}):
+                with self.assertRaises(cg.GatewayError) as ctx:
+                    sb.materialize(reservation, policy, "corr-retry")
+            self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
+            self.assertIn("diverge da reserva", str(ctx.exception))
+
+
+
 if __name__ == "__main__":
     unittest.main()
