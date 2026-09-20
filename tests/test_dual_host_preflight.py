@@ -245,11 +245,16 @@ class DualHostPreflightTests(unittest.TestCase):
 
 
     def test_semantic_controller_failure_blocks_host(self) -> None:
-        payload = self.payload()
-        payload["hosts"][0]["controller_semantic_ok"] = False
+        payload = {
+            "required_rules_sha": SHA,
+            "hosts": [
+                host("Noteri", controller_semantic_ok=False),
+                host("DESKTOP-PDQK954"),
+            ],
+        }
         result = dhp.evaluate(payload)
-        blocked = result["blocked_hosts"].get(payload["hosts"][0]["name"], [])
-        self.assertIn("controller_semantic_ok", blocked)
+        self.assertEqual(result["selected_host"], "DESKTOP-PDQK954")
+        self.assertIn("controller_semantic_ok", result["blocked_hosts"]["Noteri"])
 
 
 
