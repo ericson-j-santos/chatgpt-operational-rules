@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.5 - 2026-09-20
+- O Session Bootstrap passa a reconciliar materialização interrompida quando o diretório já existe e o Git comprova que ele é um worktree registrado da mesma base, detached, limpo e no SHA reservado.
+- Worktree existente não registrado, dirty ou em SHA divergente continua bloqueado em modo fail-closed.
+- Testes unitários e E2E reproduzem interrupção entre `git worktree add` e persistência da reserva, incluindo controle negativo com worktree dirty.
+
 ## 1.6.4 - 2026-09-19
 - O preflight dual-host passa a distinguir alcance do computador de conectividade do Remote Desktop Commander, evitando classificar ausência de heartbeat como PC desligado.
 - Hosts alcançáveis com controller desconectado permanecem fail-closed para execução e recebem ação explícita de recuperação do controller.
