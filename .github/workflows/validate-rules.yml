@@ -58,6 +58,8 @@ jobs:
         run: python -m unittest -v tests/test_dual_host_preflight.py
       - name: Run Host Operating Profile unit tests
         run: python -m unittest -v tests/test_host_operating_profile.py
+      - name: Run quota-aware tool routing unit tests
+        run: python -m unittest -v tests/test_tool_router.py
       - name: Run Remote Desktop Commander resilience unit tests
         run: python -m unittest -v tests/test_rdc_host_fix.py tests/test_rdc_task_resilience.py
       - name: Run Remote Desktop Commander owner arbitration tests

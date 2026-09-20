@@ -1,6 +1,6 @@
 {
   "version": "1.6.4",
-  "generated_at": "2026-09-20T15:01:39.795501+00:00",
+  "generated_at": "2026-09-20T17:49:14.950319+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "7f04d39c64f83d4e9bac3d391d84331c9e7abd040d3cfd135056775d59b3c64b",
-      "size": 3908
+      "sha256": "8b0f834abbc37798fc5d4d948216d932fef997b75ee40327e2a84d18e91b2040",
+      "size": 4023
     },
     {
       "path": ".gitignore",
@@ -44,8 +44,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "a3b185532e111e2b728e3d14e4d0319bb7d297d8783cb8c2e6708e33096f3ebb",
-      "size": 4324
+      "sha256": "e49b3928bb0963e750826d2e30b2e2b687c29f40a1e559d5f0c5295d955eb791",
+      "size": 4672
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -176,6 +176,11 @@
       "path": "rules/todo-global.md",
       "sha256": "7b5cfde5f8f8256c240f5f17b14832c594c8bf715e239767b4584779c71caaac",
       "size": 6244
+    },
+    {
+      "path": "rules/tool-routing.md",
+      "sha256": "3b16ae0b6674c916f9e585e2f89d3a0151cd27396eb7c04b035320fd512b8efb",
+      "size": 2566
     },
     {
       "path": "schemas/artifact-manifest.schema.json",
@@ -443,14 +448,19 @@
       "size": 8812
     },
     {
+      "path": "scripts/tool_router.py",
+      "sha256": "8923283569b98f4bd21136f3d509717e9f4c0004aa831fb372cd44527735ca6d",
+      "size": 6048
+    },
+    {
       "path": "scripts/update_command_gateway_host.py",
       "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
       "size": 4462
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "8836269aeed321ce20baa7d59d81f8b1d2ec4581b8d1d9e647a64f996de591f2",
-      "size": 9151
+      "sha256": "a24afaaa63a35ae77a0aaf062a1ec75372b8fefb89f7d721db8d83e8595d3330",
+      "size": 9231
     },
     {
       "path": "services/__init__.py",
@@ -696,6 +706,11 @@
       "path": "tests/test_todo_gateway_windows_s4u.py",
       "sha256": "a544a918395fae0b024a2480c40164a3b881b184d16a0043bf018f23adf9f9a1",
       "size": 3858
+    },
+    {
+      "path": "tests/test_tool_router.py",
+      "sha256": "10ec299cbed8129df8f0c7e9409f7e6907e052916730de8531c1d46dc625318f",
+      "size": 3957
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
