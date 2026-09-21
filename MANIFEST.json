@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-21T19:23:18.918434+00:00",
+  "generated_at": "2026-09-21T19:24:26.070335+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "3dade9ddeda8a9a50ce8e1c784ed1f69c0beb70a5ce364091f46cc0070be99d4",
-      "size": 4331
+      "sha256": "fb6a2d606779cf26941be121dc85247fb9f32258b6cc1a771d6787902128d635",
+      "size": 4427
     },
     {
       "path": ".gitignore",
@@ -236,6 +236,11 @@
       "path": "scripts/execution_lane_client.py",
       "sha256": "074a1d0b138605ab34cb14bd9cb0aa75cfb047fe24e2a0ac39b60633e2e3935b",
       "size": 6262
+    },
+    {
+      "path": "scripts/execution_lane_e2e.py",
+      "sha256": "0a3dd69e6786e02fb5d685ab6b7c09cf0970dbf25c85f50fb6e74c776712fc9e",
+      "size": 5437
     },
     {
       "path": "scripts/generate_manifest.py",
