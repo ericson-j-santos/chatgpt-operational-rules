@@ -1,6 +1,6 @@
 {
   "version": "1.6.5",
-  "generated_at": "2026-09-20T21:45:21.668Z",
+  "generated_at": "2026-09-21T19:23:18.918434+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "2f7c449198468bb362bac566c08f9ae647638f5b7c67aee45891cf6c484eef5f",
-      "size": 4158
+      "sha256": "3dade9ddeda8a9a50ce8e1c784ed1f69c0beb70a5ce364091f46cc0070be99d4",
+      "size": 4331
     },
     {
       "path": ".gitignore",
@@ -174,8 +174,8 @@
     },
     {
       "path": "rules/todo-global.md",
-      "sha256": "7b5cfde5f8f8256c240f5f17b14832c594c8bf715e239767b4584779c71caaac",
-      "size": 6244
+      "sha256": "2e379bf7c9719ae4cd88141cf2d6f7bfb54712b5925cba1cb56a7256572ab973",
+      "size": 6989
     },
     {
       "path": "rules/tool-routing.md",
@@ -189,8 +189,8 @@
     },
     {
       "path": "schemas/todo-event-v1.schema.json",
-      "sha256": "788b02a3fef0d460e59d16cc29c3034a94f23afb81f9a6cc25a0baf264fe9d35",
-      "size": 4526
+      "sha256": "ad2e169b2d2e5f8ad9100051d5e7d962cb096d5326887c50e7bc0690cf742fcc",
+      "size": 7039
     },
     {
       "path": "scripts/ai_todo_adapter.py",
@@ -214,8 +214,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "2b4f113e8d9c79dbeb73125dd2fbf2f0012e4ac03aeb31d98d1e5c3c7f07aff0",
-      "size": 10490
+      "sha256": "bbfcc6fa6c0b0daff983bae4e9fe64ad1ae1a737d8a04d5f27f511e764b3409a",
+      "size": 11905
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -231,6 +231,11 @@
       "path": "scripts/dual_host_preflight.py",
       "sha256": "4e13156fa5d21fe3adf1ea7f0b560bbfd1df8b82b70556cbff383506e4049aca",
       "size": 7338
+    },
+    {
+      "path": "scripts/execution_lane_client.py",
+      "sha256": "074a1d0b138605ab34cb14bd9cb0aa75cfb047fe24e2a0ac39b60633e2e3935b",
+      "size": 6262
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -409,8 +414,8 @@
     },
     {
       "path": "scripts/todo_event_bus.py",
-      "sha256": "734701a82700a5a305350be6f49f490aaf0fc35f05ae5836c03e96d43ebccc2b",
-      "size": 17257
+      "sha256": "ff6811d16b0110a3476f43755f7149588d175c69d7fd8694dc0c3128df2081b9",
+      "size": 17501
     },
     {
       "path": "scripts/todo_event_bus_e2e.py",
@@ -569,8 +574,8 @@
     },
     {
       "path": "tests/test_continuation_worker.py",
-      "sha256": "3ce9216a6eed93e9e1dbd99c87ca72928bc53d09dae7e41c087749def24c8d60",
-      "size": 5168
+      "sha256": "c7c1e2ee1d1d7950913aaacca630eda1b4d693d4cab2a820bde8926b0df3f13c",
+      "size": 7750
     },
     {
       "path": "tests/test_continuous_source_ingest.py",
@@ -586,6 +591,11 @@
       "path": "tests/test_dual_host_preflight.py",
       "sha256": "d9e543ec48ff626da93e788dfcf78a10b379c60d8353ecd2eef53ca0166ee3d1",
       "size": 9589
+    },
+    {
+      "path": "tests/test_execution_lane_client.py",
+      "sha256": "f8e90f94500ca01ce2b37d35afefac84870bc9faa18d62a5ef21643ce7af82db",
+      "size": 3995
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
@@ -699,8 +709,8 @@
     },
     {
       "path": "tests/test_todo_event_bus.py",
-      "sha256": "2b4488802467fc792e7c66a9c18ab7f866d401bf9aef65a72ffd411ff797d2f3",
-      "size": 5773
+      "sha256": "b37d017242b16a2df69cb115d447100f90dc82e951622cd5cda8f54648df72dc",
+      "size": 6428
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
