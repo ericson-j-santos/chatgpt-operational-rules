@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
-from scripts.execution_lane_client import validate_execution_request
+try:
+    from scripts.execution_lane_client import validate_execution_request
+except ModuleNotFoundError:
+    from execution_lane_client import validate_execution_request
 
 VALID_EVENT_TYPES = {
     "todo.created",
