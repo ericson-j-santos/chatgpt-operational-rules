@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from scripts.continuation_worker import Continuation, HumanGate, execute
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.continuation_worker import Continuation, HumanGate, execute  # noqa: E402
 
 
 class LaneState:
