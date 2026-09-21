@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+try:
+    from scripts.execution_lane_client import validate_execution_request
+except ModuleNotFoundError:
+    from execution_lane_client import validate_execution_request
+
 VALID_EVENT_TYPES = {
     "todo.created",
     "todo.updated",
@@ -81,6 +86,9 @@ def validate_event_dict(data: dict[str, Any]) -> None:
         raise ValueError("todo.type inválido")
     if todo["status"] not in VALID_STATUSES:
         raise ValueError("todo.status inválido")
+    action = str(todo.get("automation_action") or "").strip()
+    if action == "execution_lane.enqueue.v1":
+        validate_execution_request(todo.get("execution_request"))
     if todo["status"] == "CONCLUÍDO":
         if not str(todo.get("completion_criteria") or "").strip():
             raise ValueError("CONCLUÍDO exige completion_criteria")

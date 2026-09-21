@@ -174,36 +174,149 @@
             "null"
           ],
           "maxLength": 100
+        },
+        "automation_action": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "execution_request": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "issue_number",
+            "request_id",
+            "base_sha"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "maxLength": 256
+            },
+            "issue_number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "base_sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "target_branch": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "priority": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
         }
       },
       "allOf": [
         {
           "if": {
             "properties": {
-              "status": {"const": "CONCLUÍDO"}
+              "status": {
+                "const": "CONCLUÍDO"
+              }
             },
-            "required": ["status"]
+            "required": [
+              "status"
+            ]
           },
           "then": {
-            "required": ["completion_criteria", "evidence"],
+            "required": [
+              "completion_criteria",
+              "evidence"
+            ],
             "properties": {
-              "completion_criteria": {"type": "string", "minLength": 1},
-              "evidence": {"type": "string", "minLength": 1}
+              "completion_criteria": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         },
         {
           "if": {
             "properties": {
-              "status": {"const": "BLOQUEADO"}
+              "status": {
+                "const": "BLOQUEADO"
+              }
             },
-            "required": ["status"]
+            "required": [
+              "status"
+            ]
           },
           "then": {
-            "required": ["blocker", "next_action"],
+            "required": [
+              "blocker",
+              "next_action"
+            ],
             "properties": {
-              "blocker": {"type": "string", "minLength": 1},
-              "next_action": {"type": "string", "minLength": 1}
+              "blocker": {
+                "type": "string",
+                "minLength": 1
+              },
+              "next_action": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "automation_action": {
+                "const": "execution_lane.enqueue.v1"
+              }
+            },
+            "required": [
+              "automation_action"
+            ]
+          },
+          "then": {
+            "required": [
+              "execution_request"
+            ],
+            "properties": {
+              "execution_request": {
+                "type": "object"
+              }
             }
           }
         }

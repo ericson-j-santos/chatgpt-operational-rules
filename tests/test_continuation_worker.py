@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -107,6 +108,78 @@ class WorkerTest(unittest.TestCase):
         x = Continuation("bad", "a"*64, "corr", "AI Control Plane", {"automation_action":"unknown.action"}, 1)
         with self.assertRaisesRegex(HumanGate, "not_registered"):
             execute(x)
+
+
+    def test_execution_lane_action_dispatches_typed_request(self):
+        request = {
+            "repository": "ericson-j-santos/example",
+            "issue_number": 90,
+            "request_id": "todo-execution-90",
+            "base_sha": "b" * 40,
+            "priority": 10,
+        }
+        x = Continuation(
+            "cont-90",
+            "a" * 64,
+            "corr-execution-90",
+            "Example",
+            {
+                "automation_action": "execution_lane.enqueue.v1",
+                "external_id": "todo-execution-90",
+                "execution_request": request,
+            },
+            1,
+        )
+        response = {"created": True, "task": {**request, "task_id": "task-90"}}
+        with patch.dict(
+            os.environ,
+            {
+                "EXECUTION_LANE_BASE_URL": "http://127.0.0.1:8097",
+                "EXECUTION_LANE_API_TOKEN_FILE": "/tmp/token",
+            },
+            clear=False,
+        ), patch("scripts.continuation_worker.ExecutionLaneClient") as client_type:
+            client_type.return_value.enqueue.return_value = response
+            self.assertIsNone(execute(x))
+            client_type.return_value.enqueue.assert_called_once_with(request)
+
+    def test_execution_lane_action_rejects_request_id_mismatch(self):
+        x = Continuation(
+            "cont-bad",
+            "a" * 64,
+            "corr-execution-bad",
+            "Example",
+            {
+                "automation_action": "execution_lane.enqueue.v1",
+                "external_id": "stable-id",
+                "execution_request": {
+                    "repository": "ericson-j-santos/example",
+                    "issue_number": 90,
+                    "request_id": "different-id",
+                    "base_sha": "b" * 40,
+                },
+            },
+            1,
+        )
+        with self.assertRaisesRegex(HumanGate, "request_id_mismatch"):
+            execute(x)
+
+    def test_execution_lane_action_rejects_invalid_payload_before_io(self):
+        x = Continuation(
+            "cont-invalid",
+            "a" * 64,
+            "corr-execution-invalid",
+            "Example",
+            {
+                "automation_action": "execution_lane.enqueue.v1",
+                "execution_request": {"repository": "invalid"},
+            },
+            1,
+        )
+        with patch("scripts.continuation_worker.ExecutionLaneClient") as client_type:
+            with self.assertRaisesRegex(HumanGate, "execution_request_invalid"):
+                execute(x)
+            client_type.assert_not_called()
 
 
 if __name__ == "__main__":

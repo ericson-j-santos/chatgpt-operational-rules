@@ -14,8 +14,10 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 try:
+    from scripts.execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from scripts.host_operating_profile import default_profile_path, load_profile
 except ModuleNotFoundError:
+    from execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from host_operating_profile import default_profile_path, load_profile
 
 
@@ -148,11 +150,42 @@ def _run_known_state_recovery(item: Continuation) -> None:
         raise HumanGate("automation_action_recovery_not_allowed")
     _run_governed(repo, head, script, ["--target-root", str(repo), "--expected-head", head])
 
+
+def _run_execution_lane_enqueue(item: Continuation) -> None:
+    raw = item.todo.get("execution_request")
+    try:
+        request = validate_execution_request(raw)
+    except ValueError as exc:
+        raise HumanGate(f"execution_request_invalid:{exc}") from exc
+
+    external_id = str(item.todo.get("external_id") or "").strip()
+    if external_id and request["request_id"] != external_id:
+        raise HumanGate("execution_request_id_mismatch")
+
+    base_url = os.environ.get("EXECUTION_LANE_BASE_URL", "")
+    token_file = os.environ.get("EXECUTION_LANE_API_TOKEN_FILE", "")
+    if not base_url or not token_file:
+        raise RuntimeError("execution_lane_not_configured")
+
+    try:
+        client = ExecutionLaneClient(base_url=base_url, token_file=Path(token_file))
+        result = client.enqueue(request)
+    except ValueError as exc:
+        raise HumanGate(f"execution_lane_config_invalid:{exc}") from exc
+    except ExecutionLaneError:
+        raise
+
+    task = result.get("task") or {}
+    if task.get("base_sha") != request["base_sha"]:
+        raise ExecutionLaneError("execution_lane_response_mismatch:base_sha")
+
+
 ACTION_REGISTRY = {
     "ai_control_plane.validate_idempotent_continuation.v1": _validate_idempotent_continuation,
     "operational_rules.ci_manifest_recovery.v1": _run_ci_manifest_recovery,
     "operational_rules.e2e_validation.v1": _run_e2e_validation,
     "operational_rules.known_state_recovery.v1": _run_known_state_recovery,
+    "execution_lane.enqueue.v1": _run_execution_lane_enqueue,
 }
 
 
