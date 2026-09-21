@@ -97,6 +97,21 @@ class TodoEventBusTests(unittest.TestCase):
         payload["todo"]["next_action"] = "Configurar credencial autorizada e revalidar"
         validate_event_dict(payload)
 
+    def test_execution_lane_action_requires_valid_execution_request(self) -> None:
+        payload = raw_event("evt-execution-01", "PENDENTE")
+        payload["todo"]["automation_action"] = "execution_lane.enqueue.v1"
+        with self.assertRaisesRegex(ValueError, "execution_request"):
+            validate_event_dict(payload)
+
+        payload["todo"]["external_id"] = "todo-execution-90"
+        payload["todo"]["execution_request"] = {
+            "repository": "ericson-j-santos/example",
+            "issue_number": 90,
+            "request_id": "todo-execution-90",
+            "base_sha": "b" * 40,
+        }
+        validate_event_dict(payload)
+
     def test_same_event_id_is_enqueued_once(self) -> None:
         current = event("evt-00000001")
         self.assertTrue(self.queue.enqueue(current, now=100.0))
