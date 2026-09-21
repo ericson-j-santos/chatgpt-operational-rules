@@ -112,6 +112,17 @@ Consumidores devem ser independentes e substituíveis. Exemplos:
 
 Falha de um consumidor não deve impedir outros consumidores independentes de processar a mesma mudança quando a arquitetura de distribuição utilizada permitir isso.
 
+### Consumidor de execução
+
+Quando um TODO precisar originar trabalho técnico automatizado:
+
+- usar uma `automation_action` tipada e allowlisted; nunca interpretar `next_action` como shell/comando;
+- para `execution_lane.enqueue.v1`, usar `execution_request` estruturado com repositório, issue, request id e `base_sha`;
+- URL, token, segredo, host e credencial da lane pertencem à configuração do consumidor e nunca ao evento;
+- HTTP sem TLS só pode ser aceito em loopback; destinos remotos exigem HTTPS;
+- aceitar uma task na lane conclui apenas a **continuação de despacho**; o TODO permanece não terminal até sua evidência de conclusão;
+- replay deve reutilizar a identidade lógica downstream e não criar trabalho duplicado.
+
 ## Observabilidade
 
 Registrar, sem dados sensíveis:
