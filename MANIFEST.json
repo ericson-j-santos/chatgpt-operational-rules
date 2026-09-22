@@ -1,6 +1,6 @@
 {
-  "version": "1.6.5",
-  "generated_at": "2026-09-22T15:51:57.654207+00:00",
+  "version": "1.6.6",
+  "generated_at": "2026-09-22T23:47:05.225325+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "15187ad4437609d840229e342fc829e9ab320e97251cb248a2305496a1fa769f",
-      "size": 1756
+      "sha256": "440fcadb9c01078434a4db64620b2b0415cef6a347c26f5eee6626e7efae9500",
+      "size": 1942
     },
     {
       "path": "CHANGELOG.md",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "afbcf66b39635350c2bd698b1f9cd303d653350d178e272fb19fa4a6cfe5948f",
-      "size": 5087
+      "sha256": "ee50afc815a54a83b3fab3068451a487ddc0a25e9ace3e2c3a033ca1a4f9e241",
+      "size": 5459
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -156,6 +156,11 @@
       "path": "rules/github-workflow.md",
       "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
       "size": 975
+    },
+    {
+      "path": "rules/progress-watchdog.md",
+      "sha256": "7de656dc66266d8dcce49626ed8df92994b8ba70b80bf037132335d58fecba95",
+      "size": 4187
     },
     {
       "path": "rules/reporting.md",
@@ -341,6 +346,11 @@
       "path": "scripts/pr_ci_self_heal.py",
       "sha256": "83a94f9adc11054dc305d4bbeaf14064973dfd78105bb9beeb69008e2d359812",
       "size": 5063
+    },
+    {
+      "path": "scripts/progress_watchdog.py",
+      "sha256": "77cea5b0ebfe885f4282ddf30672280e46ed7d46432973b6c25bb4b605892cd8",
+      "size": 4577
     },
     {
       "path": "scripts/publish_branch_governed.py",
@@ -686,6 +696,11 @@
       "path": "tests/test_pr_ci_self_heal.py",
       "sha256": "13305dd4e947c6c7c4264fc4167288783dec5a6e24da577c7fa51d49f1c55fca",
       "size": 3460
+    },
+    {
+      "path": "tests/test_progress_watchdog.py",
+      "sha256": "1cf7ad26fa5efe934c526bd59d545daaf734cf1e39089074af18e4548cbf0d11",
+      "size": 2831
     },
     {
       "path": "tests/test_publish_branch_governed.py",
