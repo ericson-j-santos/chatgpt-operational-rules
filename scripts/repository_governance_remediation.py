@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,9 @@ DEFAULT_POLICY = ROOT / "config" / "repository-governance-control-plane.json"
 DEFAULT_EVIDENCE = ROOT / "evidence" / "repository-governance-control-plane.json"
 DEFAULT_PLAN = ROOT / "evidence" / "repository-governance-remediation-plan.json"
 DEFAULT_RESULT = ROOT / "evidence" / "repository-governance-remediation-result.json"
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 from repository_governance_control_plane import (  # noqa: E402
     GovernanceControlPlaneError,
