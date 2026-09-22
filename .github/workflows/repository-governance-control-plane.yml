@@ -1,0 +1,221 @@
+name: Repository Governance Control Plane
+
+on:
+  pull_request:
+    paths:
+      - "config/repository-governance-control-plane.json"
+      - "scripts/repository_governance_control_plane.py"
+      - "scripts/repository_governance_snapshot.py"
+      - "tests/test_repository_governance_control_plane.py"
+      - ".github/workflows/repository-governance-control-plane.yml"
+      - "MANIFEST.json"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Escopo da auditoria"
+        required: true
+        default: public
+        type: choice
+        options:
+          - public
+          - all
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: repository-governance-control-plane-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Multi-repository governance audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CORRELATION_ID: repo-governance-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run control plane unit tests
+        run: python -m unittest -v tests/test_repository_governance_control_plane.py
+
+      - name: Collect public repository snapshot
+        if: github.event_name != 'workflow_dispatch' || inputs.scope == 'public'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/repository_governance_snapshot.py
+          --public-only
+          --correlation-id "${CORRELATION_ID}"
+          --output evidence/repository-governance-snapshot.json
+
+      - name: Validate private-audit execution context
+        if: github.event_name == 'workflow_dispatch' && inputs.scope == 'all'
+        env:
+          REPOSITORY_GOVERNANCE_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::A auditoria privada completa só pode rodar a partir da main."
+            exit 2
+          fi
+          if [ -z "${REPOSITORY_GOVERNANCE_TOKEN}" ]; then
+            echo "::error::REPOSITORY_GOVERNANCE_TOKEN não configurado."
+            exit 3
+          fi
+
+      - name: Collect all repository snapshot
+        if: github.event_name == 'workflow_dispatch' && inputs.scope == 'all'
+        env:
+          GH_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: >-
+          python scripts/repository_governance_snapshot.py
+          --correlation-id "${CORRELATION_ID}"
+          --output evidence/repository-governance-snapshot.json
+
+      - name: Evaluate central policy
+        run: >-
+          python scripts/repository_governance_control_plane.py
+          --snapshot evidence/repository-governance-snapshot.json
+          --evidence evidence/repository-governance-control-plane.json
+
+      - name: Validate live evidence and negative control
+        run: |
+          python - <<'PY'
+          import copy
+          import importlib.util
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path.cwd()
+          evidence = json.loads(
+              (root / "evidence/repository-governance-control-plane.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          snapshot = json.loads(
+              (root / "evidence/repository-governance-snapshot.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          policy = json.loads(
+              (root / "config/repository-governance-control-plane.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert evidence["schema_version"] == 1
+          assert evidence["policy_sha256"]
+          assert evidence["snapshot_generated_at"]
+          assert re.fullmatch(r"[0-9a-f]{64}", evidence["policy_sha256"])
+
+          by_repo = {item["repository"]: item for item in evidence["repositories"]}
+          reqsys_name = "ericson-j-santos/reqsys-v2-enterprise-real"
+          reqsys = by_repo.get(reqsys_name)
+          assert reqsys is not None, "ReqSys ausente da auditoria pública"
+          assert reqsys["status"] != "unreachable", reqsys
+          assert re.fullmatch(r"[0-9a-f]{40}", reqsys["main_sha"])
+          assert reqsys["protected"] is True, reqsys
+
+          allowed_decisions = {"allow", "hold", "block"}
+          for pull in reqsys["open_pull_requests"]:
+              assert pull["decision"] in allowed_decisions
+              assert re.fullmatch(r"[0-9a-f]{40}", pull["head_sha"])
+              assert pull["base_ref"] == "main"
+
+          public_only = bool(snapshot.get("public_only"))
+          if public_only:
+              skipped = {item["repository"]: item for item in evidence["skipped"]}
+              private_name = "ericson-j-santos/data-ai-lab"
+              assert skipped[private_name]["status"] == "skipped_private"
+
+          spec = importlib.util.spec_from_file_location(
+              "repository_governance_control_plane",
+              root / "scripts/repository_governance_control_plane.py",
+          )
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+
+          raw_by_repo = {
+              item.get("repository"): item
+              for item in snapshot.get("repositories", [])
+              if isinstance(item, dict)
+          }
+          reqsys_raw = raw_by_repo[reqsys_name]
+          reqsys_policy = next(
+              item for item in policy["repositories"] if item["repository"] == reqsys_name
+          )
+          negative_policy = copy.deepcopy(reqsys_policy)
+          negative_policy["required_workflows"] = [
+              "__CONTROL_PLANE_NEGATIVE_GATE__"
+          ]
+
+          if reqsys_raw.get("pulls"):
+              negative = module.evaluate_repository(negative_policy, reqsys_raw)
+              assert negative["open_pull_requests"][0]["decision"] == "block"
+              assert (
+                  "required_gate_failed_or_missing"
+                  in negative["open_pull_requests"][0]["reasons"]
+              )
+          else:
+              main_sha = reqsys["main_sha"]
+              synthetic = {
+                  "repository": reqsys_name,
+                  "metadata": {
+                      "default_branch": "main",
+                      "archived": False,
+                      "allow_auto_merge": True,
+                  },
+                  "branch": {
+                      "protected": True,
+                      "commit": {"sha": main_sha},
+                  },
+                  "pulls": [
+                      {
+                          "detail": {
+                              "number": 0,
+                              "title": "negative-control",
+                              "html_url": None,
+                              "draft": False,
+                              "mergeable": True,
+                              "mergeable_state": "clean",
+                              "head": {"sha": main_sha, "ref": "negative-control"},
+                              "base": {"ref": "main"},
+                          },
+                          "comparison": {"behind_by": 0},
+                          "workflow_runs": [],
+                      }
+                  ],
+              }
+              negative = module.evaluate_repository(negative_policy, synthetic)
+              assert negative["open_pull_requests"][0]["decision"] == "block"
+
+          print("repository_governance_live_read=passed")
+          print("repository_governance_exact_sha=passed")
+          print("repository_governance_negative_control=passed")
+          PY
+
+      - name: Upload governance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-governance-${{ github.sha }}
+          path: |
+            evidence/repository-governance-snapshot.json
+            evidence/repository-governance-control-plane.json
+          if-no-files-found: error
+          retention-days: 14

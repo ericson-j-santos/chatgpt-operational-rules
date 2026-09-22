@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "repositories": [
+    {
+      "repository": "ericson-j-santos/reqsys-v2-enterprise-real",
+      "visibility": "public",
+      "mode": "enforce",
+      "default_branch": "main",
+      "require_branch_protection": true,
+      "require_up_to_date": true,
+      "required_workflows": [
+        "Governed Merge Queue",
+        "PR Evidence Gate",
+        "Pre-PR Readiness Gate",
+        "CI — ReqSys v2 Enterprise"
+      ]
+    },
+    {
+      "repository": "ericson-j-santos/data-ai-lab",
+      "visibility": "private",
+      "mode": "enforce",
+      "default_branch": "main",
+      "require_branch_protection": true,
+      "require_up_to_date": true,
+      "required_workflows": [
+        "CI",
+        "SQL Server E2E"
+      ]
+    },
+    {
+      "repository": "ericson-j-santos/ai-metrics-backend",
+      "visibility": "public",
+      "mode": "observe",
+      "default_branch": "main",
+      "require_branch_protection": false,
+      "require_up_to_date": true,
+      "required_workflows": []
+    },
+    {
+      "repository": "ericson-j-santos/reqsys-vscode-agent",
+      "visibility": "public",
+      "mode": "observe",
+      "default_branch": "main",
+      "require_branch_protection": false,
+      "require_up_to_date": true,
+      "required_workflows": []
+    },
+    {
+      "repository": "ericson-j-santos/reqsys-ollama-local-gateway",
+      "visibility": "public",
+      "mode": "observe",
+      "default_branch": "main",
+      "require_branch_protection": false,
+      "require_up_to_date": true,
+      "required_workflows": []
+    }
+  ]
+}
