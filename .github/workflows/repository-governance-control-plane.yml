@@ -6,7 +6,9 @@ on:
       - "config/repository-governance-control-plane.json"
       - "scripts/repository_governance_control_plane.py"
       - "scripts/repository_governance_snapshot.py"
+      - "scripts/repository_governance_remediation.py"
       - "tests/test_repository_governance_control_plane.py"
+      - "tests/test_repository_governance_remediation.py"
       - ".github/workflows/repository-governance-control-plane.yml"
       - "MANIFEST.json"
   schedule:
@@ -21,6 +23,14 @@ on:
         options:
           - public
           - all
+      remediation:
+        description: "Remediação governada"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   actions: read
@@ -35,7 +45,7 @@ jobs:
   audit:
     name: Multi-repository governance audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       CORRELATION_ID: repo-governance-${{ github.run_id }}-${{ github.run_attempt }}
@@ -50,7 +60,10 @@ jobs:
           python-version: "3.12"
 
       - name: Run control plane unit tests
-        run: python -m unittest -v tests/test_repository_governance_control_plane.py
+        run: >-
+          python -m unittest -v
+          tests/test_repository_governance_control_plane.py
+          tests/test_repository_governance_remediation.py
 
       - name: Collect public repository snapshot
         if: github.event_name != 'workflow_dispatch' || inputs.scope == 'public'
@@ -91,6 +104,13 @@ jobs:
           --snapshot evidence/repository-governance-snapshot.json
           --evidence evidence/repository-governance-control-plane.json
 
+      - name: Build governed remediation plan
+        run: >-
+          python scripts/repository_governance_remediation.py
+          --mode plan
+          --evidence evidence/repository-governance-control-plane.json
+          --plan evidence/repository-governance-remediation-plan.json
+
       - name: Validate live evidence and negative control
         run: |
           python - <<'PY'
@@ -116,6 +136,11 @@ jobs:
                   encoding="utf-8"
               )
           )
+          remediation = json.loads(
+              (root / "evidence/repository-governance-remediation-plan.json").read_text(
+                  encoding="utf-8"
+              )
+          )
 
           assert evidence["schema_version"] == 1
           assert evidence["policy_sha256"]
@@ -135,6 +160,14 @@ jobs:
               assert pull["decision"] in allowed_decisions
               assert re.fullmatch(r"[0-9a-f]{40}", pull["head_sha"])
               assert pull["base_ref"] == "main"
+
+          for action in remediation["actions"]:
+              assert action["type"] in {"update_branch", "dispatch_merge_queue"}
+              assert action["type"] != "direct_merge"
+              assert re.fullmatch(r"[0-9a-f]{40}", action["expected_head_sha"])
+              assert action["repository"] == reqsys_name
+              if action["type"] == "dispatch_merge_queue":
+                  assert action["workflow"] == "governed-merge-queue.yml"
 
           public_only = bool(snapshot.get("public_only"))
           if public_only:
@@ -207,7 +240,33 @@ jobs:
           print("repository_governance_live_read=passed")
           print("repository_governance_exact_sha=passed")
           print("repository_governance_negative_control=passed")
+          print("repository_governance_remediation_plan=passed")
+          print("repository_governance_no_direct_merge=passed")
           PY
+
+      - name: Validate apply execution context
+        if: github.event_name == 'workflow_dispatch' && inputs.remediation == 'apply'
+        env:
+          REPOSITORY_GOVERNANCE_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Remediação apply só pode rodar a partir da main."
+            exit 4
+          fi
+          if [ -z "${REPOSITORY_GOVERNANCE_TOKEN}" ]; then
+            echo "::error::REPOSITORY_GOVERNANCE_TOKEN não configurado."
+            exit 5
+          fi
+
+      - name: Apply governed remediations
+        if: github.event_name == 'workflow_dispatch' && inputs.remediation == 'apply'
+        env:
+          GH_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: >-
+          python scripts/repository_governance_remediation.py
+          --mode apply
+          --plan evidence/repository-governance-remediation-plan.json
+          --result evidence/repository-governance-remediation-result.json
 
       - name: Upload governance evidence
         if: always()
@@ -217,5 +276,7 @@ jobs:
           path: |
             evidence/repository-governance-snapshot.json
             evidence/repository-governance-control-plane.json
+            evidence/repository-governance-remediation-plan.json
+            evidence/repository-governance-remediation-result.json
           if-no-files-found: error
           retention-days: 14
