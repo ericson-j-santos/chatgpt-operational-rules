@@ -394,8 +394,8 @@
     },
     {
       "path": "scripts/repository_governance_remediation.py",
-      "sha256": "5181bf30c386d7493bca177aa5a4c5111efffb3eb909a6167fa8f8f39b97600c",
-      "size": 18181
+      "sha256": "914e1e91900483dc742cb63c3407f0fcb9e57497a97cceccf946930563b2d5ad",
+      "size": 18313
     },
     {
       "path": "scripts/repository_governance_snapshot.py",
