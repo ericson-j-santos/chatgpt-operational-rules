@@ -13,7 +13,18 @@
         "PR Evidence Gate",
         "Pre-PR Readiness Gate",
         "CI — ReqSys v2 Enterprise"
-      ]
+      ],
+      "remediation": {
+        "update_branch": true,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": true,
+          "workflow": "governed-merge-queue.yml",
+          "ref": "main",
+          "pr_input": "pr_number"
+        },
+        "branch_protection": "report_only"
+      }
     },
     {
       "repository": "ericson-j-santos/data-ai-lab",
@@ -25,7 +36,15 @@
       "required_workflows": [
         "CI",
         "SQL Server E2E"
-      ]
+      ],
+      "remediation": {
+        "update_branch": true,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "provider_capability_blocked"
+      }
     },
     {
       "repository": "ericson-j-santos/ai-metrics-backend",
@@ -34,7 +53,15 @@
       "default_branch": "main",
       "require_branch_protection": false,
       "require_up_to_date": true,
-      "required_workflows": []
+      "required_workflows": [],
+      "remediation": {
+        "update_branch": false,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "report_only"
+      }
     },
     {
       "repository": "ericson-j-santos/reqsys-vscode-agent",
@@ -43,7 +70,15 @@
       "default_branch": "main",
       "require_branch_protection": false,
       "require_up_to_date": true,
-      "required_workflows": []
+      "required_workflows": [],
+      "remediation": {
+        "update_branch": false,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "report_only"
+      }
     },
     {
       "repository": "ericson-j-santos/reqsys-ollama-local-gateway",
@@ -52,7 +87,15 @@
       "default_branch": "main",
       "require_branch_protection": false,
       "require_up_to_date": true,
-      "required_workflows": []
+      "required_workflows": [],
+      "remediation": {
+        "update_branch": false,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "report_only"
+      }
     }
   ]
 }
