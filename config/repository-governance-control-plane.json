@@ -96,6 +96,26 @@
         },
         "branch_protection": "report_only"
       }
+    },
+    {
+      "repository": "ericson-j-santos/powerbi-platform",
+      "visibility": "public",
+      "mode": "enforce",
+      "default_branch": "main",
+      "require_branch_protection": false,
+      "require_up_to_date": true,
+      "required_workflows": [
+        "Validate Power BI repository",
+        "Power BI Desktop E2E"
+      ],
+      "remediation": {
+        "update_branch": true,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "report_only"
+      }
     }
   ]
 }
