@@ -15,6 +15,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 PORT = 8094
+POSTGRES_PORT = 55432
 COMPOSE = "docker-compose.pc24x7.yml"
 REDACT_PATTERNS = (
     (re.compile(r"postgres(?:ql)?://[^@\s]+@", re.I), "postgresql://[REDACTED]@"),
@@ -112,15 +113,21 @@ def ensure_docker_ready(wait_seconds: int = 120) -> bool:
 def ensure_port_setting(path: Path) -> None:
     lines = path.read_text(encoding="utf-8").splitlines()
     updated: list[str] = []
-    found = False
+    gateway_found = False
+    postgres_found = False
     for line in lines:
         if line.startswith("TODO_GATEWAY_PORT="):
             updated.append(f"TODO_GATEWAY_PORT={PORT}")
-            found = True
+            gateway_found = True
+        elif line.startswith("TODO_POSTGRES_PORT="):
+            updated.append(f"TODO_POSTGRES_PORT={POSTGRES_PORT}")
+            postgres_found = True
         else:
             updated.append(line)
-    if not found:
+    if not gateway_found:
         updated.append(f"TODO_GATEWAY_PORT={PORT}")
+    if not postgres_found:
+        updated.append(f"TODO_POSTGRES_PORT={POSTGRES_PORT}")
     path.write_text("\n".join(updated) + "\n", encoding="utf-8", newline="\n")
 
 
@@ -141,6 +148,7 @@ def ensure_runtime_env() -> Path:
             f"TODO_GATEWAY_TOKEN={token}",
             f"DATABASE_URL=postgresql://todo_global_bus_dev_user:{password}@db:5432/todo_global_bus_dev",
             f"TODO_GATEWAY_PORT={PORT}",
+            f"TODO_POSTGRES_PORT={POSTGRES_PORT}",
             "",
         ]
     )

@@ -19,6 +19,8 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         self.assertIn("todo_global_pgdata:/var/lib/postgresql/data", text)
         self.assertEqual(text.count("restart: unless-stopped"), 4)
         self.assertIn("127.0.0.1:${TODO_GATEWAY_PORT:-8094}:8000", text)
+        self.assertIn("127.0.0.1:${TODO_POSTGRES_PORT:-55432}:5432", text)
+        self.assertNotIn("0.0.0.0:${TODO_POSTGRES_PORT", text)
         self.assertIn("condition: service_healthy", text)
 
     def test_gateway_uses_runtime_env_and_does_not_require_notion(self):
@@ -31,12 +33,14 @@ class Pc24x7RuntimeTests(unittest.TestCase):
     def test_bootstrap_generates_secrets_locally_and_can_start_docker_desktop(self):
         text = BOOTSTRAP.read_text(encoding="utf-8")
         self.assertIn("PORT = 8094", text)
+        self.assertIn("POSTGRES_PORT = 55432", text)
         self.assertIn("secrets.token_urlsafe", text)
         self.assertIn('root / "runtime.env"', text)
         self.assertIn("ensure_port_setting(path)", text)
         self.assertIn("ensure_docker_ready", text)
         self.assertIn("Docker Desktop.exe", text)
         self.assertIn("TODO_GATEWAY_TOKEN={token}", text)
+        self.assertIn("TODO_POSTGRES_PORT={POSTGRES_PORT}", text)
         self.assertNotIn('"TODO_GATEWAY_TOKEN": token', text)
         self.assertNotIn('"POSTGRES_PASSWORD": password', text)
         self.assertIn("postgresql://[REDACTED]@", text)
