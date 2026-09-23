@@ -50,7 +50,7 @@ class Pc24x7RuntimeTests(unittest.TestCase):
         self.assertIn("def windows_child_env", text)
         self.assertIn('env.get("ProgramData")', text)
         self.assertIn('env.get("ALLUSERSPROFILE")', text)
-        self.assertIn(r'r"C:\\ProgramData"', text)
+        self.assertIn('r"C:\\ProgramData"', text)
         self.assertIn('env["ProgramData"] = program_data', text)
         self.assertGreaterEqual(text.count("env=windows_child_env()"), 3)
 
