@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-DEFAULT_STALL_AFTER_SECONDS = 900
+DEFAULT_STALL_AFTER_SECONDS = 300
 TERMINAL_STATES = {"completed", "failed", "cancelled", "blocked"}
 
 

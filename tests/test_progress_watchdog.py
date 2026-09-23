@@ -15,7 +15,7 @@ BASE = {
     "correlation_id": "corr-1",
     "state": "running",
     "now_at": "2026-09-22T20:30:00-03:00",
-    "last_material_progress_at": "2026-09-22T20:20:01-03:00",
+    "last_material_progress_at": "2026-09-22T20:25:01-03:00",
 }
 
 
@@ -24,6 +24,17 @@ class ProgressWatchdogTests(unittest.TestCase):
         result = pw.evaluate(BASE)
         self.assertFalse(result["stalled"])
         self.assertEqual(result["decision"], "continue")
+
+    def test_exact_five_minute_boundary_is_stalled(self) -> None:
+        payload = {
+            **BASE,
+            "last_material_progress_at": "2026-09-22T20:25:00-03:00",
+        }
+        result = pw.evaluate(payload)
+        self.assertTrue(result["stalled"])
+        self.assertEqual(result["decision"], "block")
+        self.assertEqual(result["stall_after_seconds"], 300)
+        self.assertEqual(result["no_progress_seconds"], 300)
 
     def test_recent_heartbeat_does_not_mask_old_material_progress(self) -> None:
         payload = {

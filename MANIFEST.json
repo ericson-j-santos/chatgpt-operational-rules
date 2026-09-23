@@ -1,6 +1,6 @@
 {
   "version": "1.6.6",
-  "generated_at": "2026-09-23T13:31:29.767774+00:00",
+  "generated_at": "2026-09-23T15:03:14.655699+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "ecbb6cbe8f268b9ff248d9dc231d6dc56e4a764b3201a3ee640714ab8ad7d65d",
-      "size": 5726
+      "sha256": "1f291acae79bf7a3bc7e2529f5eb4a34c1039206718b86d0fe51905ee3bd612a",
+      "size": 5738
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -164,8 +164,8 @@
     },
     {
       "path": "rules/progress-watchdog.md",
-      "sha256": "7de656dc66266d8dcce49626ed8df92994b8ba70b80bf037132335d58fecba95",
-      "size": 4187
+      "sha256": "6a9cd44fedc3f21be5dcbd8cb702d33103d52057dc79a24d30f97da777f3bea3",
+      "size": 4186
     },
     {
       "path": "rules/reporting.md",
@@ -354,7 +354,7 @@
     },
     {
       "path": "scripts/progress_watchdog.py",
-      "sha256": "77cea5b0ebfe885f4282ddf30672280e46ed7d46432973b6c25bb4b605892cd8",
+      "sha256": "fa106161691917e043c1385a89d8a3d62919346bf34490b4fe0397702cca382f",
       "size": 4577
     },
     {
@@ -704,8 +704,8 @@
     },
     {
       "path": "tests/test_progress_watchdog.py",
-      "sha256": "1cf7ad26fa5efe934c526bd59d545daaf734cf1e39089074af18e4548cbf0d11",
-      "size": 2831
+      "sha256": "ad81d2338b7d03e78cc7b631cfda82f6f9ab5c7a46d0feff24952ff48b27cc98",
+      "size": 3275
     },
     {
       "path": "tests/test_publish_branch_governed.py",

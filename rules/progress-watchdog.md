@@ -8,7 +8,7 @@ Impedir que chats, agentes, workers ou automações permaneçam aparentando exec
 
 Tempo de processo vivo não é progresso. A métrica canônica é o tempo desde a última **evidência material de avanço**.
 
-Por padrão, uma execução é considerada estagnada após **900 segundos (15 minutos)** sem progresso material. Regra específica de projeto pode reduzir ou ajustar esse limite quando houver justificativa objetiva.
+Por padrão, uma execução é considerada estagnada após **300 segundos (5 minutos)** sem progresso material. Regra específica de projeto pode reduzir ou ajustar esse limite quando houver justificativa objetiva.
 
 ## O que conta como progresso material
 
