@@ -1,6 +1,6 @@
 {
   "version": "1.6.6",
-  "generated_at": "2026-09-23T16:05:18.597684+00:00",
+  "generated_at": "2026-09-23T18:53:04.021516+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/repository-governance-control-plane.yml",
-      "sha256": "43a0a8a069f8292bf2e72de7d273397e66b7068bd74dd0b16d9f646f4faddde3",
-      "size": 10831
+      "sha256": "8d06cbf62beacbe71757c3dc57803327927f1e5d0c1c075a092ad539264e041b",
+      "size": 12744
     },
     {
       "path": ".github/workflows/todo-global-hourly-cycle.yml",
@@ -64,8 +64,8 @@
     },
     {
       "path": "config/repository-governance-control-plane.json",
-      "sha256": "f51d7dee973b05c2b55d8251deac55cd1c47b827f22ef63f0cc0d8107e546808",
-      "size": 2701
+      "sha256": "cab7ac11e8337f808d12f73cc27db8c2ec052f607058ac431b1264006edc282b",
+      "size": 3243
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -749,8 +749,8 @@
     },
     {
       "path": "tests/test_repository_governance_remediation.py",
-      "sha256": "000cff5210ad640bc5b584048efa9bf24ee618e8d31776ad1a2c5427dcc23ba7",
-      "size": 12536
+      "sha256": "23b5c844e15dd17a1f2879f7bbce1eb1cb2f07d20ec147e2b31e589047d47b71",
+      "size": 13919
     },
     {
       "path": "tests/test_session_bootstrap.py",
@@ -814,4 +814,3 @@
     }
   ]
 }
-

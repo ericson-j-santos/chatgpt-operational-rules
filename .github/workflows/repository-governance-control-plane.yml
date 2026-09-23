@@ -268,6 +268,54 @@ jobs:
           --plan evidence/repository-governance-remediation-plan.json
           --result evidence/repository-governance-remediation-result.json
 
+      - name: Validate scheduled remediation context
+        if: github.event_name == 'schedule'
+        env:
+          REPOSITORY_GOVERNANCE_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: |
+          if [ -z "${REPOSITORY_GOVERNANCE_TOKEN}" ]; then
+            echo "::error::REPOSITORY_GOVERNANCE_TOKEN não configurado para remediação agendada."
+            exit 6
+          fi
+
+      - name: Restrict scheduled remediation to safe branch refresh
+        if: github.event_name == 'schedule'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("evidence/repository-governance-remediation-plan.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          actions = payload.get("actions", [])
+          payload["actions"] = [
+              item for item in actions if item.get("type") == "update_branch"
+          ]
+          payload["summary"]["actions_total"] = len(payload["actions"])
+          payload["summary"]["update_branch"] = len(payload["actions"])
+          payload["summary"]["dispatch_merge_queue"] = 0
+          path.write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(
+              "SCHEDULED_REMEDIATION_FILTER "
+              f"safe_actions={len(payload['actions'])} "
+              f"discarded={len(actions) - len(payload['actions'])}"
+          )
+          PY
+
+      - name: Apply scheduled safe remediations
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+        run: >-
+          python scripts/repository_governance_remediation.py
+          --mode apply
+          --plan evidence/repository-governance-remediation-plan.json
+          --result evidence/repository-governance-remediation-result.json
+
+
       - name: Upload governance evidence
         if: always()
         uses: actions/upload-artifact@v4
