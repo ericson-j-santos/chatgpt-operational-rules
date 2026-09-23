@@ -1,6 +1,6 @@
 {
   "version": "1.6.6",
-  "generated_at": "2026-09-23T15:03:14.655699+00:00",
+  "generated_at": "2026-09-23T16:05:18.597684+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "1f291acae79bf7a3bc7e2529f5eb4a34c1039206718b86d0fe51905ee3bd612a",
-      "size": 5738
+      "sha256": "4b432303206d941aa24b2fb7a8ed3159f50ff6695d0b701369578b424546763d",
+      "size": 5911
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -111,6 +111,11 @@
       "path": "projects/reqsys.md",
       "sha256": "379ae58b80a8e1c9066de88c970aa4b6ea251d9fdbc7ac7426566cabb3735737",
       "size": 4739
+    },
+    {
+      "path": "projects/runtime-platform.md",
+      "sha256": "43f487bafaff1402b2f2401710106fc7a9404f5b80f02160b8ca2f1f3881a29d",
+      "size": 3376
     },
     {
       "path": "render.yaml",
@@ -809,3 +814,4 @@
     }
   ]
 }
+

@@ -37,6 +37,7 @@ Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_
 ## Projetos conhecidos
 - ReqSys Produto — prioridade principal P0 enquanto não houver regressão sistêmica do plano de controle.
 - Engineering Control Plane — melhoria contínua; pode reassumir P0 temporário somente diante de gargalo sistêmico comprovado que afete múltiplos repositórios.
+- Runtime Platform / PC24x7 — infraestrutura física/runtime sob demanda por bloqueio real; PC24x7-first, fail-closed e sem absorver lógica de produto ou CI transversal.
 - ocr_evidencia
 - BACEN
 
