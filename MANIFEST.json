@@ -1,6 +1,6 @@
 {
   "version": "1.6.6",
-  "generated_at": "2026-09-22T23:57:59.966876+00:00",
+  "generated_at": "2026-09-23T13:31:29.767774+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "ee50afc815a54a83b3fab3068451a487ddc0a25e9ace3e2c3a033ca1a4f9e241",
-      "size": 5459
+      "sha256": "ecbb6cbe8f268b9ff248d9dc231d6dc56e4a764b3201a3ee640714ab8ad7d65d",
+      "size": 5726
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -98,14 +98,19 @@
       "size": 268
     },
     {
+      "path": "projects/engineering-control-plane.md",
+      "sha256": "703789db520c4b9d932c6d8008dfe37be738601a23313fde3b05d42ccd1374d0",
+      "size": 2914
+    },
+    {
       "path": "projects/ocr-evidencia.md",
       "sha256": "10badf1d1295a390595df04286686d81c9b7dcea1f07899f9f8fe53350761581",
       "size": 226
     },
     {
       "path": "projects/reqsys.md",
-      "sha256": "1cabdd20c8af75b78f3ee6cdc761093fbba868898c95e96b8106c255709dfb2a",
-      "size": 3782
+      "sha256": "379ae58b80a8e1c9066de88c970aa4b6ea251d9fdbc7ac7426566cabb3735737",
+      "size": 4739
     },
     {
       "path": "render.yaml",
