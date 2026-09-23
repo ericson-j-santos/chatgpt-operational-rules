@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.6 - 2026-09-22
+
+- Adicionado watchdog de progresso material para chats, agentes, workers e automações, com limite padrão de 15 minutos.
+- Heartbeat, renovação de lease e polling sem mudança deixam de reiniciar o relógio de progresso.
+- Após estagnação, a decisão canônica passa a ser rerotear quando houver alternativa segura ou bloquear/liberar capacidade quando não houver.
+- Adicionado executor reproduzível `scripts/progress_watchdog.py` e testes positivos/negativos para falso progresso, timeout, reroteamento, bloqueio e timestamps inválidos.
+
 ## 1.6.5 - 2026-09-20
 
 - RDC: resultados técnicos deixam de mascarar falhas funcionais; novo guard semântico classifica `NO_CALLBACK`, efeitos vazios e evidência ausente como falha fechada.
