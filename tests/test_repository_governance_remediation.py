@@ -339,5 +339,39 @@ class RepositoryGovernanceRemediationTests(unittest.TestCase):
         self.assertEqual("repository_not_in_policy", result["results"][0]["reason"])
 
 
+    def test_scheduled_workflow_applies_only_safe_branch_refresh(self):
+        workflow = (
+            ROOT / ".github/workflows/repository-governance-control-plane.yml"
+        ).read_text(encoding="utf-8")
+        assert "Restrict scheduled remediation to safe branch refresh" in workflow
+        assert 'item.get("type") == "update_branch"' in workflow
+        assert "Apply scheduled safe remediations" in workflow
+        assert "REPOSITORY_GOVERNANCE_TOKEN" in workflow
+
+    def test_powerbi_policy_enforces_fresh_branch_without_merge_queue(self):
+        import json
+
+        payload = json.loads(
+            (ROOT / "config/repository-governance-control-plane.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        powerbi = next(
+            item
+            for item in payload["repositories"]
+            if item["repository"] == "ericson-j-santos/powerbi-platform"
+        )
+        self.assertEqual("enforce", powerbi["mode"])
+        self.assertTrue(powerbi["require_up_to_date"])
+        self.assertTrue(powerbi["remediation"]["update_branch"])
+        self.assertFalse(powerbi["remediation"]["direct_merge"])
+        self.assertFalse(powerbi["remediation"]["merge_queue"]["enabled"])
+        self.assertEqual(
+            ["Validate Power BI repository", "Power BI Desktop E2E"],
+            powerbi["required_workflows"],
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
