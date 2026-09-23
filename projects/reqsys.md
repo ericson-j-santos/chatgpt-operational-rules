@@ -1,5 +1,23 @@
 # ReqSys
 
+## Prioridade atual — ReqSys Produto
+
+A partir de 2026-09-23, **ReqSys Produto é o P0 principal**.
+
+O Engineering Control Plane deixou o P0 temporário após cumprir o critério
+`baseline -> mudança -> nova medição com redução objetiva`. Correções genéricas
+de CI, administração transversal de repositórios, workers/orquestrador,
+locks/watchdog, Governed Merge Queue e evidências de engenharia continuam
+pertencendo ao Engineering Control Plane, mas em regime de melhoria contínua.
+
+O Engineering Control Plane só pode voltar a preemptar o ReqSys Produto como P0
+quando existir regressão sistêmica comprovada que afete múltiplos repositórios,
+impeça o ciclo de desenvolvimento ou invalide seus gates/evidências canônicos.
+
+No ReqSys Produto, priorizar evolução funcional, regras de negócio, UX e
+integrações do produto. Problemas exclusivamente físicos de runner/host,
+Command Gateway ou PC24x7 pertencem à Runtime Platform.
+
 Aplicar as regras globais com ênfase em:
 - CI/CD e mergeabilidade;
 - gates de governança e segurança;
