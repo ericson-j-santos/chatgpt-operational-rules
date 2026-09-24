@@ -135,13 +135,40 @@ def main() -> int:
             "type": "Automação",
             "external_id": positive_external,
             "status": "EM ANDAMENTO",
-            "priority": "P2",
+            "priority": "P0",
+            "automation_state": "READY_FOR_AI",
             "source": "GitHub",
             "next_action": "validar continuidade idempotente",
             "automation_action": "ai_control_plane.validate_idempotent_continuation.v1",
         },
     }
     first_post = post_event(token, positive_event)
+
+    lower_external = f"desktop-24x7-e2e-hourly-lower-{suffix}"
+    lower_key = make_idempotency_key(PROJECT, "Automação", lower_external)
+    lower_event_id = f"evt-hourly-lower-{suffix}"
+    lower_event = {
+        "schema_version": "1.0",
+        "event_id": lower_event_id,
+        "event_type": "todo.updated",
+        "occurred_at": utc_now_iso(),
+        "correlation_id": f"corr-hourly-lower-{suffix}",
+        "idempotency_key": lower_key,
+        "project": PROJECT,
+        "producer": "github-hourly-bridge-e2e",
+        "todo": {
+            "title": "E2E candidato de prioridade inferior",
+            "type": "Automação",
+            "external_id": lower_external,
+            "status": "PENDENTE",
+            "priority": "P2",
+            "automation_state": "READY_FOR_AI",
+            "source": "GitHub",
+            "next_action": "validar continuidade idempotente",
+            "automation_action": "ai_control_plane.validate_idempotent_continuation.v1",
+        },
+    }
+    post_event(token, lower_event)
 
     run = WorkflowRun(
         run_id=run_seed,
@@ -151,7 +178,7 @@ def main() -> int:
         html_url=f"https://github.com/{PROJECT.replace(' ', '-').lower()}/e2e/{run_seed}",
         created_at=utc_now_iso(),
     )
-    first_cycle = process_tick(run, GATEWAY_URL, token, only_keys={positive_key})
+    first_cycle = process_tick(run, GATEWAY_URL, token, only_keys={positive_key, lower_key})
     terminal = wait_continuation(token, positive_event_id)
     replay_cycle = process_tick(run, GATEWAY_URL, token, only_keys={positive_key})
 
@@ -164,6 +191,11 @@ def main() -> int:
         database_url,
         "SELECT count(*) FROM todo_bus.continuation_requests WHERE basis_event_id = %s",
         positive_event_id,
+    )
+    lower_continuation_count = db_scalar(
+        database_url,
+        "SELECT count(*) FROM todo_bus.continuation_requests WHERE basis_event_id = %s",
+        lower_event_id,
     )
 
     negative_external = f"desktop-negative-hourly-{suffix}"
@@ -208,6 +240,9 @@ def main() -> int:
         [
             first_post.get("duplicate") is False,
             first_cycle["requested"] == 1,
+            first_cycle["selected_idempotency_key"] == positive_key,
+            first_cycle["skipped_by_capacity"] == 1,
+            lower_continuation_count == "0",
             terminal.get("state") == "COMPLETED",
             replay_cycle["requested"] == 0,
             replay_cycle["duplicate_or_existing"] == 1,
@@ -229,6 +264,10 @@ def main() -> int:
         "positive_continuation_state": terminal.get("state"),
         "positive_event_count": int(positive_event_count),
         "positive_continuation_count": int(positive_continuation_count),
+        "selected_idempotency_key": first_cycle["selected_idempotency_key"],
+        "skipped_by_capacity": first_cycle["skipped_by_capacity"],
+        "lower_event_id": lower_event_id,
+        "lower_continuation_count": int(lower_continuation_count),
         "first_cycle_requested": first_cycle["requested"],
         "replay_cycle_requested": replay_cycle["requested"],
         "replay_existing": replay_cycle["duplicate_or_existing"],
@@ -249,6 +288,15 @@ def main() -> int:
             correlation_id=positive_corr,
             status="CONCLUÍDO",
             evidence=json.dumps(evidence, ensure_ascii=False, sort_keys=True),
+        )
+        terminal_update(
+            token=token,
+            key=lower_key,
+            external_id=lower_external,
+            event_id=f"evt-hourly-lower-cancel-{suffix}",
+            correlation_id=f"corr-hourly-lower-{suffix}",
+            status="CANCELADO",
+            evidence="candidato inferior não despachado no mesmo ciclo",
         )
         terminal_update(
             token=token,
