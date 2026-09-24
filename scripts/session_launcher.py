@@ -86,6 +86,35 @@ def validate_sync_ref(value: str | None) -> tuple[str, str] | None:
     return match.group("remote"), match.group("branch")
 
 
+def validate_session_source(repo: Path, policy: dict) -> bool:
+    """Valida checkout transitório que só pode alimentar uma base isolada."""
+    repo_norm = cg.norm(repo)
+    roots = policy.get("session_source_roots", [])
+    if not isinstance(roots, list):
+        raise cg.GatewayError("session_source_roots deve ser lista", EXIT_SESSION_LAUNCHER)
+    for raw in roots:
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        if any(ch in value for ch in "*?[]"):
+            raise cg.GatewayError(
+                "session_source_roots deve usar caminhos exatos, sem curingas",
+                EXIT_SESSION_LAUNCHER,
+            )
+        if repo_norm != cg.norm(value):
+            continue
+        parts = {part.casefold() for part in Path(repo_norm).parts}
+        denied = {item.casefold() for item in policy.get("denied_segments", [])}
+        if parts & denied:
+            raise cg.GatewayError(
+                "fonte transitória contém segmento sensível bloqueado",
+                EXIT_SESSION_LAUNCHER,
+            )
+        return True
+    cg.assert_allowed_path(repo, policy)
+    return False
+
+
 def tracked_tree_dirty(repo: Path, policy: dict) -> bool:
     result = cg.run_capture(
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=no"],
@@ -161,6 +190,7 @@ def _prepare_isolated_base(
     session_id: str,
 ) -> Path:
     target = _isolated_base_path(policy, session_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         state = cg.git_state(target, True, policy)
         if state is None or state.head.lower() != expected or state.status_count:
@@ -245,10 +275,36 @@ def sync_expected_head(
     expected: str,
     sync_ref: str,
     session_id: str,
+    *,
+    source_only: bool = False,
 ) -> tuple[cg.GitState, Path, str]:
     current = cg.git_state(repo, True, policy)
     assert current is not None
     remote, branch, source_url = _fetch_and_verify_remote(repo, expected, sync_ref)
+
+    if source_only:
+        if current.head.lower() != expected:
+            raise cg.GatewayError(
+                "fonte transitória deve estar exatamente no expected_head",
+                cg.EXIT_STATE_CHANGED,
+            )
+        if tracked_tree_dirty(repo, policy):
+            raise cg.GatewayError(
+                "fonte transitória possui alterações rastreadas",
+                cg.EXIT_STATE_CHANGED,
+            )
+        isolated = _prepare_isolated_base(
+            repo=repo,
+            policy=policy,
+            expected=expected,
+            remote=remote,
+            branch=branch,
+            source_url=source_url,
+            session_id=session_id,
+        )
+        isolated_state = cg.git_state(isolated, True, policy)
+        assert isolated_state is not None
+        return isolated_state, isolated, "isolated_session_source"
 
     ancestor = cg.run_capture(
         ["git", "merge-base", "--is-ancestor", current.head, expected],
@@ -316,7 +372,7 @@ def launch(
 ) -> dict:
     policy = cg.load_policy(policy_path)
     rules_version = ensure_min_version(policy)
-    cg.assert_allowed_path(repo, policy)
+    source_only = validate_session_source(repo, policy)
     state = cg.git_state(repo, True, policy)
     assert state is not None
     expected = validate_expected_head(expected_head)
@@ -324,6 +380,11 @@ def launch(
     if validated_sync_ref and expected is None:
         raise cg.GatewayError(
             "sync_ref exige expected_head explícito",
+            EXIT_SESSION_LAUNCHER,
+        )
+    if source_only and (expected is None or validated_sync_ref is None):
+        raise cg.GatewayError(
+            "fonte transitória exige expected_head e sync_ref explícitos",
             EXIT_SESSION_LAUNCHER,
         )
 
@@ -342,6 +403,7 @@ def launch(
             expected=expected,
             sync_ref=sync_ref,
             session_id=resolved_session,
+            source_only=source_only,
         )
     elif expected and state.head.lower() != expected:
         raise cg.GatewayError(

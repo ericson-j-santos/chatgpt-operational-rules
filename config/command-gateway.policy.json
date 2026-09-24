@@ -80,6 +80,9 @@
   "require_session_bootstrap": true,
   "worktree_root": "C:\\dev\\chatgpt-workers",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.6.6",
-  "require_preflight_snapshot": true
+  "rules_version": "1.6.7",
+  "require_preflight_snapshot": true,
+  "session_source_roots": [
+    "%LOCALAPPDATA%\\ReqSys\\NoteriGitHubRunner\\_work\\reqsys-v2-enterprise-real\\reqsys-v2-enterprise-real"
+  ]
 }

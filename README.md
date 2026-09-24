@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.6
+Versão: 1.6.7
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -31,6 +31,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 18. Para seleção de ferramenta/executor, aplicar `rules/tool-routing.md` e `scripts/tool_router.py`: plugin/API e web nativa ficam no caminho normal; TinyFish é contingência com saldo positivo; Remote Desktop Commander é reservado para ações que dependem da máquina física, especialmente quando a cota restante estiver em modo de reserva.
 19. Para Remote Desktop Commander, sucesso técnico da chamada nunca substitui sucesso funcional: normalizar o resultado com `scripts/rdc_semantic_result.py`, exigir `controller_semantic_ok=true` no roteamento e usar recuperação fail-fast com circuit breaker persistente; `NO_CALLBACK`, efeitos vazios/não comprovados e `SESSION_LAUNCH_BLOCKED` devem falhar fechado e suprimir retries até nova sonda governada.
 20. Para chats, agentes, workers e automações, aplicar `rules/progress-watchdog.md`: heartbeat, renovação de lease e polling sem mudança não contam como progresso; após 300 segundos (5 minutos) sem evidência material, rerotear quando houver alternativa segura ou bloquear/liberar capacidade quando não houver. Usar `scripts/progress_watchdog.py` para decisão reproduzível.
+21. Em GitHub Actions self-hosted, quando o checkout transitório ficar fora da allowlist normal do Gateway, o `session_launcher.py` pode aceitá-lo somente se o caminho exato estiver em `session_source_roots`; essa origem serve apenas para materializar uma base isolada dentro de `C:\\dev\\chatgpt-workers` no SHA validado e nunca vira `cwd` de comando.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
