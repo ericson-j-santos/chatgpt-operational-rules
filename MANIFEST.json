@@ -1,6 +1,6 @@
 {
-  "version": "1.6.6",
-  "generated_at": "2026-09-24T01:38:35.789825+00:00",
+  "version": "1.6.7",
+  "generated_at": "2026-09-24T13:59:00+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,18 +44,18 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "1ca087e9a556fa8005d673b2d87fb9754390a8a68ff369f191a390b2bbf08d0a",
-      "size": 10893
+      "sha256": "61c29298db9eeb9ffbbe6756fda9171af162ab979feead3feef84d55aa9316e6",
+      "size": 11608
     },
     {
       "path": "README.md",
-      "sha256": "4b432303206d941aa24b2fb7a8ed3159f50ff6695d0b701369578b424546763d",
-      "size": 5911
+      "sha256": "2fae3c46cf265ec68283eaddea90a4f46c9bb2da8a76760cb35783b809fcb1dc",
+      "size": 6266
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "f08ded1ab869d5d4abd0078d97326ab2cf711379bb2b9a9d8c2662b2db8ee07a",
-      "size": 1567
+      "sha256": "4bbca141ac387548e78a94fb12d97359360dfcd37f69096f9903319620e9a7ce",
+      "size": 1710
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -189,8 +189,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "f5ea8cbb99b37af850b7157b0d2776cacc2b420f22a8e05bdfc892d9207fd1f3",
-      "size": 5876
+      "sha256": "51c7be6ef491498cd3a79e1d7fbbd3df1dae89b959356506f1244fa96ac37d70",
+      "size": 6722
     },
     {
       "path": "rules/terminal-execution.md",
@@ -434,8 +434,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "2d7e362af5628e273ab015f4fa174845ca00a3570adbae049608d852e6fe9d50",
-      "size": 14678
+      "sha256": "b1bc60602b0361af01c2cdb2f0fe4d0687fd3848625e207f968239b8a8e69319",
+      "size": 17059
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -759,8 +759,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "fcfebc8abdc35067e7a2576aeb03eaf923932fbf01847efc378e633c12850494",
-      "size": 2019
+      "sha256": "89e3f997852d5b6ef2098a79849e578ace996a56a8b88622f9147cb0c727b05e",
+      "size": 3008
     },
     {
       "path": "tests/test_session_preflight.py",

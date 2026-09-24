@@ -51,6 +51,14 @@ Sem `BOOTSTRAP_OK`, nenhuma execução local subsequente é considerada autoriza
 - Alterações de risco 2 devem ocorrer no worktree reservado/materializado da sessão.
 - Risco 3 continua exigindo autorização humana explícita e não é liberado pelo bootstrap.
 
+## Fonte transitória de checkout em GitHub Actions
+
+- `session_source_roots` pode declarar somente caminhos **exatos** de checkouts transitórios conhecidos de runners self-hosted; curingas são proibidos.
+- Essa exceção existe somente dentro do `session_launcher.py`; ela não amplia `allowed_roots` do Command Gateway e não autoriza `run`/`inspect` nesse checkout.
+- Fonte transitória exige `--expected-head` e `--sync-ref`, deve apontar exatamente para o SHA remoto validado e não pode possuir alterações rastreadas.
+- Antes do preflight, a origem deve ser clonada para uma base isolada dentro da allowlist normal (`worktree_root`) e revalidada limpa, detached e no SHA esperado.
+- `denied_segments` continua valendo também para a origem transitória; falha de SHA, remoto, limpeza, casing ou materialização permanece fail-closed.
+
 ## Critério de conclusão
 
 O bootstrap está válido somente quando:

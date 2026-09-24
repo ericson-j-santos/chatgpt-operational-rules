@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.7 - 2026-09-24
+
+- O Session Launcher passa a aceitar fontes transitórias de checkout explicitamente allowlisted por caminho exato em `session_source_roots`.
+- Checkout de GitHub Actions fora da allowlist normal nunca vira diretório de execução: o bootstrap valida SHA/remoto, exige árvore rastreada limpa e materializa base isolada em `C:\\dev\\chatgpt-workers` antes do preflight.
+- A exceção de fonte não relaxa `denied_segments`, não permite curingas e não altera a allowlist do Command Gateway para comandos pós-bootstrap.
+- Adicionada origem canônica do runner Noteri para eliminar dependência de `C:\\dev\\reqsys-v2-enterprise-real` pré-existente sem recorrer a RDC ou shell irrestrito.
+
 ## 1.6.6 - 2026-09-22
 
 - Adicionado watchdog de progresso material para chats, agentes, workers e automações, com limite padrão de 15 minutos.

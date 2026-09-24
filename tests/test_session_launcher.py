@@ -36,6 +36,28 @@ class SessionLauncherTests(unittest.TestCase):
         with self.assertRaises(cg.GatewayError):
             sl.validate_expected_head("abc123")
 
+    def test_transient_session_source_is_exact_and_never_general_allowlist(self) -> None:
+        policy = {
+            "allowed_roots": ["/safe"],
+            "denied_roots": ["/tmp"],
+            "denied_segments": [".ssh"],
+            "session_source_roots": ["/tmp/actions/repo"],
+        }
+        self.assertTrue(sl.validate_session_source(Path("/tmp/actions/repo"), policy))
+        self.assertFalse(sl.validate_session_source(Path("/safe/repo"), policy))
+        with self.assertRaises(cg.GatewayError):
+            sl.validate_session_source(Path("/tmp/actions/repo/nested"), policy)
+
+    def test_transient_session_source_rejects_wildcards(self) -> None:
+        policy = {
+            "allowed_roots": ["/safe"],
+            "denied_roots": ["/tmp"],
+            "denied_segments": [],
+            "session_source_roots": ["/tmp/actions/*"],
+        }
+        with self.assertRaises(cg.GatewayError):
+            sl.validate_session_source(Path("/tmp/actions/repo"), policy)
+
     def test_sync_ref_requires_remote_branch(self) -> None:
         self.assertEqual(sl.validate_sync_ref("origin/main"), ("origin", "main"))
         self.assertEqual(
