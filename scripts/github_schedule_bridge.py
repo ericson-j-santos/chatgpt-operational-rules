@@ -23,6 +23,9 @@ DEFAULT_GATEWAY_URL = "http://127.0.0.1:8094"
 DEFAULT_STATE_FILE = "todo-global-hourly-bridge-state.json"
 TERMINAL_STATUSES = {"CONCLUÍDO", "CANCELADO"}
 ALLOWED_RUN_EVENTS = {"schedule", "workflow_dispatch"}
+READY_AUTOMATION_STATES = {"READY_FOR_AI", "READY"}
+PRIORITY_RANK = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+FAR_FUTURE = "9999-12-31T23:59:59Z"
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,72 @@ class WorkflowRun:
 
 class BridgeError(RuntimeError):
     pass
+
+
+def _candidate_sort_key(item: dict[str, Any]) -> tuple[int, str, str]:
+    todo = item.get("todo") or {}
+    priority = str(todo.get("priority") or "").strip().upper()
+    rank = PRIORITY_RANK.get(priority, len(PRIORITY_RANK))
+    created_at = str(todo.get("created_at") or item.get("created_at") or FAR_FUTURE)
+    key = str(item.get("idempotency_key") or "")
+    return rank, created_at, key
+
+
+def _select_dispatch_candidate(
+    items: list[Any],
+    continuation_basis: set[str],
+    scheduler_key: str,
+    *,
+    only_keys: set[str] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, int]]:
+    counters = {
+        "duplicate_or_existing": 0,
+        "skipped_terminal": 0,
+        "skipped_untyped": 0,
+        "skipped_not_ready": 0,
+        "eligible": 0,
+        "skipped_by_capacity": 0,
+    }
+    candidates: list[dict[str, Any]] = []
+
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        key = str(raw.get("idempotency_key") or "")
+        if not key or key == scheduler_key:
+            continue
+        if only_keys is not None and key not in only_keys:
+            continue
+
+        todo = raw.get("todo") or {}
+        if not isinstance(todo, dict):
+            continue
+        status = str(todo.get("status") or "").strip().upper()
+        if status in TERMINAL_STATUSES:
+            counters["skipped_terminal"] += 1
+            continue
+
+        action = str(todo.get("automation_action") or "").strip()
+        if not action:
+            counters["skipped_untyped"] += 1
+            continue
+
+        automation_state = str(todo.get("automation_state") or "").strip().upper()
+        if automation_state and automation_state not in READY_AUTOMATION_STATES:
+            counters["skipped_not_ready"] += 1
+            continue
+
+        basis_event_id = str(raw.get("event_id") or "")
+        if basis_event_id and basis_event_id in continuation_basis:
+            counters["duplicate_or_existing"] += 1
+            continue
+
+        candidates.append(raw)
+
+    candidates.sort(key=_candidate_sort_key)
+    counters["eligible"] = len(candidates)
+    counters["skipped_by_capacity"] = max(0, len(candidates) - 1)
+    return (candidates[0] if candidates else None), counters
 
 
 def _json_request(
@@ -178,60 +247,44 @@ def process_tick(
         if isinstance(item, dict)
     }
 
+    selected, counters = _select_dispatch_candidate(
+        list(todos.get("items", [])),
+        continuation_basis,
+        scheduler_key,
+        only_keys=only_keys,
+    )
+
     requested = 0
-    duplicate_or_existing = 0
-    skipped_terminal = 0
-    skipped_untyped = 0
     failures = 0
     details: list[dict[str, str]] = []
+    selected_key = ""
 
-    for item in todos.get("items", []):
-        if not isinstance(item, dict):
-            continue
-        key = str(item.get("idempotency_key") or "")
-        if not key or key == scheduler_key:
-            continue
-        if only_keys is not None and key not in only_keys:
-            continue
-        todo = item.get("todo") or {}
-        if not isinstance(todo, dict):
-            continue
-        status = str(todo.get("status") or "")
-        if status in TERMINAL_STATUSES:
-            skipped_terminal += 1
-            continue
-        action = str(todo.get("automation_action") or "").strip()
-        if not action:
-            skipped_untyped += 1
-            continue
-        basis_event_id = str(item.get("event_id") or "")
-        if basis_event_id and basis_event_id in continuation_basis:
-            duplicate_or_existing += 1
-            continue
-        correlation_id = f"gh-hourly-{run.run_id}-{key[:12]}"
+    if selected is not None:
+        selected_key = str(selected.get("idempotency_key") or "")
+        correlation_id = f"gh-hourly-{run.run_id}-{selected_key[:12]}"
         try:
             result = _gateway_json(
                 "POST",
                 gateway_url,
                 gateway_token,
-                f"/v1/todos/{quote(key, safe='')}/continue",
+                f"/v1/todos/{quote(selected_key, safe='')}/continue",
                 {"correlation_id": correlation_id},
             )
         except BridgeError as exc:
             failures += 1
-            details.append({"idempotency_key": key, "result": "error", "detail": str(exc)[:160]})
-            continue
-        if bool(result.get("duplicate")):
-            duplicate_or_existing += 1
+            details.append({"idempotency_key": selected_key, "result": "error", "detail": str(exc)[:160]})
         else:
-            requested += 1
-        details.append(
-            {
-                "idempotency_key": key,
-                "request_id": str(result.get("request_id") or ""),
-                "result": "duplicate" if result.get("duplicate") else "requested",
-            }
-        )
+            if bool(result.get("duplicate")):
+                counters["duplicate_or_existing"] += 1
+            else:
+                requested = 1
+            details.append(
+                {
+                    "idempotency_key": selected_key,
+                    "request_id": str(result.get("request_id") or ""),
+                    "result": "duplicate" if result.get("duplicate") else "requested",
+                }
+            )
 
     if failures:
         raise BridgeError(f"continuation request failures={failures}")
@@ -244,9 +297,13 @@ def process_tick(
         "scheduler_event_id": event["event_id"],
         "scheduler_event_duplicate": bool(publish.get("duplicate")),
         "requested": requested,
-        "duplicate_or_existing": duplicate_or_existing,
-        "skipped_terminal": skipped_terminal,
-        "skipped_untyped": skipped_untyped,
+        "duplicate_or_existing": counters["duplicate_or_existing"],
+        "skipped_terminal": counters["skipped_terminal"],
+        "skipped_untyped": counters["skipped_untyped"],
+        "skipped_not_ready": counters["skipped_not_ready"],
+        "eligible": counters["eligible"],
+        "skipped_by_capacity": counters["skipped_by_capacity"],
+        "selected_idempotency_key": selected_key,
         "details": details,
     }
 
@@ -273,6 +330,10 @@ def save_state(path: Path, run: WorkflowRun, result: dict[str, Any]) -> None:
             "duplicate_or_existing": result["duplicate_or_existing"],
             "skipped_terminal": result["skipped_terminal"],
             "skipped_untyped": result["skipped_untyped"],
+            "skipped_not_ready": result.get("skipped_not_ready", 0),
+            "eligible": result.get("eligible", 0),
+            "skipped_by_capacity": result.get("skipped_by_capacity", 0),
+            "selected_idempotency_key": result.get("selected_idempotency_key", ""),
         },
     }
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
