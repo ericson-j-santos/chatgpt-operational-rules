@@ -274,13 +274,13 @@
     },
     {
       "path": "scripts/github_schedule_bridge.py",
-      "sha256": "f176f7e90e42dfb625664c61e609d1cd0e2c7f013392f92b1d98191477602911",
-      "size": 11995
+      "sha256": "2555c99d9e5ce87e7d225a751d1e9300f87d4eee088ab600b89d0a0b3e2fc425",
+      "size": 14338
     },
     {
       "path": "scripts/github_schedule_bridge_e2e.py",
-      "sha256": "c0fddc7be3b5086d5c47b23e85702040fae00729938e0ccbfc7c99c830ae69e9",
-      "size": 9429
+      "sha256": "5bf278ae656197037a719bafe80920a295979f403fcf4384b34357e18ee9f62c",
+      "size": 11472
     },
     {
       "path": "scripts/gitlab_relay_registrar.py",
@@ -649,8 +649,8 @@
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
-      "sha256": "b2b3c5bc158ace6acb5bd42e216e86b69169192d234b3943bece71aca1bbdf17",
-      "size": 7326
+      "sha256": "24083658a518f61c51056579331191f8182a18a127600f010a614a1b2818e9a0",
+      "size": 9504
     },
     {
       "path": "tests/test_gitlab_webhook.py",

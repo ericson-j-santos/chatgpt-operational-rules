@@ -67,12 +67,15 @@ class GitHubScheduleBridgeTests(unittest.TestCase):
         self.assertEqual(first_key, second_key)
 
     @patch("scripts.github_schedule_bridge._gateway_json")
-    def test_process_tick_requests_only_new_typed_nonterminal_todos(self, gateway):
+    def test_process_tick_dispatches_one_highest_priority_oldest_todo(self, gateway):
         scheduler_event, scheduler_key = _scheduler_event(run())
-        typed_key = "1" * 64
-        existing_key = "2" * 64
-        terminal_key = "3" * 64
-        untyped_key = "4" * 64
+        p2_old_key = "1" * 64
+        p0_new_key = "2" * 64
+        p0_old_key = "3" * 64
+        existing_key = "4" * 64
+        terminal_key = "5" * 64
+        untyped_key = "6" * 64
+        not_ready_key = "7" * 64
 
         def side_effect(method, gateway_url, token, path, payload=None):
             if method == "POST" and path == "/v1/events":
@@ -82,17 +85,57 @@ class GitHubScheduleBridgeTests(unittest.TestCase):
                 return {
                     "items": [
                         {"event_id": "evt-scheduler", "idempotency_key": scheduler_key, "todo": {"status": "EM ANDAMENTO"}},
-                        {"event_id": "evt-typed", "idempotency_key": typed_key, "todo": {"status": "PENDENTE", "automation_action": "safe.action.v1"}},
-                        {"event_id": "evt-existing", "idempotency_key": existing_key, "todo": {"status": "EM ANDAMENTO", "automation_action": "safe.action.v1"}},
-                        {"event_id": "evt-terminal", "idempotency_key": terminal_key, "todo": {"status": "CONCLUÍDO", "automation_action": "safe.action.v1"}},
-                        {"event_id": "evt-untyped", "idempotency_key": untyped_key, "todo": {"status": "PENDENTE"}},
+                        {
+                            "event_id": "evt-p2-old",
+                            "idempotency_key": p2_old_key,
+                            "created_at": "2026-09-18T08:00:00Z",
+                            "todo": {"status": "PENDENTE", "priority": "P2", "automation_action": "safe.action.v1"},
+                        },
+                        {
+                            "event_id": "evt-p0-new",
+                            "idempotency_key": p0_new_key,
+                            "created_at": "2026-09-18T11:00:00Z",
+                            "todo": {"status": "PENDENTE", "priority": "P0", "automation_action": "safe.action.v1"},
+                        },
+                        {
+                            "event_id": "evt-p0-old",
+                            "idempotency_key": p0_old_key,
+                            "created_at": "2026-09-18T10:00:00Z",
+                            "todo": {
+                                "status": "PENDENTE",
+                                "priority": "P0",
+                                "automation_state": "READY_FOR_AI",
+                                "automation_action": "safe.action.v1",
+                            },
+                        },
+                        {
+                            "event_id": "evt-existing",
+                            "idempotency_key": existing_key,
+                            "todo": {"status": "EM ANDAMENTO", "priority": "P0", "automation_action": "safe.action.v1"},
+                        },
+                        {
+                            "event_id": "evt-terminal",
+                            "idempotency_key": terminal_key,
+                            "todo": {"status": "CONCLUÍDO", "priority": "P0", "automation_action": "safe.action.v1"},
+                        },
+                        {"event_id": "evt-untyped", "idempotency_key": untyped_key, "todo": {"status": "PENDENTE", "priority": "P0"}},
+                        {
+                            "event_id": "evt-not-ready",
+                            "idempotency_key": not_ready_key,
+                            "todo": {
+                                "status": "PENDENTE",
+                                "priority": "P0",
+                                "automation_state": "HOLD",
+                                "automation_action": "safe.action.v1",
+                            },
+                        },
                     ]
                 }
             if method == "GET" and path == "/v1/continuations?limit=200":
                 return {"items": [{"basis_event_id": "evt-existing"}]}
-            if method == "POST" and path == f"/v1/todos/{typed_key}/continue":
-                self.assertEqual(payload["correlation_id"], f"gh-hourly-101-{typed_key[:12]}")
-                return {"duplicate": False, "request_id": "cont-typed"}
+            if method == "POST" and path == f"/v1/todos/{p0_old_key}/continue":
+                self.assertEqual(payload["correlation_id"], f"gh-hourly-101-{p0_old_key[:12]}")
+                return {"duplicate": False, "request_id": "cont-p0-old"}
             raise AssertionError((method, path))
 
         gateway.side_effect = side_effect
@@ -102,6 +145,10 @@ class GitHubScheduleBridgeTests(unittest.TestCase):
         self.assertEqual(result["duplicate_or_existing"], 1)
         self.assertEqual(result["skipped_terminal"], 1)
         self.assertEqual(result["skipped_untyped"], 1)
+        self.assertEqual(result["skipped_not_ready"], 1)
+        self.assertEqual(result["eligible"], 3)
+        self.assertEqual(result["skipped_by_capacity"], 2)
+        self.assertEqual(result["selected_idempotency_key"], p0_old_key)
 
     @patch("scripts.github_schedule_bridge.process_tick")
     @patch("scripts.github_schedule_bridge.latest_successful_run")
