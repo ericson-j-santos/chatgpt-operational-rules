@@ -3,7 +3,8 @@
   "allowed_roots": [
     "C:\\dev\\reqsys-v2-enterprise-real",
     "C:\\dev\\wt-*",
-    "C:\\dev\\chatgpt-workers\\*"
+    "C:\\dev\\chatgpt-workers\\*",
+    "C:\\Users\\erics\\AppData\\Local\\ReqSys\\NoteriGitHubRunner\\_work\\*"
   ],
   "denied_roots": [
     "%USERPROFILE%"
@@ -80,6 +81,6 @@
   "require_session_bootstrap": true,
   "worktree_root": "C:\\dev\\chatgpt-workers",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.6.6",
+  "rules_version": "1.6.7",
   "require_preflight_snapshot": true
 }
