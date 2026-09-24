@@ -35,7 +35,7 @@ O perfil padrão autoriza somente:
 
 O namespace `C:\dev\chatgpt-workers\*` é o local preferencial para múltiplos chats/agentes. Cada frente deve usar diretório e branch próprios; não compartilhar o mesmo working tree entre workers.
 
-Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys. Para Portal Portabilidade, usar clone/worktree isolado do repositório canônico `ericson-j-santos/portal-portabilidade`.
+Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys. Para Portal Portabilidade, usar clone/worktree isolado do repositório canônico `ericson-j-santos/portal-portabilidade-2025`.
 
 O perfil padrão não autoriza clones existentes no diretório de usuário, o volume `D:` nem outros diretórios fora da allowlist. Um novo projeto só entra no gateway ao ser colocado no namespace de workers ou por alteração explícita desta política.
 

@@ -1,6 +1,6 @@
 {
   "version": "1.6.6",
-  "generated_at": "2026-09-23T18:53:04.021516+00:00",
+  "generated_at": "2026-09-24T01:38:35.789825+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -144,8 +144,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "c85bf843b7d57f0ca2abab7017da9c9d9f9c6750ed885d93a7dd0ba24b9063e9",
-      "size": 7138
+      "sha256": "45d368626b2ae6a59f521dba37dfb2879ecb57c5532ee38bec0c6e8d32f447d1",
+      "size": 7143
     },
     {
       "path": "rules/dual-host-routing.md",
