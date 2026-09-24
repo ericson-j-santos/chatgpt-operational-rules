@@ -30,6 +30,30 @@ class CommandGatewayTests(unittest.TestCase):
         self.assertNotIn(r"C:\Users\Windows\portal-portabilidade", allowed)
         self.assertNotIn(r"D:\portal-portabilidade", allowed)
 
+    def test_operational_policy_allows_only_noteri_runner_workspace_subtree(self) -> None:
+        policy = cg.load_policy(POLICY)
+        allowed = policy["allowed_roots"]
+        noteri_root = r"C:\Users\erics\AppData\Local\ReqSys\NoteriGitHubRunner\_work\*"
+        self.assertIn(noteri_root, allowed)
+        self.assertTrue(
+            cg.pattern_match(
+                r"C:\Users\erics\AppData\Local\ReqSys\NoteriGitHubRunner\_work\reqsys\reqsys",
+                noteri_root,
+            )
+        )
+        self.assertFalse(
+            cg.pattern_match(
+                r"C:\Users\erics\AppData\Local\ReqSys\DesktopGitHubRunner\_work\reqsys\reqsys",
+                noteri_root,
+            )
+        )
+        self.assertFalse(
+            cg.pattern_match(
+                r"C:\Users\erics\Desktop\reqsys-v2-enterprise-real",
+                noteri_root,
+            )
+        )
+
     def test_sensitive_reference_blocks_env_and_token(self) -> None:
         policy = {"denied_names": [".env", ".env.*"], "denied_segments": [".ssh"]}
         self.assertTrue(cg.sensitive_reference(["git", "diff", "--", ".env"], policy))
