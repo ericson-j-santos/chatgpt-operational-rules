@@ -1,6 +1,6 @@
 {
   "version": "1.6.7",
-  "generated_at": "2026-09-24T13:59:00+00:00",
+  "generated_at": "2026-09-25T19:27:44.309763+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "2fae3c46cf265ec68283eaddea90a4f46c9bb2da8a76760cb35783b809fcb1dc",
-      "size": 6266
+      "sha256": "45650d86abc23748d3f083ad7cb57b3a4664d97286ef66afbfc1ca59783191bb",
+      "size": 6606
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -114,8 +114,8 @@
     },
     {
       "path": "projects/runtime-platform.md",
-      "sha256": "43f487bafaff1402b2f2401710106fc7a9404f5b80f02160b8ca2f1f3881a29d",
-      "size": 3376
+      "sha256": "8b3c14d9cc91a78586ab584932e3e8eaa44d2599a910102367a162b15ecfbab4",
+      "size": 3652
     },
     {
       "path": "render.yaml",
@@ -146,6 +146,11 @@
       "path": "rules/command-gateway.md",
       "sha256": "45d368626b2ae6a59f521dba37dfb2879ecb57c5532ee38bec0c6e8d32f447d1",
       "size": 7143
+    },
+    {
+      "path": "rules/control-plane-recovery.md",
+      "sha256": "5ba8b0a86b643ec07cbc98508d661252f975fab14296774fbf8703328576f499",
+      "size": 2904
     },
     {
       "path": "rules/dual-host-routing.md",
