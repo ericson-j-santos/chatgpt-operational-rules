@@ -1,6 +1,6 @@
 {
   "version": "1.6.7",
-  "generated_at": "2026-09-25T19:28:00+00:00",
+  "generated_at": "2026-09-25T19:29:14.420686+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "440fcadb9c01078434a4db64620b2b0415cef6a347c26f5eee6626e7efae9500",
-      "size": 1942
+      "sha256": "13b30dacef06eb931aa51606286820bd5f7971e9144971f45066adec4da680d7",
+      "size": 2225
     },
     {
       "path": "CHANGELOG.md",
@@ -529,8 +529,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "aad5a7c7a022bebba9c35cd1e73e13a3bc5c7e38ed237a14a47b4a3498b40444",
-      "size": 9302
+      "sha256": "7a1b34c0bd04291c2b11143cff636a9632fe11ea0005ac6e50b401c9429b1b1f",
+      "size": 9407
     },
     {
       "path": "services/__init__.py",
