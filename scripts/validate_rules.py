@@ -26,7 +26,7 @@ REQUIRED_PATHS = {
     "scripts/session_preflight.py", "scripts/session_preflight_e2e.py", "scripts/session_launcher.py",
     "scripts/session_launcher_e2e.py", "scripts/dual_host_preflight.py", "scripts/host_operating_profile.py", "scripts/validate_rules.py",
     "scripts/rdc_host_fix.py", "scripts/rdc_task_resilience.py", "scripts/rdc_owner_arbitration.py", "scripts/rdc_semantic_result.py",
-    "rules/dual-host-routing.md", "rules/tool-routing.md", "scripts/tool_router.py",
+    "rules/dual-host-routing.md", "rules/tool-routing.md", "rules/control-plane-recovery.md", "scripts/tool_router.py",
     "tests/test_command_gateway.py", "tests/test_host_bootstrap.py", "tests/test_session_bootstrap.py",
     "tests/test_session_preflight.py", "tests/test_session_launcher.py", "tests/test_dual_host_preflight.py",
     "tests/test_host_operating_profile.py", "tests/test_tool_router.py", "tests/test_rdc_semantic_result.py",
@@ -91,7 +91,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         match = re.search(r"^Versão:\s*(\S+)\s*$", readme, re.MULTILINE)
         if not match or match.group(1) != version:
             errors.append("versão do README diverge do manifesto.")
-        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):
+        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md"):
             if ref not in readme:
                 errors.append(f"README não referencia {ref}.")
         if "BOOTSTRAP_OK" not in readme:
@@ -100,7 +100,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             errors.append("README não define session_preflight.py como ponto de entrada obrigatório.")
     if agents_path.is_file():
         agents = agents_path.read_text(encoding="utf-8")
-        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md"):
+        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md"):
             if ref not in agents:
                 errors.append(f"AGENTS.md não referencia {ref}.")
         for required_text in ("scripts/session_preflight.py", "scripts/install_command_gateway_host.py", "BOOTSTRAP_OK", "HOST_BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):

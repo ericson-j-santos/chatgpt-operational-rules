@@ -1,6 +1,6 @@
 {
   "version": "1.6.7",
-  "generated_at": "2026-09-24T13:59:00+00:00",
+  "generated_at": "2026-09-25T19:29:30+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "440fcadb9c01078434a4db64620b2b0415cef6a347c26f5eee6626e7efae9500",
-      "size": 1942
+      "sha256": "13b30dacef06eb931aa51606286820bd5f7971e9144971f45066adec4da680d7",
+      "size": 2225
     },
     {
       "path": "CHANGELOG.md",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "2fae3c46cf265ec68283eaddea90a4f46c9bb2da8a76760cb35783b809fcb1dc",
-      "size": 6266
+      "sha256": "45650d86abc23748d3f083ad7cb57b3a4664d97286ef66afbfc1ca59783191bb",
+      "size": 6606
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -114,8 +114,8 @@
     },
     {
       "path": "projects/runtime-platform.md",
-      "sha256": "43f487bafaff1402b2f2401710106fc7a9404f5b80f02160b8ca2f1f3881a29d",
-      "size": 3376
+      "sha256": "8b3c14d9cc91a78586ab584932e3e8eaa44d2599a910102367a162b15ecfbab4",
+      "size": 3652
     },
     {
       "path": "render.yaml",
@@ -146,6 +146,11 @@
       "path": "rules/command-gateway.md",
       "sha256": "45d368626b2ae6a59f521dba37dfb2879ecb57c5532ee38bec0c6e8d32f447d1",
       "size": 7143
+    },
+    {
+      "path": "rules/control-plane-recovery.md",
+      "sha256": "5ba8b0a86b643ec07cbc98508d661252f975fab14296774fbf8703328576f499",
+      "size": 2904
     },
     {
       "path": "rules/dual-host-routing.md",
@@ -524,8 +529,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "aad5a7c7a022bebba9c35cd1e73e13a3bc5c7e38ed237a14a47b4a3498b40444",
-      "size": 9302
+      "sha256": "7a1b34c0bd04291c2b11143cff636a9632fe11ea0005ac6e50b401c9429b1b1f",
+      "size": 9407
     },
     {
       "path": "services/__init__.py",
