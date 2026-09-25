@@ -56,6 +56,7 @@ ReqSys não deve ser removido apenas para completar a separação estrutural.
 7. Runtime legado, inclusive Fly.io, não pode reaparecer silenciosamente como
    fallback normal quando a rota canônica for PC24x7.
 8. Segredos devem permanecer fora de Git, chat, logs e artifacts.
+9. Aplicar `rules/control-plane-recovery.md`: um host com plano de controle vivo deve ser recuperado por extensão/uso desse plano antes de qualquer launcher, GUI ou acesso remoto manual; bootstrap manual é migração única e deve deixar auto-recovery permanente instalado.
 
 ## Critério de evidência
 
