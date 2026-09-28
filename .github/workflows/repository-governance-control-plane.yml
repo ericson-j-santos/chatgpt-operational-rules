@@ -161,12 +161,18 @@ jobs:
               assert re.fullmatch(r"[0-9a-f]{40}", pull["head_sha"])
               assert pull["base_ref"] == "main"
 
+          policy_repositories = {
+              item["repository"]
+              for item in policy["repositories"]
+              if isinstance(item, dict) and isinstance(item.get("repository"), str)
+          }
           for action in remediation["actions"]:
               assert action["type"] in {"update_branch", "dispatch_merge_queue"}
               assert action["type"] != "direct_merge"
               assert re.fullmatch(r"[0-9a-f]{40}", action["expected_head_sha"])
-              assert action["repository"] == reqsys_name
+              assert action["repository"] in policy_repositories
               if action["type"] == "dispatch_merge_queue":
+                  assert action["repository"] == reqsys_name
                   assert action["workflow"] == "governed-merge-queue.yml"
 
           public_only = bool(snapshot.get("public_only"))
