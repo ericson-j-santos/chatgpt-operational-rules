@@ -339,6 +339,24 @@ class RepositoryGovernanceRemediationTests(unittest.TestCase):
         self.assertEqual("repository_not_in_policy", result["results"][0]["reason"])
 
 
+    def test_live_validation_accepts_remediation_for_any_policy_repository(self):
+        workflow = (
+            ROOT / ".github/workflows/repository-governance-control-plane.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("policy_repositories = {", workflow)
+        self.assertIn(
+            'assert action["repository"] in policy_repositories',
+            workflow,
+        )
+        self.assertIn(
+            'if action["type"] == "dispatch_merge_queue":',
+            workflow,
+        )
+        self.assertIn(
+            'assert action["repository"] == reqsys_name',
+            workflow,
+        )
+
     def test_scheduled_workflow_applies_only_safe_branch_refresh(self):
         workflow = (
             ROOT / ".github/workflows/repository-governance-control-plane.yml"
