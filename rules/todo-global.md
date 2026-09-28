@@ -77,6 +77,26 @@ A forma canônica do evento é definida por `schemas/todo-event-v1.schema.json`.
 - Não armazenar segredo, credencial ou conteúdo sensível bruto na DLQ.
 - Reprocessamento da DLQ deve manter `event_id`/`idempotency_key` ou registrar a relação com o evento original.
 
+## Pendências manuais e dívida de automação
+
+Uma pendência não deve ser classificada simplesmente como "manual" quando existir caminho técnico seguro para reduzi-la ou eliminá-la.
+
+Antes de devolver uma ação ao usuário, o fluxo deve classificar a dependência em uma destas categorias:
+
+- `AUTOMATIZAVEL`: existe ferramenta/API/workflow governado capaz de executar a ação sem nova autorização crítica; executar automaticamente e validar o efeito.
+- `AUTOMATIZAVEL_APOS_AUTORIZACAO`: a execução é tecnicamente automatizável, mas o efeito exige autorização explícita por risco, ambiente ou privilégio; preparar todo o caminho, validar preflight e pedir somente a autorização mínima restante.
+- `INTRINSECAMENTE_HUMANO`: a plataforma exige presença/consentimento humano não delegável, como consentimento OAuth interativo, UAC local quando nenhum canal administrativo governado existe, CAPTCHA ou confirmação física equivalente.
+
+Regras obrigatórias:
+
+1. `AUTOMATIZAVEL` não pode permanecer como TODO manual.
+2. Em `AUTOMATIZAVEL_APOS_AUTORIZACAO`, automatizar diagnóstico, preflight, configuração não sensível, testes, rollback e validação antes de pedir autorização; não pedir ao usuário para executar passos que a automação pode executar.
+3. Em `INTRINSECAMENTE_HUMANO`, reduzir a intervenção ao menor gesto possível e automatizar imediatamente o pós-consentimento, inclusive readback, E2E e atualização do TODO.
+4. Bloqueio por segredo, token, DSN ou credencial deve primeiro tentar resolver a referência por secret store/configuração governada; nunca solicitar o valor bruto no chat se existir rota segura.
+5. Toda dependência humana recorrente deve gerar ação preventiva para que a próxima ocorrência seja automática ou exija menos intervenção.
+6. O TODO deve registrar `blocker`, `next_action`, evidência atual e, quando existir, uma `automation_action` tipada/allowlisted; texto livre nunca vira comando.
+7. Uma ação humana concluída não encerra o TODO por si só: a automação deve validar o efeito real e atualizar o estado com evidência atual.
+
 ## Estado e fail-closed
 
 Estados canônicos do TODO:

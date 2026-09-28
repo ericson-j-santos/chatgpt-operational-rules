@@ -1,6 +1,6 @@
 {
   "version": "1.6.7",
-  "generated_at": "2026-09-28T16:05:12.382433+00:00",
+  "generated_at": "2026-09-28T17:22:16.556121+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "45650d86abc23748d3f083ad7cb57b3a4664d97286ef66afbfc1ca59783191bb",
-      "size": 6606
+      "sha256": "a9fb3ad39a5356c1c38395885fad272a3ac56a4e5ce29e32fef70bc89fce0e93",
+      "size": 7055
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -204,8 +204,8 @@
     },
     {
       "path": "rules/todo-global.md",
-      "sha256": "2e379bf7c9719ae4cd88141cf2d6f7bfb54712b5925cba1cb56a7256572ab973",
-      "size": 6989
+      "sha256": "cd35178bf711315a036c20a0a05abb596c864900432675277485a8b0a020e8a2",
+      "size": 9113
     },
     {
       "path": "rules/tool-routing.md",
