@@ -1,6 +1,6 @@
 {
   "version": "1.6.8",
-  "generated_at": "2026-09-29T01:36:14.437161+00:00",
+  "generated_at": "2026-09-29T01:37:37.125983+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -534,8 +534,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "7a1b34c0bd04291c2b11143cff636a9632fe11ea0005ac6e50b401c9429b1b1f",
-      "size": 9407
+      "sha256": "79a156becf958559f20298b345495f86052fa1aad42cc2f8724e776e6e4687ad",
+      "size": 9492
     },
     {
       "path": "services/__init__.py",
@@ -774,8 +774,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "89e3f997852d5b6ef2098a79849e578ace996a56a8b88622f9147cb0c727b05e",
-      "size": 3008
+      "sha256": "af60a2082fce2e771f9d458525d0253139018a4b18f975b47e0a2d8f03f4cca7",
+      "size": 4376
     },
     {
       "path": "tests/test_session_preflight.py",
