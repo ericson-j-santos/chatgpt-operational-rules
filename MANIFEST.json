@@ -1,6 +1,6 @@
 {
-  "version": "1.6.9",
-  "generated_at": "2026-09-29T01:57:04.767774+00:00",
+  "version": "1.6.10",
+  "generated_at": "2026-09-29T03:11:58.257269+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,18 +44,18 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "66371df38809df7978129b6b5b9e4c340bc34974ab9beab722302722d94a84a3",
-      "size": 13077
+      "sha256": "572409aef120f0a9446db0fdfab7188f6e9586dd6125b934a274fe1d69447e56",
+      "size": 13632
     },
     {
       "path": "README.md",
-      "sha256": "b4194bfafdb362215fb0a648f924a17d30c9c3fc238e6685955101b656864fef",
-      "size": 7832
+      "sha256": "a1c283245885a2669c9a87463e7f115c43fcd109491380de10a4ec2a5cc9f0d0",
+      "size": 7833
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "34b0d2e5833f9520e413a287e1857c6bf68dcf7cf61dd45964043cb6cc50bc75",
-      "size": 1710
+      "sha256": "bde2f4e16c0ec2e2f3d330c4a0b77a66febc77d25a6219643e37ddf3af4a93c7",
+      "size": 1711
     },
     {
       "path": "config/owner-risk3-exceptions.example.json",
@@ -444,8 +444,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "1c035e315696451ce327bc9e0349f9baee9f68e0032aa02fcd2ac28db4de29ec",
-      "size": 20863
+      "sha256": "30dc55d0476ce751420ada94fa60b20e5fd40aa855b177c328d26a3c7b01b1ce",
+      "size": 21219
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -774,8 +774,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "5265755d385360ee1597fd61269e52a0e2a26217975f4590ccdeeb66c812c534",
-      "size": 7188
+      "sha256": "5616c10202d0d541a9681b702b5159c8f0d408598ea075ed3c6cc9a7bf349046",
+      "size": 7732
     },
     {
       "path": "tests/test_session_preflight.py",

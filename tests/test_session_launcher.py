@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -169,6 +170,22 @@ class SessionLauncherTests(unittest.TestCase):
         with mock.patch.dict(sl.os.environ, env, clear=False):
             with self.assertRaises(cg.GatewayError):
                 sl._github_actions_workspace_source(repo, policy)
+
+
+    def test_launcher_bootstraps_sibling_imports_in_isolated_python(self) -> None:
+        launcher = SCRIPTS / "session_launcher.py"
+        code = (
+            "import runpy; "
+            f"runpy.run_path({str(launcher)!r}, run_name='session_launcher_import_test')"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-I", "-c", code],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
 
 
 if __name__ == "__main__":

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.10 - 2026-09-28
+
+- `session_launcher.py` passa a inserir explicitamente o próprio diretório em `sys.path` antes de importar módulos irmãos, mantendo o bootstrap governado funcional também sob Windows embeddable Python com `pythonXY._pth`.
+- Adicionado teste isolado com `python -I` que reproduz ausência do diretório do script no caminho de imports e impede regressão do `ModuleNotFoundError: command_gateway`.
+- A correção é transversal e elimina a necessidade de cada workflow consumidor editar o arquivo `._pth` do Python portátil.
+
 ## 1.6.9 - 2026-09-28
 
 - `session_launcher.py` passa a aceitar o `GITHUB_WORKSPACE` corrente como fonte transitória somente em GitHub Actions, sem ampliar a allowlist de execução do Command Gateway.
