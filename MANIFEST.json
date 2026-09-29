@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/repository-governance-control-plane.yml",
-      "sha256": "d782c059462b580c631f46107bd5cb4d54e874d3f29eaafa4a66e46e3f76476f",
-      "size": 13522
+      "sha256": "709038ec5a2fbd6a1ad9b88de00c0ac8fad0b3a8aa7fcf8c5e7cac5b22fa6a60",
+      "size": 14000
     },
     {
       "path": ".github/workflows/todo-global-hourly-cycle.yml",
