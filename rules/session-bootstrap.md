@@ -91,3 +91,12 @@ Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O pref
 - O aceite deve retornar `SESSION_LAUNCH_OK`, `session_id`, `target_path`, `head`, `snapshot_sha256` e `state_validated=true`; `base_sync` deve indicar `not_needed`, `fast_forward` ou `isolated_dirty_base`, junto com `sync_ref` quando usado.
 - Após `SESSION_LAUNCH_OK`, toda execução técnica continua passando pelo Command Gateway e usando o worktree retornado.
 - `SESSION_LAUNCH_BLOCKED` é fail-closed e não autoriza fallback para terminal direto.
+
+## Preflight de versão do self-hosted runner
+
+- Canários físicos que dependem de GitHub Actions self-hosted runner devem usar `session_launcher.py --require-runner-version-preflight` no bootstrap governado.
+- A checagem ocorre dentro do Session Launcher e não cria exceção para PowerShell, CMD, Bash, shell remoto ou terminal direto antes do Command Gateway.
+- `scripts/runner_version_preflight.py` lê a versão instalada por `Runner.Listener --version`, bloqueia versões abaixo do mínimo de registro `2.329.0` e consulta o endpoint oficial de depreciação quando a credencial disponível possuir permissão.
+- Falta de permissão da API deve ser registrada explicitamente e nunca classificada como versão obsoleta. Se o job atual já foi entregue ao runner, o próprio pickup comprova suporte de runtime somente naquele instante; não prova suporte futuro.
+- A comparação com a release pública mais recente é informativa, pois o rollout do runner é progressivo. Não usar a release pública, isoladamente, como mínimo fixo de execução.
+- Após atualização do runner, exigir canário no mesmo SHA, pickup físico real e evidência da versão observada antes de considerar a atualização validada.
