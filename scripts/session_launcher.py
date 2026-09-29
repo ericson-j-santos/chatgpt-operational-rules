@@ -14,6 +14,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Windows embeddable Python can run with pythonXY._pth isolation, which omits
+# the script directory from sys.path. Bootstrap sibling imports explicitly so
+# the governed launcher behaves identically under system and portable Python.
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 import command_gateway as cg
 import session_bootstrap as sb
 import session_preflight as sp
