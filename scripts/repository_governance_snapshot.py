@@ -104,10 +104,30 @@ def collect_repository(policy: dict[str, Any]) -> dict[str, Any]:
             for item in pulls
             if isinstance(item.get("number"), int)
         ]
+
+        rulesets: list[dict[str, Any]] | None = None
+        rulesets_error: str | None = None
+        try:
+            listed_rulesets = gh_json(f"{base}/rulesets")
+            if not isinstance(listed_rulesets, list):
+                raise SnapshotError("lista de rulesets inválida")
+            rulesets = []
+            for item in listed_rulesets:
+                ruleset_id = item.get("id") if isinstance(item, dict) else None
+                if not isinstance(ruleset_id, int):
+                    continue
+                detail = gh_json(f"{base}/rulesets/{ruleset_id}")
+                if isinstance(detail, dict):
+                    rulesets.append(detail)
+        except SnapshotError as exc:
+            rulesets_error = str(exc)
+
         return {
             "repository": repository,
             "metadata": metadata,
             "branch": branch,
+            "rulesets": rulesets,
+            "rulesets_error": rulesets_error,
             "pulls": detailed,
         }
     except SnapshotError as exc:
