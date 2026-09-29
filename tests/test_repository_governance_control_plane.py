@@ -31,13 +31,14 @@ def run(name, state="success", created_at="2026-09-22T12:00:00Z", run_id=1):
     }
 
 
-def policy(required=None, protected=True):
+def policy(required=None, protected=True, require_status_checks=False):
     return {
         "repository": "owner/repo",
         "visibility": "public",
         "mode": "enforce",
         "default_branch": "main",
         "require_branch_protection": protected,
+        "require_required_status_checks": require_status_checks,
         "require_up_to_date": True,
         "required_workflows": required or ["CI", "E2E"],
     }
@@ -70,7 +71,7 @@ def raw_pull(
     }
 
 
-def raw_repo(*, protected=True, pulls=None):
+def raw_repo(*, protected=True, pulls=None, rulesets=None, rulesets_error=None):
     return {
         "repository": "owner/repo",
         "metadata": {
@@ -82,7 +83,32 @@ def raw_repo(*, protected=True, pulls=None):
             "protected": protected,
             "commit": {"sha": MAIN},
         },
+        "rulesets": rulesets,
+        "rulesets_error": rulesets_error,
         "pulls": pulls or [],
+    }
+
+
+def ruleset_with_required_checks(*contexts):
+    return {
+        "id": 1,
+        "enforcement": "active",
+        "conditions": {
+            "ref_name": {
+                "include": ["~DEFAULT_BRANCH"],
+                "exclude": [],
+            }
+        },
+        "rules": [
+            {
+                "type": "required_status_checks",
+                "parameters": {
+                    "required_status_checks": [
+                        {"context": context} for context in contexts
+                    ]
+                },
+            }
+        ],
     }
 
 
@@ -164,6 +190,39 @@ class RepositoryGovernanceControlPlaneTests(unittest.TestCase):
         )
         self.assertEqual("degraded", result["status"])
         self.assertIn("branch_unprotected", result["violations"])
+
+    def test_required_status_checks_missing_degrades_repository(self):
+        result = MODULE.evaluate_repository(
+            policy(protected=True, require_status_checks=True),
+            raw_repo(protected=True, rulesets=[]),
+        )
+        self.assertEqual("degraded", result["status"])
+        self.assertFalse(result["required_status_checks_enforced"])
+        self.assertIn("required_status_checks_missing", result["violations"])
+
+    def test_required_status_checks_active_keeps_repository_healthy(self):
+        result = MODULE.evaluate_repository(
+            policy(protected=True, require_status_checks=True),
+            raw_repo(
+                protected=True,
+                rulesets=[ruleset_with_required_checks("CI", "PR Evidence Gate")],
+            ),
+        )
+        self.assertEqual("healthy", result["status"])
+        self.assertTrue(result["required_status_checks_enforced"])
+        self.assertEqual(["CI", "PR Evidence Gate"], result["required_status_checks"])
+
+    def test_required_status_checks_unverifiable_degrades_repository(self):
+        result = MODULE.evaluate_repository(
+            policy(protected=True, require_status_checks=True),
+            raw_repo(
+                protected=True,
+                rulesets=None,
+                rulesets_error="403 Resource not accessible",
+            ),
+        )
+        self.assertEqual("degraded", result["status"])
+        self.assertIn("required_status_checks_unverifiable", result["violations"])
 
     def test_observe_repo_can_be_healthy_without_required_workflows(self):
         item = policy(required=[], protected=False)
