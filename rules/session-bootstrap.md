@@ -100,3 +100,11 @@ Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O pref
 - Falta de permissão da API deve ser registrada explicitamente e nunca classificada como versão obsoleta. Se o job atual já foi entregue ao runner, o próprio pickup comprova suporte de runtime somente naquele instante; não prova suporte futuro.
 - A comparação com a release pública mais recente é informativa, pois o rollout do runner é progressivo. Não usar a release pública, isoladamente, como mínimo fixo de execução.
 - Após atualização do runner, exigir canário no mesmo SHA, pickup físico real e evidência da versão observada antes de considerar a atualização validada.
+
+## Checkout transitório do GitHub Actions
+
+- Quando `GITHUB_ACTIONS=true`, o Session Launcher pode tratar somente o `GITHUB_WORKSPACE` corrente como fonte transitória automática.
+- O workspace deve ser caminho absoluto, `GITHUB_SHA` deve ser SHA completo e `GITHUB_REPOSITORY` deve ser identificador `owner/repo` válido.
+- O remoto `origin` do checkout deve corresponder a `GITHUB_REPOSITORY`; divergência falha fechado.
+- Essa aceitação não amplia `allowed_roots` do Command Gateway. O checkout do Actions continua servindo apenas como origem para materializar uma base isolada permitida.
+- `expected_head` e `sync_ref` continuam obrigatórios; o SHA remoto, a limpeza rastreada e o checkout isolado são revalidados antes do preflight.
