@@ -56,6 +56,15 @@ DOMAINS = {
 class RadarError(RuntimeError):
     pass
 
+class MetaDescription(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True); self.description=""
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "meta" or self.description: return
+        values={str(k).lower():v for k,v in attrs if v is not None}
+        if values.get("name","").lower()=="description" or values.get("property","").lower()=="og:description":
+            self.description=clean(values.get("content", ""))[:1200]
+
 class Links(HTMLParser):
     def __init__(self, base: str, match: str):
         super().__init__(convert_charrefs=True); self.base=base; self.match=match.lower(); self.href=None; self.text=[]; self.items=[]
@@ -129,6 +138,9 @@ def feed_items(raw: str, source: dict):
         raw_date=next((x for k in ("pubdate","published","updated","date") for x in vals.get(k,[]) if x),"")
         out.append({"title":title[:300],"url":norm(link),"source":source["name"],"trust":source["trust"],"product":source["product"],"published":date(raw_date),"summary":summary[:1200]})
     return out
+
+def page_description(raw: str):
+    parser=MetaDescription(); parser.feed(raw); return parser.description
 
 def html_items(raw: str, source: dict):
     p=Links(source["page"],source["match"]); p.feed(raw); seen=set(); out=[]; root=norm(source["page"])
@@ -217,7 +229,8 @@ def render(items,statuses,sha,run_id,cid,now=None):
     key,day=week(now); lines=[f"# Radar técnico de dados — {key}","",f"- Data: **{day}** (America/Sao_Paulo)",f"- SHA: `{sha or 'indisponível'}`",f"- Run: `{run_id or 'indisponível'}`",f"- Correlation ID: `{cid}`",f"- Itens: **{len(items)}**",""]
     for i,item in enumerate(items,1):
         evidence=clean(item["summary"])[:500] if item["summary"] else f"A fonte listou “{item['title']}” entre os conteúdos atuais."
-        lines += [f"## {i}. {item['title']}",f"- Fonte: **{item['source']}** ({'oficial' if item['trust']=='official' else 'independente'})",f"- Publicação: {(item['published'] or 'não informada')[:10]}",f"- Link: {item['url']}",f"- Foco: {', '.join(item['axes']) or 'relevância geral'}",f"- Evidência: {evidence}",f"- Limitação: {limitation(item)}.",f"- Decisão sugerida: **{recommendation(item)}**",""]
+        published=item["published"][:10] if item["published"] else "não informada"
+        lines += [f"## {i}. {item['title']}",f"- Fonte: **{item['source']}** ({'oficial' if item['trust']=='official' else 'independente'})",f"- Publicação: {published}",f"- Link: {item['url']}",f"- Foco: {', '.join(item['axes']) or 'relevância geral'}",f"- Evidência: {evidence}",f"- Limitação: {limitation(item)}.",f"- Decisão sugerida: **{recommendation(item)}**",""]
     ok=sum(1 for s in statuses if s["ok"]); lines += ["## Qualidade da coleta",f"- Fontes válidas: **{ok}/{len(statuses)}**.","- Seleção determinística, sem LLM pago, com deduplicação por URL.","- Menos de 3 itens inéditos e relevantes bloqueia a publicação.","","### Fontes"]
     for s in statuses:
         detail="OK" if s["ok"] else "falhou"
@@ -237,19 +250,31 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
     now=now or datetime.now(timezone.utc); output=output or Path(OUT); issues=issue_list(repo,token) if token else []; title=issue_title(now)
     existing=next((x for x in issues if x.get("title")==title),None)
     if existing and not dry_run:
-        body=str(existing.get("body") or ""); report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":False,"replay":True,"issue_url":str(existing.get("html_url") or ""),"selected_count":len(re.findall(r"(?m)^## \d+\.",body)),"selected":[],"sources":[],"correlation_id":hashlib.sha256(f"{repo}|{title}|replay".encode()).hexdigest()[:24],"head_sha":os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}
+        body=str(existing.get("body") or ""); report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":False,"replay":True,"issue_url":str(existing.get("html_url") or ""),"selected_count":len(re.findall(r"(?m)^## \d+\.",body)),"selected":[],"sources":[],"correlation_id":hashlib.sha256(f"{repo}|{title}|replay".encode()).hexdigest()[:24],"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}
         write_artifacts(output,report,body or f"# {title}\n"); return report
     candidates=[]; statuses=[]
     for source in SOURCES:
         items,status=collect(source,getter); candidates += items; statuses.append(status)
-    chosen=select(candidates,history_urls(issues)); cid=hashlib.sha256(f"{repo}|{title}|{'|'.join(x['url'] for x in chosen)}".encode()).hexdigest()[:24]
-    body=render(chosen,statuses,os.getenv("GITHUB_SHA",""),os.getenv("GITHUB_RUN_ID",""),cid,now)
+    chosen=select(candidates,history_urls(issues))
+    enriched=[]
+    for item in chosen:
+        if not item["summary"]:
+            try:
+                summary=page_description(getter(item["url"]))
+                if summary: item=classify({**item,"summary":summary},now=now)
+            except RadarError:
+                pass
+        enriched.append(item)
+    chosen=enriched
+    cid=hashlib.sha256(f"{repo}|{title}|{'|'.join(x['url'] for x in chosen)}".encode()).hexdigest()[:24]
+    evidence_sha=os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA","")
+    body=render(chosen,statuses,evidence_sha,os.getenv("GITHUB_RUN_ID",""),cid,now)
     issue_url=None
     if existing: issue_url=str(existing.get("html_url") or "")
     elif not dry_run:
         if not token: raise RadarError("GH_TOKEN/GITHUB_TOKEN is required to publish")
         issue_url=str(gh(repo,"issues",token,method="POST",payload={"title":title,"body":body}).get("html_url") or "")
-    report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":dry_run,"replay":bool(existing),"issue_url":issue_url,"selected_count":len(chosen),"selected":[{**x,"limitation":limitation(x),"recommendation":recommendation(x)} for x in chosen],"sources":statuses,"correlation_id":cid,"head_sha":os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}
+    report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":dry_run,"replay":bool(existing),"issue_url":issue_url,"selected_count":len(chosen),"selected":[{**x,"limitation":limitation(x),"recommendation":recommendation(x)} for x in chosen],"sources":statuses,"correlation_id":cid,"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}
     write_artifacts(output,report,body); return report
 
 def main():
@@ -257,7 +282,7 @@ def main():
     if not a.repo or "/" not in a.repo: print("RADAR_BLOCKED: invalid repo",file=sys.stderr); return 2
     try: result=run(a.repo,token,dry_run=a.dry_run,output=output)
     except (RadarError,json.JSONDecodeError,ValueError) as exc:
-        output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps({"status":"blocked","repo":a.repo,"head_sha":os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID",""),"reason":str(exc)},ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(f"RADAR_BLOCKED: {exc}",file=sys.stderr); return 1
+        output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps({"status":"blocked","repo":a.repo,"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID",""),"reason":str(exc)},ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(f"RADAR_BLOCKED: {exc}",file=sys.stderr); return 1
     print(json.dumps({k:result[k] for k in ("selected_count","issue_url","replay","dry_run","correlation_id")},ensure_ascii=False,sort_keys=True)); return 0
 
 if __name__ == "__main__": raise SystemExit(main())
