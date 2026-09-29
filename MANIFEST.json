@@ -1,11 +1,16 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-09-29T22:56:49.023183+00:00",
+  "generated_at": "2026-09-29T23:32:45.905Z",
   "files": [
     {
       "path": ".gitattributes",
       "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
       "size": 19
+    },
+    {
+      "path": ".github/workflows/data-analytics-weekly-radar.yml",
+      "sha256": "ef96a78bfc4077127e791a368a37ffa943f479872623868451c9ce1779e0a9ef",
+      "size": 4148
     },
     {
       "path": ".github/workflows/powerplatform-alm-official-monitor.yml",
@@ -256,6 +261,11 @@
       "path": "scripts/continuous_source_ingest.py",
       "sha256": "892729cd9f3d0547990d0a735f348034f63a4b787cc19e30582284e820bdd15f",
       "size": 10902
+    },
+    {
+      "path": "scripts/data_analytics_weekly_radar.py",
+      "sha256": "df7637e1398c40adc5f8c8012439fb3a97b8e9c23147d283a2d921b63a212a5f",
+      "size": 17244
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
@@ -651,6 +661,11 @@
       "path": "tests/test_continuous_source_ingest.py",
       "sha256": "484503fd88541e33dab249cbcaf587087e03c6c71c61b22c6e1f0629e6fcff21",
       "size": 2026
+    },
+    {
+      "path": "tests/test_data_analytics_weekly_radar.py",
+      "sha256": "5112a6c891c76796a3063ce8e9bda26c0ab9d50bb6425b56cd7e76449c52a415",
+      "size": 4830
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
