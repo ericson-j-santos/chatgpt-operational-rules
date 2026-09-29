@@ -1,0 +1,125 @@
+name: Monitor - Weekly Data Analytics Radar
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/data-analytics-weekly-radar.yml"
+      - "scripts/data_analytics_weekly_radar.py"
+      - "tests/test_data_analytics_weekly_radar.py"
+      - "MANIFEST.json"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/data-analytics-weekly-radar.yml"
+      - "scripts/data_analytics_weekly_radar.py"
+      - "tests/test_data_analytics_weekly_radar.py"
+      - "MANIFEST.json"
+  schedule:
+    # 09:00 America/Sao_Paulo (UTC-3; Brazil currently has no daylight-saving shift).
+    - cron: "0 12 * * 5"
+  workflow_dispatch:
+
+concurrency:
+  group: data-analytics-weekly-radar-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    name: Validate radar contract and live-source dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Checkout exact PR SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Run deterministic unit tests
+        run: python -m unittest -v tests/test_data_analytics_weekly_radar.py
+
+      - name: Syntax check
+        run: python -m py_compile scripts/data_analytics_weekly_radar.py
+
+      - name: Live-source E2E without publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/data_analytics_weekly_radar.py
+          --repo "$GITHUB_REPOSITORY"
+          --dry-run
+
+      - name: Upload dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: data-analytics-weekly-radar-pr-${{ github.event.pull_request.head.sha }}
+          path: artifacts/data-analytics-weekly-radar/
+          if-no-files-found: error
+          retention-days: 30
+
+  monitor:
+    if: github.event_name != 'pull_request'
+    name: Publish weekly radar idempotently
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout exact workflow SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Revalidate deterministic contract
+        run: python -m unittest -v tests/test_data_analytics_weekly_radar.py
+
+      - name: Run radar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            extra+=(--dry-run)
+          fi
+          python scripts/data_analytics_weekly_radar.py \
+            --repo "$GITHUB_REPOSITORY" \
+            "${extra[@]}"
+
+      - name: Replay publication to prove idempotence
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/data_analytics_weekly_radar.py
+          --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload radar evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: data-analytics-weekly-radar-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/data-analytics-weekly-radar/
+          if-no-files-found: error
+          retention-days: 30
