@@ -1,0 +1,75 @@
+name: Monitor - Power Platform ALM Official Changes
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/powerplatform-alm-official-monitor.yml"
+      - "scripts/powerplatform_alm_official_monitor.py"
+      - "tests/test_powerplatform_alm_official_monitor.py"
+      - "MANIFEST.json"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/powerplatform-alm-official-monitor.yml"
+      - "scripts/powerplatform_alm_official_monitor.py"
+      - "tests/test_powerplatform_alm_official_monitor.py"
+      - "MANIFEST.json"
+  schedule:
+    - cron: "17 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: powerplatform-alm-official-monitor
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    name: validate-monitor-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run monitor unit tests
+        run: python3 -m unittest -v tests/test_powerplatform_alm_official_monitor.py
+
+      - name: Syntax check
+        run: python3 -m py_compile scripts/powerplatform_alm_official_monitor.py
+
+  monitor:
+    if: github.event_name != 'pull_request'
+    name: monitor-official-sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact workflow SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Revalidate monitor contract
+        run: python3 -m unittest -v tests/test_powerplatform_alm_official_monitor.py
+
+      - name: Monitor official Microsoft sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/powerplatform_alm_official_monitor.py --repo "$GITHUB_REPOSITORY"
+
+      - name: Replay monitor to prove idempotence on integration
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/powerplatform_alm_official_monitor.py --repo "$GITHUB_REPOSITORY"
