@@ -55,6 +55,7 @@ jobs:
       - name: Live-source E2E without publication
         env:
           GH_TOKEN: ${{ github.token }}
+          RADAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: >-
           python scripts/data_analytics_weekly_radar.py
           --repo "$GITHUB_REPOSITORY"
@@ -96,6 +97,7 @@ jobs:
       - name: Run radar
         env:
           GH_TOKEN: ${{ github.token }}
+          RADAR_HEAD_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,6 +113,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
+          RADAR_HEAD_SHA: ${{ github.sha }}
         run: >-
           python scripts/data_analytics_weekly_radar.py
           --repo "$GITHUB_REPOSITORY"
