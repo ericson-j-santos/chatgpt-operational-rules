@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.7
+Versão: 1.6.8
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -34,6 +34,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 21. Em GitHub Actions self-hosted, quando o checkout transitório ficar fora da allowlist normal do Gateway, o `session_launcher.py` pode aceitá-lo somente se o caminho exato estiver em `session_source_roots`; essa origem serve apenas para materializar uma base isolada dentro de `C:\\dev\\chatgpt-workers` no SHA validado e nunca vira `cwd` de comando.
 22. Para recuperação/evolução de hosts com plano de controle já ativo, aplicar `rules/control-plane-recovery.md`: control-plane-first; bootstrap manual/GUI é apenas migração única quando nenhuma extensão governada do canal existente for tecnicamente possível, e deve instalar capacidade permanente de auto-recovery/auto-refresh.
 23. Para pendências classificadas como manuais, aplicar `rules/todo-global.md`: tratar ação humana como dívida de automação, executar automaticamente tudo que for tecnicamente seguro, preparar integralmente ações que dependem apenas de autorização e deixar intervenção humana somente quando a própria plataforma exigir consentimento/presença não delegável; após a intervenção, validar o efeito e atualizar o TODO automaticamente.
+24. Em canários físicos de GitHub Actions self-hosted, executar `scripts/session_launcher.py --require-runner-version-preflight` como parte do bootstrap governado; `scripts/runner_version_preflight.py` valida o mínimo de registro, a depreciação de runtime quando a API oficial estiver autorizada e registra evidência da versão sem substituir o pickup real do job.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
