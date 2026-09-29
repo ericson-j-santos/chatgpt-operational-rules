@@ -108,9 +108,63 @@ def validate_sync_ref(value: str | None) -> tuple[str, str] | None:
     return match.group("remote"), match.group("branch")
 
 
+def _github_remote_matches_repository(url: str, repository: str) -> bool:
+    normalized = str(url or "").strip().rstrip("/")
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+    expected = repository.casefold()
+    candidates = {
+        f"https://github.com/{repository}".casefold(),
+        f"http://github.com/{repository}".casefold(),
+        f"git@github.com:{repository}".casefold(),
+        f"ssh://git@github.com/{repository}".casefold(),
+    }
+    return normalized.casefold() in candidates
+
+
+def _github_actions_workspace_source(repo: Path, policy: dict) -> bool:
+    if os.environ.get("GITHUB_ACTIONS", "").strip().casefold() != "true":
+        return False
+    workspace_raw = os.environ.get("GITHUB_WORKSPACE", "").strip()
+    if not workspace_raw:
+        return False
+    workspace = Path(workspace_raw)
+    if not workspace.is_absolute() or cg.norm(repo) != cg.norm(workspace):
+        return False
+
+    github_sha = os.environ.get("GITHUB_SHA", "").strip()
+    repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if not HEAD_RE.fullmatch(github_sha):
+        raise cg.GatewayError("GITHUB_SHA inválido no checkout transitório", EXIT_SESSION_LAUNCHER)
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+        raise cg.GatewayError("GITHUB_REPOSITORY inválido no checkout transitório", EXIT_SESSION_LAUNCHER)
+
+    parts = {part.casefold() for part in Path(cg.norm(repo)).parts}
+    denied = {item.casefold() for item in policy.get("denied_segments", [])}
+    if parts & denied:
+        raise cg.GatewayError(
+            "GITHUB_WORKSPACE contém segmento sensível bloqueado",
+            EXIT_SESSION_LAUNCHER,
+        )
+
+    remote = cg.run_capture(["git", "remote", "get-url", "origin"], repo)
+    if remote.returncode != 0 or remote.stderr.strip() or not remote.stdout.strip():
+        raise cg.GatewayError(
+            "GITHUB_WORKSPACE sem remoto origin validável",
+            EXIT_SESSION_LAUNCHER,
+        )
+    if not _github_remote_matches_repository(remote.stdout.strip(), repository):
+        raise cg.GatewayError(
+            "GITHUB_WORKSPACE remoto diverge de GITHUB_REPOSITORY",
+            EXIT_SESSION_LAUNCHER,
+        )
+    return True
+
 def validate_session_source(repo: Path, policy: dict) -> bool:
     """Valida checkout transitório que só pode alimentar uma base isolada."""
     repo_norm = cg.norm(repo)
+    if _github_actions_workspace_source(repo, policy):
+        return True
     roots = policy.get("session_source_roots", [])
     if not isinstance(roots, list):
         raise cg.GatewayError("session_source_roots deve ser lista", EXIT_SESSION_LAUNCHER)
