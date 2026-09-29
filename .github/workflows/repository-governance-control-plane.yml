@@ -11,6 +11,18 @@ on:
       - "tests/test_repository_governance_remediation.py"
       - ".github/workflows/repository-governance-control-plane.yml"
       - "MANIFEST.json"
+  push:
+    branches:
+      - main
+    paths:
+      - "config/repository-governance-control-plane.json"
+      - "scripts/repository_governance_control_plane.py"
+      - "scripts/repository_governance_snapshot.py"
+      - "scripts/repository_governance_remediation.py"
+      - "tests/test_repository_governance_control_plane.py"
+      - "tests/test_repository_governance_remediation.py"
+      - ".github/workflows/repository-governance-control-plane.yml"
+      - "MANIFEST.json"
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
