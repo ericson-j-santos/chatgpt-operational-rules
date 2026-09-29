@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -68,6 +69,37 @@ class SessionLauncherTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(cg.GatewayError):
                     sl.validate_sync_ref(invalid)
+
+
+    def test_runner_version_preflight_is_fail_closed(self) -> None:
+        installed = sl.rvp.RunnerVersion.parse("2.337.0")
+        with mock.patch.object(sl.rvp, "detect_runner_version", return_value=installed), mock.patch.object(
+            sl.rvp,
+            "build_evidence",
+            return_value={
+                "ok": False,
+                "installed_version": "2.337.0",
+                "registration_supported": True,
+                "runtime_supported_now": False,
+            },
+        ):
+            with self.assertRaises(cg.GatewayError) as ctx:
+                sl.enforce_runner_version_preflight()
+        self.assertEqual(ctx.exception.exit_code, sl.EXIT_SESSION_LAUNCHER)
+
+    def test_runner_version_preflight_accepts_current_pickup(self) -> None:
+        installed = sl.rvp.RunnerVersion.parse("2.337.0")
+        evidence = {
+            "ok": True,
+            "installed_version": "2.337.0",
+            "registration_supported": True,
+            "runtime_supported_now": True,
+            "runtime_support_evidence": "current_job_pickup",
+        }
+        with mock.patch.object(sl.rvp, "detect_runner_version", return_value=installed), mock.patch.object(
+            sl.rvp, "build_evidence", return_value=evidence
+        ):
+            self.assertEqual(sl.enforce_runner_version_preflight(), evidence)
 
 
 if __name__ == "__main__":
