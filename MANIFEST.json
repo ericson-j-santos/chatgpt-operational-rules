@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-09-29T23:31:18.666Z",
+  "generated_at": "2026-09-29T23:32:45.905Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -264,8 +264,8 @@
     },
     {
       "path": "scripts/data_analytics_weekly_radar.py",
-      "sha256": "1f9c47460237ceaf3ca8e1a88aa9c1b0678de5d1d2e7bd8e49a1b245c707d254",
-      "size": 17511
+      "sha256": "df7637e1398c40adc5f8c8012439fb3a97b8e9c23147d283a2d921b63a212a5f",
+      "size": 17244
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
