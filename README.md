@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.8
+Versão: 1.6.9
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -35,6 +35,7 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 22. Para recuperação/evolução de hosts com plano de controle já ativo, aplicar `rules/control-plane-recovery.md`: control-plane-first; bootstrap manual/GUI é apenas migração única quando nenhuma extensão governada do canal existente for tecnicamente possível, e deve instalar capacidade permanente de auto-recovery/auto-refresh.
 23. Para pendências classificadas como manuais, aplicar `rules/todo-global.md`: tratar ação humana como dívida de automação, executar automaticamente tudo que for tecnicamente seguro, preparar integralmente ações que dependem apenas de autorização e deixar intervenção humana somente quando a própria plataforma exigir consentimento/presença não delegável; após a intervenção, validar o efeito e atualizar o TODO automaticamente.
 24. Em canários físicos de GitHub Actions self-hosted, executar `scripts/session_launcher.py --require-runner-version-preflight` como parte do bootstrap governado; `scripts/runner_version_preflight.py` valida o mínimo de registro, a depreciação de runtime quando a API oficial estiver autorizada e registra evidência da versão sem substituir o pickup real do job.
+25. Em GitHub Actions, o checkout transitório do workflow pode ser aceito como fonte de sessão somente quando for exatamente o `GITHUB_WORKSPACE` corrente, `GITHUB_ACTIONS=true`, `GITHUB_SHA` for válido e o remoto `origin` corresponder a `GITHUB_REPOSITORY`; ainda são obrigatórios `expected_head`, `sync_ref`, árvore rastreada limpa e materialização isolada antes de qualquer comando via Gateway.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
