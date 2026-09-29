@@ -61,6 +61,37 @@ objetiva de regressão sistêmica, por exemplo:
 Incidentes isolados de um único produto permanecem no projeto responsável,
 salvo prova de causa transversal.
 
+## Admissão profissional de Pull Request e merge
+
+Para repositórios governados pelo Engineering Control Plane, separar três etapas:
+
+1. **preflight antes da PR**: executar no HEAD exato todos os checks determinísticos
+   que não dependem do contexto de Pull Request. Falha conhecida, branch atrás da
+   base ou evidência de SHA antigo bloqueiam a abertura;
+2. **validação exclusiva de PR**: quando algum check depender do evento
+   `pull_request`, segredo/ambiente protegido, integração temporária ou recurso
+   externo, abrir somente como **draft** após o preflight determinístico verde.
+   Falha de runner/serviço deve ser classificada como infraestrutura, não como
+   defeito de código sem evidência;
+3. **admissão de merge**: tornar a PR elegível somente no HEAD atual, com base
+   atualizada, mergeabilidade válida e gates obrigatórios verdes. O GitHub deve
+   impor `required_status_checks` no branch/ruleset; workflow verde sem proteção
+   server-side não é controle suficiente.
+
+Regras adicionais:
+
+- qualquer novo commit ou avanço da base invalida evidência anterior e exige
+  revalidação;
+- automações não devem criar PR não-draft quando houver falha determinística
+  conhecida;
+- `protected=true` sozinho não comprova que CI bloqueia merge: a auditoria deve
+  ler rulesets e comprovar ao menos um `required_status_checks` ativo quando a
+  política exigir;
+- ausência ou impossibilidade de ler essa configuração é falha fechada de
+  governança, sem alteração administrativa automática;
+- mudança de branch protection/ruleset continua sendo ação administrativa e
+  exige autorização explícita para o repositório e branch alvo.
+
 ## Próximas medições
 
 Continuar coletando:

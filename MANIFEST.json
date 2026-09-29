@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/workflows/repository-governance-control-plane.yml",
-      "sha256": "ba0c4ddecd767ddd760503a996a653a725191727957e4a2320cdf7d571439abe",
-      "size": 13025
+      "sha256": "d782c059462b580c631f46107bd5cb4d54e874d3f29eaafa4a66e46e3f76476f",
+      "size": 13522
     },
     {
       "path": ".github/workflows/todo-global-hourly-cycle.yml",
@@ -69,8 +69,8 @@
     },
     {
       "path": "config/repository-governance-control-plane.json",
-      "sha256": "cab7ac11e8337f808d12f73cc27db8c2ec052f607058ac431b1264006edc282b",
-      "size": 3243
+      "sha256": "ba0f17c64a577d2dd38a63f802129ea77828c21c2c49b5e09736cf395366da98",
+      "size": 3289
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -104,8 +104,8 @@
     },
     {
       "path": "projects/engineering-control-plane.md",
-      "sha256": "703789db520c4b9d932c6d8008dfe37be738601a23313fde3b05d42ccd1374d0",
-      "size": 2914
+      "sha256": "ac596b3e51652f9165e61c1bd984b0c83a3df98aeff2c510262d4a54cb754da1",
+      "size": 4603
     },
     {
       "path": "projects/ocr-evidencia.md",
@@ -424,18 +424,18 @@
     },
     {
       "path": "scripts/repository_governance_control_plane.py",
-      "sha256": "b2b8eeb2b30704924a471062caae6edb02eb78e9df517fcdbaa562e2f9c597e0",
-      "size": 14104
+      "sha256": "15c0bea8bd9932b6e5517e763793cfd98ab30a00e5d5389e2f5bc336587dee11",
+      "size": 17105
     },
     {
       "path": "scripts/repository_governance_remediation.py",
-      "sha256": "914e1e91900483dc742cb63c3407f0fcb9e57497a97cceccf946930563b2d5ad",
-      "size": 18313
+      "sha256": "9f955bcb5424fb3b32b523991e728a78d04c3f8a7d6764474d752d8276c990c4",
+      "size": 18728
     },
     {
       "path": "scripts/repository_governance_snapshot.py",
-      "sha256": "f6860d89237ea9ad9eb9a59491c7bf934385dd53f8c1df079cf19da980b3be12",
-      "size": 6207
+      "sha256": "1fee83e286568e26f3e17faf5970e8b8f6ec416a933c49385c310b5412612b9b",
+      "size": 7034
     },
     {
       "path": "scripts/runner_version_preflight.py",
@@ -769,13 +769,13 @@
     },
     {
       "path": "tests/test_repository_governance_control_plane.py",
-      "sha256": "4e42688c6d7d33c71bc9396e1c4e0d7d007b3754f5e53a00f7cd6eb24d409e12",
-      "size": 7358
+      "sha256": "643a5e70f8cfe0f33ebace86114696faafb4ae3fa8a17631a3f5bf58a0becf7b",
+      "size": 9622
     },
     {
       "path": "tests/test_repository_governance_remediation.py",
-      "sha256": "9fd91a10cd1ca0339891cd21e45eab773e42bd90455c573146d7dab981e95940",
-      "size": 14548
+      "sha256": "ae8f4c93af8e353cad0e0089935350972a01be721a7e893d9079837cb20288c3",
+      "size": 15078
     },
     {
       "path": "tests/test_runner_version_preflight.py",

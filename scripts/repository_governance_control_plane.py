@@ -9,6 +9,7 @@ vinculadas ao head SHA de cada PR.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
@@ -76,6 +77,11 @@ def validate_policy(policy: dict[str, Any]) -> None:
             raise GovernanceControlPlaneError(
                 f"{repository}: required_workflows deve ser lista de textos"
             )
+        require_status_checks = item.get("require_required_status_checks", False)
+        if not isinstance(require_status_checks, bool):
+            raise GovernanceControlPlaneError(
+                f"{repository}: require_required_status_checks deve ser booleano"
+            )
 
 
 def _utc(value: str | None) -> datetime:
@@ -138,6 +144,55 @@ def latest_required_workflow_states(
             }
         )
     return states
+
+
+def _ruleset_targets_default_branch(
+    ruleset: dict[str, Any],
+    default_branch: str,
+) -> bool:
+    if ruleset.get("enforcement") != "active":
+        return False
+    ref_name = ((ruleset.get("conditions") or {}).get("ref_name") or {})
+    include = ref_name.get("include") or []
+    exclude = ref_name.get("exclude") or []
+    branch_ref = f"refs/heads/{default_branch}"
+
+    def matches(pattern: Any) -> bool:
+        if not isinstance(pattern, str):
+            return False
+        if pattern in {"~ALL", "~DEFAULT_BRANCH"}:
+            return True
+        return fnmatch.fnmatchcase(branch_ref, pattern) or fnmatch.fnmatchcase(
+            default_branch, pattern
+        )
+
+    if include and not any(matches(pattern) for pattern in include):
+        return False
+    if any(matches(pattern) for pattern in exclude):
+        return False
+    return True
+
+
+def required_status_check_contexts(
+    rulesets: Iterable[dict[str, Any]],
+    *,
+    default_branch: str,
+) -> list[str]:
+    contexts: set[str] = set()
+    for ruleset in rulesets:
+        if not isinstance(ruleset, dict) or not _ruleset_targets_default_branch(
+            ruleset, default_branch
+        ):
+            continue
+        for rule in ruleset.get("rules") or []:
+            if not isinstance(rule, dict) or rule.get("type") != "required_status_checks":
+                continue
+            parameters = rule.get("parameters") or {}
+            for check in parameters.get("required_status_checks") or []:
+                context = check.get("context") if isinstance(check, dict) else None
+                if isinstance(context, str) and context.strip():
+                    contexts.add(context.strip())
+    return sorted(contexts)
 
 
 def decide_pull(
@@ -253,6 +308,25 @@ def evaluate_repository(
         violations.append("default_branch_drift")
     if policy.get("require_branch_protection") and not branch.get("protected"):
         violations.append("branch_unprotected")
+
+    rulesets = raw.get("rulesets")
+    rulesets_error = raw.get("rulesets_error")
+    required_status_checks: list[str] = []
+    required_status_checks_enforced = False
+    if policy.get("require_required_status_checks", False):
+        if rulesets_error:
+            violations.append("required_status_checks_unverifiable")
+        elif not isinstance(rulesets, list):
+            violations.append("required_status_checks_unverifiable")
+        else:
+            required_status_checks = required_status_check_contexts(
+                rulesets,
+                default_branch=expected_branch,
+            )
+            required_status_checks_enforced = bool(required_status_checks)
+            if not required_status_checks_enforced:
+                violations.append("required_status_checks_missing")
+
     if metadata.get("archived"):
         violations.append("repository_archived")
 
@@ -267,6 +341,9 @@ def evaluate_repository(
         "default_branch": expected_branch,
         "main_sha": main_sha,
         "protected": bool(branch.get("protected")),
+        "required_status_checks_enforced": required_status_checks_enforced,
+        "required_status_checks": required_status_checks,
+        "rulesets_error": rulesets_error,
         "archived": bool(metadata.get("archived")),
         "allow_auto_merge": bool(metadata.get("allow_auto_merge")),
         "violations": violations,
