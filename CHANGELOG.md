@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.9 - 2026-09-28
+
+- `session_launcher.py` passa a aceitar o `GITHUB_WORKSPACE` corrente como fonte transitória somente em GitHub Actions, sem ampliar a allowlist de execução do Command Gateway.
+- A origem dinâmica exige `GITHUB_ACTIONS=true`, `GITHUB_SHA` completo, `GITHUB_REPOSITORY` válido e remoto `origin` compatível com o repositório do workflow.
+- A proteção existente permanece: `expected_head` + `sync_ref`, árvore rastreada limpa e materialização em base isolada antes do preflight.
+- Adicionados controles negativos para workspace divergente, remoto divergente e SHA inválido.
+
+
 ## 1.6.8 - 2026-09-28
 
 - Adicionado `scripts/runner_version_preflight.py` para inspecionar a versão real do GitHub Actions self-hosted runner via `Runner.Listener --version`.
