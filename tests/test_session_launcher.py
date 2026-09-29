@@ -4,6 +4,7 @@ import sys
 import unittest
 from unittest import mock
 from pathlib import Path
+from types import SimpleNamespace
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -100,6 +101,74 @@ class SessionLauncherTests(unittest.TestCase):
             sl.rvp, "build_evidence", return_value=evidence
         ):
             self.assertEqual(sl.enforce_runner_version_preflight(), evidence)
+
+
+    def test_github_actions_workspace_source_requires_exact_workspace_and_remote(self) -> None:
+        policy = {"denied_segments": [".ssh"]}
+        repo = Path("/tmp/actions/work/repo/repo")
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_WORKSPACE": str(repo),
+            "GITHUB_SHA": "a" * 40,
+            "GITHUB_REPOSITORY": "ericson-j-santos/example-repo",
+        }
+        remote = SimpleNamespace(
+            returncode=0,
+            stdout="https://github.com/ericson-j-santos/example-repo.git\n",
+            stderr="",
+        )
+        with mock.patch.dict(sl.os.environ, env, clear=False), mock.patch.object(
+            sl.cg, "run_capture", return_value=remote
+        ):
+            self.assertTrue(sl._github_actions_workspace_source(repo, policy))
+
+    def test_github_actions_workspace_source_rejects_remote_mismatch(self) -> None:
+        policy = {"denied_segments": []}
+        repo = Path("/tmp/actions/work/repo/repo")
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_WORKSPACE": str(repo),
+            "GITHUB_SHA": "b" * 40,
+            "GITHUB_REPOSITORY": "ericson-j-santos/example-repo",
+        }
+        remote = SimpleNamespace(
+            returncode=0,
+            stdout="https://github.com/ericson-j-santos/other-repo.git\n",
+            stderr="",
+        )
+        with mock.patch.dict(sl.os.environ, env, clear=False), mock.patch.object(
+            sl.cg, "run_capture", return_value=remote
+        ):
+            with self.assertRaises(cg.GatewayError):
+                sl._github_actions_workspace_source(repo, policy)
+
+    def test_github_actions_workspace_source_rejects_wrong_path(self) -> None:
+        policy = {"denied_segments": []}
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_WORKSPACE": "/tmp/actions/work/repo/repo",
+            "GITHUB_SHA": "c" * 40,
+            "GITHUB_REPOSITORY": "ericson-j-santos/example-repo",
+        }
+        with mock.patch.dict(sl.os.environ, env, clear=False):
+            self.assertFalse(
+                sl._github_actions_workspace_source(
+                    Path("/tmp/actions/work/other/other"), policy
+                )
+            )
+
+    def test_github_actions_workspace_source_rejects_invalid_sha(self) -> None:
+        policy = {"denied_segments": []}
+        repo = Path("/tmp/actions/work/repo/repo")
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_WORKSPACE": str(repo),
+            "GITHUB_SHA": "short",
+            "GITHUB_REPOSITORY": "ericson-j-santos/example-repo",
+        }
+        with mock.patch.dict(sl.os.environ, env, clear=False):
+            with self.assertRaises(cg.GatewayError):
+                sl._github_actions_workspace_source(repo, policy)
 
 
 if __name__ == "__main__":
