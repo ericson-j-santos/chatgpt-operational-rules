@@ -112,6 +112,20 @@ class RepositoryGovernanceRemediationTests(unittest.TestCase):
         self.assertTrue(plan["blockers"])
         self.assertEqual("branch_protection_drift", plan["blockers"][0]["kind"])
 
+    def test_missing_required_status_checks_becomes_admin_blocker(self):
+        plan = MODULE.plan_remediations(
+            policy(),
+            evidence(violations=["required_status_checks_missing"]),
+        )
+        self.assertEqual([], plan["actions"])
+        self.assertTrue(plan["blockers"])
+        blocker = plan["blockers"][0]
+        self.assertEqual("branch_protection_drift", blocker["kind"])
+        self.assertEqual(
+            ["required_status_checks_missing"],
+            blocker["violations"],
+        )
+
     def test_direct_merge_true_policy_is_flagged_unsafe(self):
         item = policy()
         item["repositories"][0]["remediation"]["direct_merge"] = True
