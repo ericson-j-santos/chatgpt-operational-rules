@@ -1,6 +1,6 @@
 {
   "version": "1.6.7",
-  "generated_at": "2026-09-28T17:22:16.556121+00:00",
+  "generated_at": "2026-09-29T01:30:49.568522+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -29,8 +29,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "28a390cac479110fa4d35d143eeffe6386e8ebdfa7585d724fa94425752b4a54",
-      "size": 4573
+      "sha256": "5252944bd37ef9e1cc29c65a1fec730dc9624ae65e3cebceed666e66572c2b4c",
+      "size": 4713
     },
     {
       "path": ".gitignore",
@@ -428,6 +428,11 @@
       "size": 6207
     },
     {
+      "path": "scripts/runner_version_preflight.py",
+      "sha256": "845f24613f0e18678cbc8717af76e2b2bd24ebde7988902535dfbd5089d5d29e",
+      "size": 9288
+    },
+    {
       "path": "scripts/session_bootstrap.py",
       "sha256": "812517afffe0ca894c14b3d7306efe74654813b2222b4bf53d9e8e595f3986dd",
       "size": 10976
@@ -756,6 +761,11 @@
       "path": "tests/test_repository_governance_remediation.py",
       "sha256": "9fd91a10cd1ca0339891cd21e45eab773e42bd90455c573146d7dab981e95940",
       "size": 14548
+    },
+    {
+      "path": "tests/test_runner_version_preflight.py",
+      "sha256": "1a98082e8bebef31b2c9dfbfa5d796e7da25b2615321e6b3fa9805a0624bb1f4",
+      "size": 3936
     },
     {
       "path": "tests/test_session_bootstrap.py",
