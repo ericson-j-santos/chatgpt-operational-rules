@@ -24,7 +24,8 @@
           "pr_input": "pr_number"
         },
         "branch_protection": "report_only"
-      }
+      },
+      "require_required_status_checks": true
     },
     {
       "repository": "ericson-j-santos/data-ai-lab",
