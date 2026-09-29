@@ -1,6 +1,6 @@
 {
-  "version": "1.6.7",
-  "generated_at": "2026-09-29T01:30:49.568522+00:00",
+  "version": "1.6.8",
+  "generated_at": "2026-09-29T01:36:14.437161+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,17 +44,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "61c29298db9eeb9ffbbe6756fda9171af162ab979feead3feef84d55aa9316e6",
-      "size": 11608
+      "sha256": "9ad81fe6e3031c7f594ccf3a797ee027d5d221745c2a864cd13afa33b32f19b8",
+      "size": 12469
     },
     {
       "path": "README.md",
-      "sha256": "a9fb3ad39a5356c1c38395885fad272a3ac56a4e5ce29e32fef70bc89fce0e93",
-      "size": 7055
+      "sha256": "e286cfd86dedf6df26283f7daea967af1a8423f4633d9c584e3c550146241323",
+      "size": 7426
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "4bbca141ac387548e78a94fb12d97359360dfcd37f69096f9903319620e9a7ce",
+      "sha256": "8c82359c6883672b89464f828c30cbbbc3be18f5ff5ab2111ebf77d4c8704f1d",
       "size": 1710
     },
     {
@@ -194,8 +194,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "51c7be6ef491498cd3a79e1d7fbbd3df1dae89b959356506f1244fa96ac37d70",
-      "size": 6722
+      "sha256": "3dd77d69902f7a10226ba911e59d1ad38f39be420a320beb8de4bb6eb99d307a",
+      "size": 7942
     },
     {
       "path": "rules/terminal-execution.md",
@@ -444,8 +444,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "b1bc60602b0361af01c2cdb2f0fe4d0687fd3848625e207f968239b8a8e69319",
-      "size": 17059
+      "sha256": "29b8fc1fe53c42d3a8c04cff853527c734916c06d40c5e18e327d3b2ea681d92",
+      "size": 18545
     },
     {
       "path": "scripts/session_launcher_e2e.py",
