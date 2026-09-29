@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.8 - 2026-09-28
+
+- Adicionado `scripts/runner_version_preflight.py` para inspecionar a versão real do GitHub Actions self-hosted runner via `Runner.Listener --version`.
+- O preflight bloqueia registro/re-registro abaixo de `2.329.0` e usa a API oficial de depreciação quando autorizada, sem transformar HTTP 401/403/404 em falso diagnóstico de obsolescência.
+- A release pública mais recente é apenas sinal informativo por causa do rollout progressivo; pickup do job continua sendo evidência independente de suporte de runtime naquele instante.
+- `session_launcher.py` recebe `--require-runner-version-preflight`, mantendo a checagem dentro do bootstrap permitido antes do Command Gateway.
+- Adicionados controles negativos para versão abaixo do mínimo, runtime expirado, deadline de registro vencida e indisponibilidade de permissão da API.
+
+
 ## 1.6.7 - 2026-09-24
 
 - O Session Launcher passa a aceitar fontes transitórias de checkout explicitamente allowlisted por caminho exato em `session_source_roots`.
