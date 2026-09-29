@@ -17,6 +17,7 @@ from pathlib import Path
 import command_gateway as cg
 import session_bootstrap as sb
 import session_preflight as sp
+import runner_version_preflight as rvp
 
 EXIT_SESSION_LAUNCHER = 28
 MIN_RULES_VERSION = (1, 5, 2)
@@ -43,6 +44,27 @@ def ensure_min_version(policy: dict) -> str:
         )
     return raw
 
+
+def enforce_runner_version_preflight() -> dict:
+    try:
+        installed = rvp.detect_runner_version()
+        token = os.environ.get("RUNNER_DEPRECATION_API_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        evidence = rvp.build_evidence(installed=installed, token=token)
+    except Exception as exc:
+        detail = cg.redact(str(exc))[:160]
+        raise cg.GatewayError(
+            f"runner version preflight failed: {type(exc).__name__}:{detail}",
+            EXIT_SESSION_LAUNCHER,
+        ) from exc
+    if evidence.get("ok") is not True:
+        raise cg.GatewayError(
+            "runner version preflight blocked: "
+            f"installed={evidence.get('installed_version')} "
+            f"registration_supported={evidence.get('registration_supported')} "
+            f"runtime_supported_now={evidence.get('runtime_supported_now')}",
+            EXIT_SESSION_LAUNCHER,
+        )
+    return evidence
 
 def slug(value: str, limit: int) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_-]+", "-", value).strip("-_").lower()
@@ -369,9 +391,15 @@ def launch(
     correlation_id: str,
     expected_head: str | None,
     sync_ref: str | None = None,
+    require_runner_version_preflight: bool = False,
 ) -> dict:
     policy = cg.load_policy(policy_path)
     rules_version = ensure_min_version(policy)
+    runner_version_preflight = (
+        enforce_runner_version_preflight()
+        if require_runner_version_preflight
+        else None
+    )
     source_only = validate_session_source(repo, policy)
     state = cg.git_state(repo, True, policy)
     assert state is not None
@@ -437,6 +465,7 @@ def launch(
         "state_validated": True,
         "base_sync": base_sync,
         "sync_ref": sync_ref,
+        "runner_version_preflight": runner_version_preflight,
     }
     cg.append_event(policy, result)
     cg.emit_json(result)
@@ -452,6 +481,11 @@ def main() -> int:
     parser.add_argument("--correlation-id")
     parser.add_argument("--expected-head")
     parser.add_argument(
+        "--require-runner-version-preflight",
+        action="store_true",
+        help="Valida a versão do self-hosted runner dentro do bootstrap governado.",
+    )
+    parser.add_argument(
         "--sync-ref",
         help="Permite sincronização governada com expected-head usando remote/branch.",
     )
@@ -466,6 +500,7 @@ def main() -> int:
             correlation_id=correlation_id,
             expected_head=ns.expected_head,
             sync_ref=ns.sync_ref,
+            require_runner_version_preflight=ns.require_runner_version_preflight,
         )
         return 0
     except (cg.GatewayError, json.JSONDecodeError, OSError) as exc:
