@@ -108,7 +108,7 @@ class PowerPlatformAlmMonitorTests(unittest.TestCase):
         first = monitor.alert_title(events)
         second = monitor.alert_title(events)
         self.assertEqual(first, second)
-        self.assertRegex(first, r"^\[ALM Monitor\].*-[0-9a-f]{12}$")
+        self.assertRegex(first, r"^\[ALM Monitor\].*- [0-9a-f]{12}$")
 
 
 if __name__ == "__main__":
