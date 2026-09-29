@@ -1,11 +1,16 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-09-29T03:11:58.257269+00:00",
+  "generated_at": "2026-09-29T22:55:59.413598+00:00",
   "files": [
     {
       "path": ".gitattributes",
       "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
       "size": 19
+    },
+    {
+      "path": ".github/workflows/powerplatform-alm-official-monitor.yml",
+      "sha256": "1ee939f9c47cb64e6c7387f2baf0547e2a4cd7f6f59d09e9a4bfda0271b4add9",
+      "size": 2323
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
@@ -356,6 +361,11 @@
       "path": "scripts/pc24x7_cloudflare_quick_tunnel.py",
       "sha256": "d7c197f3e832ed2394d50b28e06c732843b8be4dc21f9c35a120c84d101ec40c",
       "size": 1945
+    },
+    {
+      "path": "scripts/powerplatform_alm_official_monitor.py",
+      "sha256": "97cbd7128947de1ed2a7d7a50eb5090be9e3a6b590c5ad76ea63ea296444ee8c",
+      "size": 22289
     },
     {
       "path": "scripts/pr_ci_self_heal.py",
@@ -711,6 +721,11 @@
       "path": "tests/test_owner_risk3_gateway.py",
       "sha256": "e51c8ae33f63abb2fe1fb69f47dff6ddbadf899970e3a20f3de1609b8668033d",
       "size": 10074
+    },
+    {
+      "path": "tests/test_powerplatform_alm_official_monitor.py",
+      "sha256": "0db8fa62995c8f94513f5c145a678dc4603fcfb8a56ecc52eb7641ba530822f5",
+      "size": 4425
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
