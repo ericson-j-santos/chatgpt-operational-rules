@@ -1,6 +1,6 @@
 {
-  "version": "1.6.8",
-  "generated_at": "2026-09-29T01:37:37.125983+00:00",
+  "version": "1.6.9",
+  "generated_at": "2026-09-29T01:57:04.767774+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,17 +44,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9ad81fe6e3031c7f594ccf3a797ee027d5d221745c2a864cd13afa33b32f19b8",
-      "size": 12469
+      "sha256": "66371df38809df7978129b6b5b9e4c340bc34974ab9beab722302722d94a84a3",
+      "size": 13077
     },
     {
       "path": "README.md",
-      "sha256": "e286cfd86dedf6df26283f7daea967af1a8423f4633d9c584e3c550146241323",
-      "size": 7426
+      "sha256": "b4194bfafdb362215fb0a648f924a17d30c9c3fc238e6685955101b656864fef",
+      "size": 7832
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "8c82359c6883672b89464f828c30cbbbc3be18f5ff5ab2111ebf77d4c8704f1d",
+      "sha256": "34b0d2e5833f9520e413a287e1857c6bf68dcf7cf61dd45964043cb6cc50bc75",
       "size": 1710
     },
     {
@@ -194,8 +194,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "3dd77d69902f7a10226ba911e59d1ad38f39be420a320beb8de4bb6eb99d307a",
-      "size": 7942
+      "sha256": "61791a05194a1018e3a9f4c756f9a1da58da69a03aaa32bfaa0429f1c5e26f56",
+      "size": 8689
     },
     {
       "path": "rules/terminal-execution.md",
@@ -444,8 +444,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "29b8fc1fe53c42d3a8c04cff853527c734916c06d40c5e18e327d3b2ea681d92",
-      "size": 18545
+      "sha256": "1c035e315696451ce327bc9e0349f9baee9f68e0032aa02fcd2ac28db4de29ec",
+      "size": 20863
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -774,8 +774,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "af60a2082fce2e771f9d458525d0253139018a4b18f975b47e0a2d8f03f4cca7",
-      "size": 4376
+      "sha256": "5265755d385360ee1597fd61269e52a0e2a26217975f4590ccdeeb66c812c534",
+      "size": 7188
     },
     {
       "path": "tests/test_session_preflight.py",
