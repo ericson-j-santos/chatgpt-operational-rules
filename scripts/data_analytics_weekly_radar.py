@@ -31,12 +31,9 @@ SOURCES = (
     {"key":"power-bi","name":"Microsoft Power BI Blog","trust":"official","product":"power_bi",
      "feed":"https://powerbi.microsoft.com/en-us/blog/feed/","page":"https://powerbi.microsoft.com/en-us/blog/","match":"/en-us/blog/"},
     {"key":"sql-server","name":"Microsoft SQL Server Blog","trust":"official","product":"sql_server",
-     "feed":"https://techcommunity.microsoft.com/gxcuf89792/rss/board?board.id=SQLServer",
      "page":"https://techcommunity.microsoft.com/category/SQL-Server/blog/SQLServer","match":"/blog/sqlserver/"},
     {"key":"purview","name":"Microsoft Purview Blog","trust":"official","product":"governance",
      "page":"https://techcommunity.microsoft.com/category/microsoft-purview/blog/microsoft-purview-blog","match":"/blog/microsoft-purview-blog/"},
-    {"key":"fabric","name":"Microsoft Fabric Blog","trust":"official","product":"power_bi",
-     "page":"https://blog.fabric.microsoft.com/en-us/blog","match":"/en-us/blog/"},
     {"key":"sqlbi","name":"SQLBI","trust":"independent","product":"power_bi",
      "feed":"https://www.sqlbi.com/feed/","page":"https://www.sqlbi.com/articles/","match":"/articles/"},
 )
