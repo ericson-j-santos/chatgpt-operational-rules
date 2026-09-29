@@ -97,13 +97,26 @@ def plan_remediations(
                 }
             )
 
-        if "branch_unprotected" in repository.get("violations", []):
+        protection_violations = sorted(
+            {
+                violation
+                for violation in repository.get("violations", [])
+                if violation
+                in {
+                    "branch_unprotected",
+                    "required_status_checks_missing",
+                    "required_status_checks_unverifiable",
+                }
+            }
+        )
+        if protection_violations:
             strategy = remediation.get("branch_protection", "report_only")
             blockers.append(
                 {
                     "repository": repo_name,
                     "kind": "branch_protection_drift",
                     "strategy": strategy,
+                    "violations": protection_violations,
                     "reason": (
                         "provider_capability_unavailable"
                         if strategy == "provider_capability_blocked"
