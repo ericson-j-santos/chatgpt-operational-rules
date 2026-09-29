@@ -20,6 +20,10 @@ class RadarTests(unittest.TestCase):
         got=radar.feed_items(xml,src)
         self.assertEqual(got[0]["url"],"https://example.com/a"); self.assertTrue(got[0]["published"].startswith("2026-09-28"))
 
+    def test_meta_description_enriches_html_evidence(self):
+        raw='<html><head><meta property="og:description" content="Query Store observability guidance for SQL Server."></head></html>'
+        self.assertIn("Query Store",radar.page_description(raw))
+
     def test_history_deduplicates_normalized_url(self):
         issues=[{"title":"[Data Radar] old","body":"- Link: https://example.com/a?utm=x"}]
         self.assertIn("https://example.com/a",radar.history_urls(issues))
