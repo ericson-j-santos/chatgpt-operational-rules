@@ -154,6 +154,17 @@ jobs:
           assert reqsys["status"] != "unreachable", reqsys
           assert re.fullmatch(r"[0-9a-f]{40}", reqsys["main_sha"])
           assert reqsys["protected"] is True, reqsys
+          assert "required_status_checks_enforced" in reqsys, reqsys
+          if reqsys["required_status_checks_enforced"]:
+              assert "required_status_checks_missing" not in reqsys["violations"], reqsys
+          else:
+              assert any(
+                  item in reqsys["violations"]
+                  for item in {
+                      "required_status_checks_missing",
+                      "required_status_checks_unverifiable",
+                  }
+              ), reqsys
 
           allowed_decisions = {"allow", "hold", "block"}
           for pull in reqsys["open_pull_requests"]:
