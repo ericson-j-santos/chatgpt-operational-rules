@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +11,7 @@ MODULE = ROOT / "scripts" / "runner_version_preflight.py"
 SPEC = importlib.util.spec_from_file_location("runner_version_preflight", MODULE)
 assert SPEC and SPEC.loader
 m = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = m
 SPEC.loader.exec_module(m)
 
 
