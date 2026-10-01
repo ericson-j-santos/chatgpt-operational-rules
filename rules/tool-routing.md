@@ -78,10 +78,11 @@ um bloqueio conhecido para obter rota positiva é proibido.
 - Cota ausente produz `remote_quota_unknown`, sem inventar uma renovação.
 - Reserva só se aplica a `0 < remote_calls_left_pct <= 20`.
 - Saldo positivo somente torna RDC elegível quando `quota_observed_at` for uma
-  data/hora com fuso, não futura, e `quota_observation_source` identificar a
-  fonte da leitura. O roteador não inventa prazo de validade: por ser stateless,
-  o chamador deve obter a evidência imediatamente antes da decisão e não pode
-  reaproveitar uma leitura histórica como se fosse atual.
+  data/hora com fuso, não futura e observada nos últimos 15 minutos, e
+  `quota_observation_source` identificar a fonte da leitura. Essa janela é uma
+  validade operacional conservadora da leitura, não uma data de reset/renovação
+  da conta; o roteador nunca inventa `reset_at`. O chamador deve obter a evidência
+  imediatamente antes da decisão e não pode reaproveitar uma leitura histórica.
 - Um bloqueio anterior requer `remote_quota_renewal_confirmed=true`,
   `quota_renewal_source` identificando a evidência oficial independente e
   `quota_blocked_at < quota_renewed_at <= quota_observed_at`, sem datas futuras.
@@ -89,19 +90,28 @@ um bloqueio conhecido para obter rota positiva é proibido.
 - Quando `reset_at` for conhecido, ele deve pertencer ao ciclo atual:
   `quota_blocked_at < reset_at <= quota_renewed_at`. `unknown` nunca é
   convertido em data estimada.
-- Cada nova observação `<= 0` atualiza o marco do bloqueio; portanto, um novo
-  esgotamento após liberação não pode reutilizar evidência temporal do ciclo
-  anterior. Sem timestamp válido, o bloqueio continua e conserva um marco válido
-  já conhecido; sem marco anterior, o checkpoint fica incompleto e nenhuma data
-  é inventada.
+- Cada nova observação `<= 0` atualiza o marco do bloqueio somente para diante;
+  o CLI conserva o timestamp mais recente entre payload e checkpoint. Portanto,
+  replay antigo e novo esgotamento após liberação não podem reutilizar evidência
+  temporal de ciclo anterior. Sem timestamp válido, o bloqueio conserva um marco
+  válido já conhecido; sem marco anterior, o checkpoint fica incompleto e nenhuma
+  data é inventada.
 - Conectores nativos continuam prioritários e disponíveis mesmo com RDC bloqueado.
-  Casing, espaços, pontuação ou aliases em `preferred_native_executor` não
-  podem disfarçar RDC como executor não local.
+  `preferred_native_executor` aceita somente IDs nativos conhecidos pelo roteador;
+  casing, espaços, pontuação, sufixos ou aliases não podem disfarçar RDC como
+  executor não local.
 - `ready=true` significa elegibilidade de rota, não prova de execução remota.
   O CLI deve conservar monotonicamente um bloqueio já presente em `--output`:
   erro de entrada, checkpoint ilegível ou tentativa de apagar a flag não libera
-  RDC. Erro de entrada também substitui eventual decisão positiva residual; erro
-  de gravação retorna falha, nunca sucesso.
+  RDC. Checkpoint ilegível persiste `remote_quota_checkpoint_invalid=true`; payload
+  comum não limpa esse marcador nem pode reconstruir datas perdidas. A liberação
+  exige recuperação explícita de um checkpoint confiável por fluxo governado.
+  Bloqueio sem `quota_blocked_at` persiste
+  `remote_quota_checkpoint_incomplete=true`; somente uma nova observação recente,
+  com fonte identificada e cota `<= 0` pode preencher o marco, nunca um payload
+  positivo ou evento histórico.
+  Erro de entrada também substitui eventual decisão positiva residual; erro de
+  gravação retorna falha, nunca sucesso.
 
 O percentual e as datas usados nos testes são fixtures sintéticas. Nenhum saldo
 de conta deve ser fixado neste documento ou tratado como autorização permanente.
