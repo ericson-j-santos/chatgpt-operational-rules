@@ -379,6 +379,12 @@ class RepositoryGovernanceRemediationTests(unittest.TestCase):
         assert 'item.get("type") == "update_branch"' in workflow
         assert "Apply scheduled safe remediations" in workflow
         assert "REPOSITORY_GOVERNANCE_TOKEN" in workflow
+        assert "auditoria concluída em modo somente leitura" in workflow
+        assert 'echo "remediation_enabled=false" >> "${GITHUB_OUTPUT}"' in workflow
+        assert 'echo "remediation_enabled=true" >> "${GITHUB_OUTPUT}"' in workflow
+        assert workflow.count(
+            "steps.scheduled-remediation-context.outputs.remediation_enabled == 'true'"
+        ) == 2
 
     def test_powerbi_policy_enforces_fresh_branch_without_merge_queue(self):
         import json
