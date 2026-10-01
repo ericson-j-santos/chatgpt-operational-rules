@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-01T15:37:41.746Z",
+  "generated_at": "2026-10-01T17:41:08.405074+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -219,8 +219,8 @@
     },
     {
       "path": "rules/tool-routing.md",
-      "sha256": "3c7054de1bf9f683e38c62c920e6ab9aab032254da991601f31d67bdae18909a",
-      "size": 7999
+      "sha256": "20157ba300454ea67575151bbfe944eeec8356c7f26dbec19ca71035e6740c44",
+      "size": 8950
     },
     {
       "path": "schemas/artifact-manifest.schema.json",
@@ -544,8 +544,8 @@
     },
     {
       "path": "scripts/tool_router.py",
-      "sha256": "d42be7ce9e0a2355f340a5907be4612e0cee4d23ffcfe822f0daad50f3470b27",
-      "size": 10070
+      "sha256": "c1b5bb9cb761b100b2a2df3f6cd036d8311ab1fb4cd66a24e0c09c3791c35ed4",
+      "size": 14985
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -849,8 +849,8 @@
     },
     {
       "path": "tests/test_tool_router.py",
-      "sha256": "dc3c6cf9cac927d5071344986b7d6db16daa05f8fa3b8e80e574659d414ae66c",
-      "size": 15277
+      "sha256": "9c9c7333d939cfccbf3e69e98bb706eb93252899c48f81e720e4215034275539",
+      "size": 22820
     },
     {
       "path": "tests/test_update_command_gateway_host.py",

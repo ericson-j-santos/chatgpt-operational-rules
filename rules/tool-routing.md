@@ -73,21 +73,35 @@ O chat/worker chamador deve ler o último checkpoint e conservar
 `remote_quota_blocked` e `quota_blocked_at` entre execuções. Omitir ou apagar
 um bloqueio conhecido para obter rota positiva é proibido.
 
-- Zero produz `ready=false`, `selected_executor=null` e
+- Zero ou valor negativo produz `ready=false`, `selected_executor=null` e
   `remote_quota_blocked=true`, inclusive em recuperação de host.
 - Cota ausente produz `remote_quota_unknown`, sem inventar uma renovação.
 - Reserva só se aplica a `0 < remote_calls_left_pct <= 20`.
+- Saldo positivo somente torna RDC elegível quando `quota_observed_at` for uma
+  data/hora com fuso, não futura, e `quota_observation_source` identificar a
+  fonte da leitura. O roteador não inventa prazo de validade: por ser stateless,
+  o chamador deve obter a evidência imediatamente antes da decisão e não pode
+  reaproveitar uma leitura histórica como se fosse atual.
 - Um bloqueio anterior requer `remote_quota_renewal_confirmed=true`,
   `quota_renewal_source` identificando a evidência oficial independente e
   `quota_blocked_at < quota_renewed_at <= quota_observed_at`, sem datas futuras.
   Todas as datas devem conter fuso explícito.
-- Quando `reset_at` for conhecido, ele deve ser válido e não posterior à
-  renovação comprovada. `unknown` nunca é convertido em data estimada.
+- Quando `reset_at` for conhecido, ele deve pertencer ao ciclo atual:
+  `quota_blocked_at < reset_at <= quota_renewed_at`. `unknown` nunca é
+  convertido em data estimada.
+- Cada nova observação `<= 0` atualiza o marco do bloqueio; portanto, um novo
+  esgotamento após liberação não pode reutilizar evidência temporal do ciclo
+  anterior. Sem timestamp válido, o bloqueio continua e conserva um marco válido
+  já conhecido; sem marco anterior, o checkpoint fica incompleto e nenhuma data
+  é inventada.
 - Conectores nativos continuam prioritários e disponíveis mesmo com RDC bloqueado.
-  `preferred_native_executor` não pode disfarçar RDC como executor não local.
+  Casing, espaços, pontuação ou aliases em `preferred_native_executor` não
+  podem disfarçar RDC como executor não local.
 - `ready=true` significa elegibilidade de rota, não prova de execução remota.
-  Erro de entrada deve substituir eventual decisão positiva residual no arquivo
-  de saída; erro de gravação deve retornar falha, nunca sucesso.
+  O CLI deve conservar monotonicamente um bloqueio já presente em `--output`:
+  erro de entrada, checkpoint ilegível ou tentativa de apagar a flag não libera
+  RDC. Erro de entrada também substitui eventual decisão positiva residual; erro
+  de gravação retorna falha, nunca sucesso.
 
 O percentual e as datas usados nos testes são fixtures sintéticas. Nenhum saldo
 de conta deve ser fixado neste documento ou tratado como autorização permanente.

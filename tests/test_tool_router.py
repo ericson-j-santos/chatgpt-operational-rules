@@ -63,6 +63,8 @@ class ToolRouterTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": True,
             "remote_calls_left_pct": 16,
+            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observation_source": "official-account-test-fixture",
         })
         self.assertTrue(result["reserve_mode"])
         self.assertEqual(result["selected_executor"], "remote_desktop")
@@ -73,6 +75,8 @@ class ToolRouterTests(unittest.TestCase):
             "task_type": "github",
             "capabilities": {"github_api": True, "remote_desktop": True},
             "remote_calls_left_pct": 16,
+            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observation_source": "official-account-test-fixture",
         })
         self.assertEqual(result["selected_executor"], "github_api")
         self.assertIn("remote_desktop_reserve_mode", result["avoided"])
@@ -83,6 +87,8 @@ class ToolRouterTests(unittest.TestCase):
             "capabilities": {"remote_desktop": True},
             "remote_controller_online": False,
             "remote_calls_left_pct": 16,
+            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observation_source": "official-account-test-fixture",
         })
         self.assertFalse(result["ready"])
         self.assertEqual(result["next_step"], "dual_host_preflight_or_controller_recovery")
@@ -94,6 +100,8 @@ class ToolRouterTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": False,
             "remote_calls_left_pct": 16,
+            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observation_source": "official-account-test-fixture",
         })
         self.assertFalse(result["ready"])
         self.assertIsNone(result["selected_executor"])
@@ -124,6 +132,8 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": True,
             "remote_calls_left_pct": 99,
+            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observation_source": "official-account-test-fixture",
             "correlation_id": "rdc-quota-policy-test",
         }
         payload.update(changes)
@@ -261,7 +271,7 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
                 self.assertIn("remote_requires_intrinsically_local_task", result["reasons"])
 
     def test_invalid_types_fail_closed(self):
-        for value in (True, False, 1.5, float("nan"), float("inf"), {}, [], -1, 101):
+        for value in (True, False, 1.5, float("nan"), float("inf"), {}, [], 101):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     tr.evaluate(self.local_payload(remote_calls_left_pct=value))
@@ -273,6 +283,155 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             with self.subTest(payload=value):
                 with self.assertRaises(ValueError):
                     tr.evaluate(value)
+
+    def test_remote_executor_aliases_cannot_bypass_quota(self):
+        for alias in ("REMOTE_DESKTOP", "Remote Desktop", "remote-desktop-commander", "remote_mcp", "RDC"):
+            with self.subTest(alias=alias):
+                result = tr.evaluate(self.local_payload(
+                    task_type="custom",
+                    capabilities={alias: True},
+                    preferred_native_executor=alias,
+                    remote_calls_left_pct=0,
+                ))
+                self.assertFalse(result["ready"])
+                self.assertIsNone(result["selected_executor"])
+                self.assertIn("remote_requires_intrinsically_local_task", result["reasons"])
+
+    def test_nonpositive_quota_blocks_and_preserves_native_priority(self):
+        for pct in (-10, -1, "-1", 0):
+            with self.subTest(pct=pct):
+                local = tr.evaluate(self.local_payload(
+                    remote_calls_left_pct=pct,
+                    remote_quota_blocked="legacy-invalid",
+                ))
+                self.assert_blocked(local, "remote_quota_exhausted")
+                self.assertTrue(local["remote_quota_blocked"])
+                native = tr.evaluate(self.local_payload(
+                    task_type="github",
+                    capabilities={"github_api": True, "remote_desktop": True},
+                    remote_calls_left_pct=pct,
+                    remote_quota_blocked="legacy-invalid",
+                ))
+                self.assertEqual(native["selected_executor"], "github_api")
+                self.assertTrue(native["remote_quota_blocked"])
+
+    def test_positive_quota_requires_dated_observation_source(self):
+        cases = [
+            {"quota_observed_at": None},
+            {"quota_observation_source": None},
+            {"quota_observation_source": "   "},
+            {"quota_observed_at": "invalid"},
+            {"quota_observed_at": "2025-02-01T00:01:00"},
+            {"quota_observed_at": "2099-01-01T00:00:00Z"},
+        ]
+        for changes in cases:
+            with self.subTest(changes=changes):
+                self.assert_blocked(
+                    tr.evaluate(self.local_payload(**changes)),
+                    "remote_quota_observation_unproven",
+                )
+        self.assertEqual(
+            tr.evaluate(self.local_payload())["selected_executor"],
+            "remote_desktop",
+        )
+        renewed_without_observation_source = tr.evaluate(self.renewed_payload(
+            quota_observation_source=None,
+        ))
+        self.assertTrue(renewed_without_observation_source["remote_quota_blocked"])
+        self.assert_blocked(
+            renewed_without_observation_source,
+            "remote_quota_observation_unproven",
+        )
+
+    def test_second_exhaustion_starts_a_new_block_cycle(self):
+        released = tr.evaluate(self.renewed_payload())
+        self.assertFalse(released["remote_quota_blocked"])
+        second = tr.evaluate(self.local_payload(
+            remote_calls_left_pct=0,
+            remote_quota_blocked=released["remote_quota_blocked"],
+            quota_blocked_at=released["quota_blocked_at"],
+            quota_observed_at="2025-03-01T00:00:00Z",
+        ))
+        self.assertEqual(second["quota_blocked_at"], "2025-03-01T00:00:00Z")
+        repeated = tr.evaluate(self.local_payload(
+            remote_calls_left_pct=0,
+            remote_quota_blocked=True,
+            quota_blocked_at=second["quota_blocked_at"],
+            quota_observed_at="2025-03-02T00:00:00Z",
+        ))
+        self.assertEqual(repeated["quota_blocked_at"], "2025-03-02T00:00:00Z")
+        old_evidence = self.renewed_payload(
+            quota_blocked_at=repeated["quota_blocked_at"],
+        )
+        self.assert_blocked(
+            tr.evaluate(old_evidence),
+            "remote_quota_renewal_unproven",
+        )
+
+    def test_extreme_timestamp_fails_closed_without_crashing_cli(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            code, positive = self.cli(root, self.local_payload())
+            self.assertEqual(code, 0)
+            self.assertTrue(positive["ready"])
+            code, failed = self.cli(root, self.local_payload(
+                quota_observed_at="0001-01-01T00:00:00+23:59",
+            ))
+            self.assertEqual(code, 3)
+            self.assertFalse(failed["ready"])
+            self.assertIn("remote_quota_observation_unproven", failed["reasons"])
+
+    def test_official_reset_must_belong_to_current_block_cycle(self):
+        self.assert_blocked(
+            tr.evaluate(self.renewed_payload(reset_at="2025-01-29T00:00:00Z")),
+            "remote_quota_reset_not_reached",
+        )
+
+    def test_cli_preserves_block_across_error_and_positive_replay(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            code, exhausted = self.cli(root, self.local_payload(
+                remote_calls_left_pct=0,
+                quota_observed_at="2025-01-30T12:00:00Z",
+            ))
+            self.assertEqual(code, 3)
+            code, failed = self.cli(root, ["invalid"])
+            self.assertEqual(code, 2)
+            self.assertTrue(failed["remote_quota_blocked"])
+            self.assertEqual(failed["quota_blocked_at"], exhausted["quota_blocked_at"])
+            code, replay = self.cli(root, self.local_payload())
+            self.assertEqual(code, 3)
+            self.assertTrue(replay["remote_quota_blocked"])
+            self.assertIn("remote_quota_renewal_unproven", replay["reasons"])
+            (root / "decision.json").write_text("{invalid", encoding="utf-8")
+            code, corrupt_checkpoint = self.cli(root, self.local_payload())
+            self.assertEqual(code, 3)
+            self.assertTrue(corrupt_checkpoint["remote_quota_blocked"])
+            self.assertIn("remote_quota_renewal_unproven", corrupt_checkpoint["reasons"])
+
+    def test_zero_without_timestamp_stays_blocked_until_checkpoint_is_dated(self):
+        incomplete = tr.evaluate(self.local_payload(
+            remote_calls_left_pct=0,
+            quota_observed_at=None,
+        ))
+        self.assertTrue(incomplete["remote_quota_blocked"])
+        self.assertIsNone(incomplete["quota_blocked_at"])
+        self.assertIn("remote_quota_checkpoint_incomplete", incomplete["reasons"])
+        dated = tr.evaluate(self.local_payload(
+            remote_calls_left_pct=0,
+            remote_quota_blocked=True,
+            quota_blocked_at=incomplete["quota_blocked_at"],
+            quota_observed_at="2025-01-30T12:00:00Z",
+        ))
+        self.assertEqual(dated["quota_blocked_at"], "2025-01-30T12:00:00Z")
+        renewed = tr.evaluate(self.renewed_payload(
+            quota_blocked_at=dated["quota_blocked_at"],
+        ))
+        self.assertEqual(renewed["selected_executor"], "remote_desktop")
 
     def cli(self, root, payload):
         """Executa o entrypoint real: JSON -> argumentos -> decisão -> arquivo -> releitura."""
