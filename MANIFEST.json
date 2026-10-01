@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-01T18:16:51.205867+00:00",
+  "generated_at": "2026-10-01T18:40:25.466062+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -29,8 +29,8 @@
     },
     {
       "path": ".github/workflows/repository-governance-control-plane.yml",
-      "sha256": "709038ec5a2fbd6a1ad9b88de00c0ac8fad0b3a8aa7fcf8c5e7cac5b22fa6a60",
-      "size": 14000
+      "sha256": "acc655d9bb3fd59921eadf1ecd74453cfb8d382d4daf41e897aefefb2a308a1c",
+      "size": 14392
     },
     {
       "path": ".github/workflows/todo-global-hourly-cycle.yml",
@@ -789,8 +789,8 @@
     },
     {
       "path": "tests/test_repository_governance_remediation.py",
-      "sha256": "ae8f4c93af8e353cad0e0089935350972a01be721a7e893d9079837cb20288c3",
-      "size": 15078
+      "sha256": "a70ce104fbb683f89c226a7affcee9903d0927c4d240042a93d2eab0ee8ae9de",
+      "size": 15453
     },
     {
       "path": "tests/test_runner_version_preflight.py",

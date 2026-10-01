@@ -298,17 +298,22 @@ jobs:
           --result evidence/repository-governance-remediation-result.json
 
       - name: Validate scheduled remediation context
+        id: scheduled-remediation-context
         if: github.event_name == 'schedule'
         env:
           REPOSITORY_GOVERNANCE_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
         run: |
           if [ -z "${REPOSITORY_GOVERNANCE_TOKEN}" ]; then
-            echo "::error::REPOSITORY_GOVERNANCE_TOKEN não configurado para remediação agendada."
-            exit 6
+            echo "::warning::REPOSITORY_GOVERNANCE_TOKEN não configurado; auditoria concluída em modo somente leitura."
+            echo "remediation_enabled=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "remediation_enabled=true" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Restrict scheduled remediation to safe branch refresh
-        if: github.event_name == 'schedule'
+        if: >-
+          github.event_name == 'schedule' &&
+          steps.scheduled-remediation-context.outputs.remediation_enabled == 'true'
         run: |
           python - <<'PY'
           import json
@@ -335,7 +340,9 @@ jobs:
           PY
 
       - name: Apply scheduled safe remediations
-        if: github.event_name == 'schedule'
+        if: >-
+          github.event_name == 'schedule' &&
+          steps.scheduled-remediation-context.outputs.remediation_enabled == 'true'
         env:
           GH_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
         run: >-
