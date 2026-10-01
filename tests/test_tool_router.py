@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import tool_router as tr
+
+
+def utc_iso(*, days: int = 0, minutes: int = 0) -> str:
+    value = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(
+        days=days,
+        minutes=minutes,
+    )
+    return value.isoformat().replace("+00:00", "Z")
 
 
 class ToolRouterTests(unittest.TestCase):
@@ -63,7 +72,7 @@ class ToolRouterTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": True,
             "remote_calls_left_pct": 16,
-            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observed_at": utc_iso(minutes=-1),
             "quota_observation_source": "official-account-test-fixture",
         })
         self.assertTrue(result["reserve_mode"])
@@ -75,7 +84,7 @@ class ToolRouterTests(unittest.TestCase):
             "task_type": "github",
             "capabilities": {"github_api": True, "remote_desktop": True},
             "remote_calls_left_pct": 16,
-            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observed_at": utc_iso(minutes=-1),
             "quota_observation_source": "official-account-test-fixture",
         })
         self.assertEqual(result["selected_executor"], "github_api")
@@ -87,7 +96,7 @@ class ToolRouterTests(unittest.TestCase):
             "capabilities": {"remote_desktop": True},
             "remote_controller_online": False,
             "remote_calls_left_pct": 16,
-            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observed_at": utc_iso(minutes=-1),
             "quota_observation_source": "official-account-test-fixture",
         })
         self.assertFalse(result["ready"])
@@ -100,7 +109,7 @@ class ToolRouterTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": False,
             "remote_calls_left_pct": 16,
-            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observed_at": utc_iso(minutes=-1),
             "quota_observation_source": "official-account-test-fixture",
         })
         self.assertFalse(result["ready"])
@@ -132,7 +141,7 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             "remote_controller_online": True,
             "remote_controller_semantic_ok": True,
             "remote_calls_left_pct": 99,
-            "quota_observed_at": "2025-02-01T00:01:00Z",
+            "quota_observed_at": utc_iso(minutes=-1),
             "quota_observation_source": "official-account-test-fixture",
             "correlation_id": "rdc-quota-policy-test",
         }
@@ -143,11 +152,11 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
         payload = self.local_payload(
             remote_quota_blocked=True,
             remote_quota_renewal_confirmed=True,
-            quota_blocked_at="2025-01-30T12:00:00Z",
-            quota_renewed_at="2025-02-01T00:00:00Z",
-            quota_observed_at="2025-02-01T00:01:00Z",
+            quota_blocked_at=utc_iso(days=-1),
+            quota_renewed_at=utc_iso(minutes=-2),
+            quota_observed_at=utc_iso(minutes=-1),
             quota_renewal_source="official-account-test-fixture",
-            reset_at="2025-02-01T00:00:00Z",
+            reset_at=utc_iso(minutes=-2),
         )
         payload.update(changes)
         return payload
@@ -285,7 +294,16 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
                     tr.evaluate(value)
 
     def test_remote_executor_aliases_cannot_bypass_quota(self):
-        for alias in ("REMOTE_DESKTOP", "Remote Desktop", "remote-desktop-commander", "remote_mcp", "RDC"):
+        for alias in (
+            "REMOTE_DESKTOP",
+            "Remote Desktop",
+            "remote-desktop-commander",
+            "Remote Desktop Commander MCP",
+            "remote_mcp",
+            "RDC",
+            "rdc_v2",
+            "workstation_agent",
+        ):
             with self.subTest(alias=alias):
                 result = tr.evaluate(self.local_payload(
                     task_type="custom",
@@ -295,7 +313,20 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
                 ))
                 self.assertFalse(result["ready"])
                 self.assertIsNone(result["selected_executor"])
-                self.assertIn("remote_requires_intrinsically_local_task", result["reasons"])
+                self.assertTrue({
+                    "remote_requires_intrinsically_local_task",
+                    "explicit_executor_not_allowlisted",
+                }.intersection(result["reasons"]))
+
+        native = tr.evaluate(self.local_payload(
+            task_type="custom",
+            capabilities={"github_api": True, "remote_desktop": True},
+            preferred_native_executor="github_api",
+            remote_calls_left_pct=0,
+        ))
+        self.assertTrue(native["ready"])
+        self.assertEqual(native["selected_executor"], "github_api")
+        self.assertTrue(native["remote_quota_blocked"])
 
     def test_nonpositive_quota_blocks_and_preserves_native_priority(self):
         for pct in (-10, -1, "-1", 0):
@@ -321,6 +352,7 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             {"quota_observation_source": None},
             {"quota_observation_source": "   "},
             {"quota_observed_at": "invalid"},
+            {"quota_observed_at": "2025-02-01T00:01:00Z"},
             {"quota_observed_at": "2025-02-01T00:01:00"},
             {"quota_observed_at": "2099-01-01T00:00:00Z"},
         ]
@@ -346,27 +378,50 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
     def test_second_exhaustion_starts_a_new_block_cycle(self):
         released = tr.evaluate(self.renewed_payload())
         self.assertFalse(released["remote_quota_blocked"])
+        second_at = utc_iso(minutes=-4)
         second = tr.evaluate(self.local_payload(
             remote_calls_left_pct=0,
             remote_quota_blocked=released["remote_quota_blocked"],
             quota_blocked_at=released["quota_blocked_at"],
-            quota_observed_at="2025-03-01T00:00:00Z",
+            quota_observed_at=second_at,
         ))
-        self.assertEqual(second["quota_blocked_at"], "2025-03-01T00:00:00Z")
+        self.assertEqual(second["quota_blocked_at"], second_at)
+        repeated_at = utc_iso(minutes=-3)
         repeated = tr.evaluate(self.local_payload(
             remote_calls_left_pct=0,
             remote_quota_blocked=True,
             quota_blocked_at=second["quota_blocked_at"],
-            quota_observed_at="2025-03-02T00:00:00Z",
+            quota_observed_at=repeated_at,
         ))
-        self.assertEqual(repeated["quota_blocked_at"], "2025-03-02T00:00:00Z")
+        self.assertEqual(repeated["quota_blocked_at"], repeated_at)
+        old_renewal = utc_iso(minutes=-5)
         old_evidence = self.renewed_payload(
             quota_blocked_at=repeated["quota_blocked_at"],
+            quota_renewed_at=old_renewal,
+            reset_at=old_renewal,
         )
         self.assert_blocked(
             tr.evaluate(old_evidence),
             "remote_quota_renewal_unproven",
         )
+
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            code, checkpoint = self.cli(root, self.local_payload(
+                remote_calls_left_pct=0,
+                quota_observed_at=repeated_at,
+            ))
+            self.assertEqual(code, 3)
+            code, rollback = self.cli(root, self.renewed_payload(
+                quota_blocked_at=utc_iso(days=-2),
+                quota_renewed_at=old_renewal,
+                reset_at=old_renewal,
+            ))
+            self.assertEqual(code, 3)
+            self.assertEqual(rollback["quota_blocked_at"], checkpoint["quota_blocked_at"])
+            self.assert_blocked(rollback, "remote_quota_renewal_unproven")
 
     def test_extreme_timestamp_fails_closed_without_crashing_cli(self):
         import tempfile
@@ -396,7 +451,7 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             root = Path(directory)
             code, exhausted = self.cli(root, self.local_payload(
                 remote_calls_left_pct=0,
-                quota_observed_at="2025-01-30T12:00:00Z",
+                quota_observed_at=utc_iso(minutes=-4),
             ))
             self.assertEqual(code, 3)
             code, failed = self.cli(root, ["invalid"])
@@ -411,7 +466,13 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
             code, corrupt_checkpoint = self.cli(root, self.local_payload())
             self.assertEqual(code, 3)
             self.assertTrue(corrupt_checkpoint["remote_quota_blocked"])
-            self.assertIn("remote_quota_renewal_unproven", corrupt_checkpoint["reasons"])
+            self.assertTrue(corrupt_checkpoint["remote_quota_checkpoint_invalid"])
+            self.assertIn("remote_quota_checkpoint_invalid", corrupt_checkpoint["reasons"])
+            code, forged_repair = self.cli(root, self.renewed_payload())
+            self.assertEqual(code, 3)
+            self.assertTrue(forged_repair["remote_quota_blocked"])
+            self.assertTrue(forged_repair["remote_quota_checkpoint_invalid"])
+            self.assertIn("remote_quota_checkpoint_invalid", forged_repair["reasons"])
 
     def test_zero_without_timestamp_stays_blocked_until_checkpoint_is_dated(self):
         incomplete = tr.evaluate(self.local_payload(
@@ -420,18 +481,67 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
         ))
         self.assertTrue(incomplete["remote_quota_blocked"])
         self.assertIsNone(incomplete["quota_blocked_at"])
+        self.assertTrue(incomplete["remote_quota_checkpoint_incomplete"])
         self.assertIn("remote_quota_checkpoint_incomplete", incomplete["reasons"])
+        forged = tr.evaluate(self.renewed_payload(
+            remote_quota_blocked=True,
+            remote_quota_checkpoint_incomplete=True,
+            quota_blocked_at=utc_iso(days=-2),
+        ))
+        self.assert_blocked(forged, "remote_quota_checkpoint_incomplete")
         dated = tr.evaluate(self.local_payload(
             remote_calls_left_pct=0,
             remote_quota_blocked=True,
+            remote_quota_checkpoint_incomplete=True,
             quota_blocked_at=incomplete["quota_blocked_at"],
-            quota_observed_at="2025-01-30T12:00:00Z",
+            quota_observed_at=utc_iso(minutes=-4),
         ))
-        self.assertEqual(dated["quota_blocked_at"], "2025-01-30T12:00:00Z")
+        self.assertIsNotNone(dated["quota_blocked_at"])
+        self.assertFalse(dated["remote_quota_checkpoint_incomplete"])
         renewed = tr.evaluate(self.renewed_payload(
             quota_blocked_at=dated["quota_blocked_at"],
         ))
         self.assertEqual(renewed["selected_executor"], "remote_desktop")
+
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            code, cli_incomplete = self.cli(root, self.local_payload(
+                remote_calls_left_pct=0,
+                quota_observed_at=None,
+            ))
+            self.assertEqual(code, 3)
+            self.assertTrue(cli_incomplete["remote_quota_checkpoint_incomplete"])
+            code, cli_forged = self.cli(root, self.renewed_payload(
+                quota_blocked_at=utc_iso(days=-2),
+            ))
+            self.assertEqual(code, 3)
+            self.assertTrue(cli_forged["remote_quota_checkpoint_incomplete"])
+            self.assertIsNone(cli_forged["quota_blocked_at"])
+            code, stale_zero = self.cli(root, self.local_payload(
+                remote_calls_left_pct=0,
+                quota_observed_at="2025-01-01T00:00:00Z",
+            ))
+            self.assertEqual(code, 3)
+            self.assertTrue(stale_zero["remote_quota_checkpoint_incomplete"])
+            self.assertIsNone(stale_zero["quota_blocked_at"])
+            old_renewal = "2025-02-01T00:00:00Z"
+            code, stale_renewal = self.cli(root, self.renewed_payload(
+                quota_blocked_at="2025-01-01T00:00:00Z",
+                quota_renewed_at=old_renewal,
+                reset_at=old_renewal,
+            ))
+            self.assertEqual(code, 3)
+            self.assertTrue(stale_renewal["remote_quota_checkpoint_incomplete"])
+            self.assertIsNone(stale_renewal["quota_blocked_at"])
+            code, cli_dated = self.cli(root, self.local_payload(
+                remote_calls_left_pct=0,
+                quota_observed_at=utc_iso(minutes=-4),
+            ))
+            self.assertEqual(code, 3)
+            self.assertFalse(cli_dated["remote_quota_checkpoint_incomplete"])
+            self.assertIsNotNone(cli_dated["quota_blocked_at"])
 
     def cli(self, root, payload):
         """Executa o entrypoint real: JSON -> argumentos -> decisão -> arquivo -> releitura."""
@@ -458,8 +568,8 @@ class RemoteQuotaPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = self.local_payload(
-                remote_calls_left_pct=0, quota_observed_at="2025-01-30T12:00:00Z",
-                reset_at="2025-02-01T00:00:00Z",
+                remote_calls_left_pct=0, quota_observed_at=utc_iso(minutes=-4),
+                reset_at=utc_iso(minutes=-2),
             )
             code, exhausted = self.cli(root, payload)
             self.assertEqual(code, 3)

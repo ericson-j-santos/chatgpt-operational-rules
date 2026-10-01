@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 REMOTE_RESERVE_THRESHOLD = 20
+REMOTE_QUOTA_OBSERVATION_MAX_AGE = timedelta(minutes=15)
 
 REMOTE_EXECUTOR_IDENTITIES = {
     "rdc",
@@ -24,6 +25,12 @@ DIRECT_CONNECTORS = {
     "gmail": "gmail",
     "calendar": "google_calendar",
     "notion": "notion",
+}
+
+SAFE_EXPLICIT_NATIVE_EXECUTORS = {
+    *DIRECT_CONNECTORS.values(),
+    "native_web",
+    "cloud_browser",
 }
 
 LOCAL_TYPES = {"local_machine", "local_command", "local_files", "local_process", "host_recovery"}
@@ -73,17 +80,53 @@ def _executor_identity(value: Any) -> str:
     return "".join(character for character in str(value or "").casefold() if character.isalnum())
 
 
-def _remote_quota_observation_reason(payload: dict[str, Any], pct: int | None) -> str | None:
-    """Exige evidência datada para saldo positivo, sem inventar um TTL."""
-    if pct is None or pct <= 0:
-        return None
+def _is_remote_executor(value: Any) -> bool:
+    """Reconhece famílias RDC; executores explícitos ainda dependem de allowlist."""
+    identity = _executor_identity(value)
+    return identity in REMOTE_EXECUTOR_IDENTITIES or identity.startswith(
+        ("rdc", "remotedesktop", "remotecommander", "remotemcp")
+    )
+
+
+def _newest_timestamp_value(
+    incoming: Any,
+    persisted: Any,
+    *,
+    past_only: bool,
+) -> Any:
+    """Conserva o timestamp válido mais novo para impedir rollback do checkpoint."""
+    now = datetime.now(timezone.utc)
+    parsed: list[tuple[datetime, Any]] = []
+    for raw in (persisted, incoming):
+        instant = _instant(raw)
+        if instant is not None and (not past_only or instant <= now):
+            parsed.append((instant, raw))
+    if parsed:
+        return max(parsed, key=lambda item: item[0])[1]
+    if persisted not in (None, ""):
+        return persisted
+    return incoming
+
+
+def _quota_observation_is_current(payload: dict[str, Any]) -> bool:
+    """Valida proveniência e frescor sem inferir renovação ou reset da conta."""
     source = payload.get("quota_observation_source")
     observed_at = _instant(payload.get("quota_observed_at"))
     if not isinstance(source, str) or not source.strip():
-        return "remote_quota_observation_unproven"
-    if observed_at is None or observed_at > datetime.now(timezone.utc):
-        return "remote_quota_observation_unproven"
-    return None
+        return False
+    now = datetime.now(timezone.utc)
+    return not (
+        observed_at is None
+        or observed_at > now
+        or now - observed_at > REMOTE_QUOTA_OBSERVATION_MAX_AGE
+    )
+
+
+def _remote_quota_observation_reason(payload: dict[str, Any], pct: int | None) -> str | None:
+    """Exige leitura positiva recente; a janela operacional não é data de reset."""
+    if pct is None or pct <= 0:
+        return None
+    return None if _quota_observation_is_current(payload) else "remote_quota_observation_unproven"
 
 
 def _remote_quota_block_reason(payload: dict[str, Any], pct: int | None) -> str | None:
@@ -92,6 +135,10 @@ def _remote_quota_block_reason(payload: dict[str, Any], pct: int | None) -> str 
         return "remote_quota_unknown"
     if pct <= 0:
         return "remote_quota_exhausted"
+    if payload.get("remote_quota_checkpoint_invalid") is True:
+        return "remote_quota_checkpoint_invalid"
+    if payload.get("remote_quota_checkpoint_incomplete") is True:
+        return "remote_quota_checkpoint_incomplete"
     blocked = payload.get("remote_quota_blocked", False)
     if not isinstance(blocked, bool):
         raise ValueError("remote_quota_blocked deve ser booleano")
@@ -130,11 +177,17 @@ def _load_checkpoint(path: Path | None) -> dict[str, Any]:
         return {
             "remote_quota_blocked": True,
             "remote_quota_block_reason": "remote_quota_checkpoint_invalid",
+            "remote_quota_checkpoint_invalid": True,
         }
-    if not isinstance(checkpoint, dict):
+    if (
+        not isinstance(checkpoint, dict)
+        or not isinstance(checkpoint.get("ready"), bool)
+        or "selected_executor" not in checkpoint
+    ):
         return {
             "remote_quota_blocked": True,
             "remote_quota_block_reason": "remote_quota_checkpoint_invalid",
+            "remote_quota_checkpoint_invalid": True,
         }
     return checkpoint
 
@@ -144,9 +197,22 @@ def _carry_blocked_checkpoint(payload: Any, checkpoint: dict[str, Any]) -> Any:
         return payload
     carried = dict(payload)
     carried["remote_quota_blocked"] = True
-    for field in ("quota_blocked_at", "reset_at"):
-        if carried.get(field) in (None, "") and checkpoint.get(field) not in (None, ""):
-            carried[field] = checkpoint[field]
+    if checkpoint.get("remote_quota_checkpoint_invalid") is True:
+        carried["remote_quota_checkpoint_invalid"] = True
+    if checkpoint.get("remote_quota_checkpoint_incomplete") is True:
+        carried["remote_quota_checkpoint_incomplete"] = True
+        carried["quota_blocked_at"] = None
+    else:
+        carried["quota_blocked_at"] = _newest_timestamp_value(
+            carried.get("quota_blocked_at"),
+            checkpoint.get("quota_blocked_at"),
+            past_only=True,
+        )
+    carried["reset_at"] = _newest_timestamp_value(
+        carried.get("reset_at"),
+        checkpoint.get("reset_at"),
+        past_only=False,
+    )
     return carried
 
 
@@ -159,17 +225,22 @@ def _blocked_state(payload: Any, checkpoint: dict[str, Any]) -> dict[str, Any]:
     except ValueError:
         pct = None
     if pct is not None and pct <= 0:
-        observed_at = current.get("quota_observed_at")
-        observed = _instant(observed_at)
+        observed_at = (
+            current.get("quota_observed_at")
+            if _quota_observation_is_current(current)
+            else None
+        )
         blocked_at = current.get("quota_blocked_at") or previous.get("quota_blocked_at")
-        blocked = _instant(blocked_at)
-        if observed is not None and observed <= datetime.now(timezone.utc):
-            blocked_at = observed_at
-        elif blocked is None or blocked > datetime.now(timezone.utc):
+        blocked_at = _newest_timestamp_value(observed_at, blocked_at, past_only=True)
+        if _instant(blocked_at) is None:
             blocked_at = None
         return {
             "remote_quota_blocked": True,
             "remote_quota_block_reason": "remote_quota_exhausted",
+            "remote_quota_checkpoint_invalid": (
+                previous.get("remote_quota_checkpoint_invalid") is True
+            ),
+            "remote_quota_checkpoint_incomplete": blocked_at is None,
             "quota_blocked_at": blocked_at,
             "reset_at": current.get("reset_at") or previous.get("reset_at"),
         }
@@ -177,6 +248,12 @@ def _blocked_state(payload: Any, checkpoint: dict[str, Any]) -> dict[str, Any]:
     return {
         "remote_quota_blocked": bool(source),
         "remote_quota_block_reason": source.get("remote_quota_block_reason"),
+        "remote_quota_checkpoint_invalid": (
+            source.get("remote_quota_checkpoint_invalid") is True
+        ),
+        "remote_quota_checkpoint_incomplete": (
+            source.get("remote_quota_checkpoint_incomplete") is True
+        ),
         "quota_blocked_at": source.get("quota_blocked_at"),
         "reset_at": source.get("reset_at"),
     }
@@ -259,13 +336,16 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
                 reasons.append("remote_or_controller_unavailable")
     else:
         explicit = str(payload.get("preferred_native_executor") or "").strip()
-        if _executor_identity(explicit) in REMOTE_EXECUTOR_IDENTITIES:
+        if _is_remote_executor(explicit):
             selected = None
             reasons.append("remote_requires_intrinsically_local_task")
             avoided.append("remote_desktop")
-        elif explicit and _bool(capabilities, explicit):
+        elif explicit in SAFE_EXPLICIT_NATIVE_EXECUTORS and _bool(capabilities, explicit):
             selected = explicit
             reasons.append("explicit_native_executor_available")
+        elif explicit and _bool(capabilities, explicit):
+            selected = None
+            reasons.append("explicit_executor_not_allowlisted")
         else:
             selected = None
             reasons.append("no_safe_route")
@@ -282,24 +362,28 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
             avoided.append("remote_desktop_not_required")
 
     raw_observed_at = payload.get("quota_observed_at")
-    observed_at = _instant(raw_observed_at)
     existing_blocked_at = payload.get("quota_blocked_at")
-    existing_blocked = _instant(existing_blocked_at)
     previous_blocked = payload.get("remote_quota_blocked") is True
     if remote_pct is not None and remote_pct <= 0:
-        if observed_at is not None and observed_at <= datetime.now(timezone.utc):
-            quota_blocked_at = raw_observed_at
-        elif (
-            previous_blocked
-            and existing_blocked is not None
-            and existing_blocked <= datetime.now(timezone.utc)
-        ):
-            quota_blocked_at = existing_blocked_at
-        else:
+        current_exhaustion_at = (
+            raw_observed_at if _quota_observation_is_current(payload) else None
+        )
+        quota_blocked_at = _newest_timestamp_value(
+            current_exhaustion_at,
+            existing_blocked_at if previous_blocked else None,
+            past_only=True,
+        )
+        if _instant(quota_blocked_at) is None:
             quota_blocked_at = None
             reasons.append("remote_quota_checkpoint_incomplete")
     else:
         quota_blocked_at = existing_blocked_at
+
+    checkpoint_incomplete = (
+        quota_blocked_at is None
+        if remote_pct is not None and remote_pct <= 0
+        else payload.get("remote_quota_checkpoint_incomplete") is True
+    )
 
     return {
         "ready": selected is not None,
@@ -309,6 +393,10 @@ def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
         "remote_calls_left_pct": remote_pct,
         "remote_quota_blocked": quota_blocked,
         "remote_quota_block_reason": quota_reason,
+        "remote_quota_checkpoint_invalid": (
+            payload.get("remote_quota_checkpoint_invalid") is True
+        ),
+        "remote_quota_checkpoint_incomplete": checkpoint_incomplete,
         "remote_quota_eligibility_reason": remote_reason,
         "quota_blocked_at": quota_blocked_at,
         "quota_observed_at": raw_observed_at,
