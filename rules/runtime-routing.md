@@ -47,6 +47,7 @@ Essa preferência não promove automaticamente HML/PROD para o PC24x7. Gates esp
 - Após a recuperação do PC24x7, a execução deve retornar ao runtime canônico quando aplicável.
 
 ## Fly.io — retirado definitivamente em 2026-10-02
+- Fly.io não é runtime do TODO Global nem de qualquer outra solução.
 - Por decisão explícita do usuário, Fly.io está proibido como runtime de todas as soluções e ambientes, incluindo DEV, HML, STG e PROD.
 - Não criar, recuperar, publicar, reativar ou usar Fly.io como contingência, fallback ou dependência de execução.
 - Esta decisão substitui qualquer permissão histórica específica de projeto para usar Fly.io.
