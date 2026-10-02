@@ -46,10 +46,14 @@ Essa preferência não promove automaticamente HML/PROD para o PC24x7. Gates esp
 - O uso de Render como contingência exige causa/evidência registrada e decisão explícita quando houver custo ou mudança arquitetural relevante.
 - Após a recuperação do PC24x7, a execução deve retornar ao runtime canônico quando aplicável.
 
-## Fly.io
-- Fly.io não é runtime do TODO Global.
-- Para outros projetos, somente usar Fly.io quando a regra específica do projeto/ambiente o mantiver como runtime vigente ou quando houver decisão explícita baseada em requisitos.
-- Não introduzir Fly.io como novo caminho normal apenas por convenção histórica se o workload for elegível ao PC24x7.
+## Fly.io — retirado definitivamente em 2026-10-02
+- Por decisão explícita do usuário, Fly.io está proibido como runtime de todas as soluções e ambientes, incluindo DEV, HML, STG e PROD.
+- Não criar, recuperar, publicar, reativar ou usar Fly.io como contingência, fallback ou dependência de execução.
+- Esta decisão substitui qualquer permissão histórica específica de projeto para usar Fly.io.
+- Remover deploys, gatilhos automáticos, configurações, endpoints ativos e integrações com Fly.io; manter referências históricas apenas como evidência de descontinuação.
+- Migrar persistência e validar backup/restauração, consumidores, health/readiness e E2E no runtime substituto antes de excluir apps, volumes ou bancos legados.
+- Depois da migração validada, encerrar recursos, revogar tokens e remover secrets de CI relacionados ao Fly.io; verificar inventário vazio e eventuais cobranças pendentes.
+- Aplicar PC24x7-first para a substituição, preservando os requisitos de disponibilidade, continuidade e segurança de cada ambiente.
 
 ## Anti-regressão
 Antes de qualquer ação específica de provedor:

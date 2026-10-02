@@ -194,8 +194,8 @@
     },
     {
       "path": "rules/runtime-routing.md",
-      "sha256": "8f6d49e19c86ed24a5cde00400d3447f87a2931fc1701bf3c46df53097a234d5",
-      "size": 4898
+      "sha256": "61dc54fa1c6ac5272f4b9eb06f57c91361209af94fb43dd8b7899e4f725084f1",
+      "size": 5610
     },
     {
       "path": "rules/security-governance.md",
