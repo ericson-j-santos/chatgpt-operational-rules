@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-05T15:31:12.684433+00:00",
+  "generated_at": "2026-10-05T15:53:23.009696+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -474,8 +474,8 @@
     },
     {
       "path": "scripts/session_launcher_e2e.py",
-      "sha256": "5246cb672576c93ae137ea20df62c71a20a94d5eee554beb44150a75a75d154c",
-      "size": 9802
+      "sha256": "5d67c395ee818e7071b970a9954a7a38130b36973aa346969a66e5f2f4fc60ef",
+      "size": 11228
     },
     {
       "path": "scripts/session_preflight.py",
