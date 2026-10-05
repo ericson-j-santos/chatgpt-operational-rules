@@ -202,11 +202,12 @@ def main() -> int:
         if git(isolated_base, "remote", "get-url", "origin") != str(dirty_remote):
             raise AssertionError("base isolada não preservou remoto origin")
 
-        divergent, divergent_remote_head, _ = make_remote_scenario(root, "sync-divergent")
+        divergent, divergent_remote_head, divergent_remote = make_remote_scenario(root, "sync-divergent")
         (divergent / "local-only.txt").write_text("local\n", encoding="utf-8", newline="\n")
         git(divergent, "add", "local-only.txt")
         git(divergent, "commit", "-m", "local divergent commit")
-        run(
+        divergent_original_head = git(divergent, "rev-parse", "HEAD")
+        divergent_launch = run(
             LAUNCHER,
             [
                 "--policy", str(policy_path),
@@ -215,8 +216,25 @@ def main() -> int:
                 "--expected-head", divergent_remote_head,
                 "--sync-ref", "origin/main",
             ],
-            23,
+            0,
         )
+        divergent_payload = json.loads(divergent_launch.stdout.splitlines()[-1])
+        if divergent_payload.get("base_sync") != "isolated_diverged_base":
+            raise AssertionError("base divergente não foi desviada para base isolada")
+        if git(divergent, "rev-parse", "HEAD") != divergent_original_head:
+            raise AssertionError("HEAD divergente original foi alterado")
+        if not (divergent / "local-only.txt").is_file():
+            raise AssertionError("commit local divergente não foi preservado")
+        divergent_base = Path(divergent_payload["repo_root"])
+        divergent_target = Path(divergent_payload["target_path"])
+        if divergent_base.resolve() == divergent.resolve():
+            raise AssertionError("sessão divergente reutilizou indevidamente a base original")
+        if git(divergent_base, "remote", "get-url", "origin") != str(divergent_remote):
+            raise AssertionError("base divergente isolada não preservou remoto origin")
+        if git(divergent_target, "rev-parse", "HEAD") != divergent_remote_head:
+            raise AssertionError("worktree divergente isolado não está no SHA remoto esperado")
+        if git(divergent_target, "status", "--porcelain"):
+            raise AssertionError("worktree divergente isolado não terminou limpo")
 
         write_policy(policy_path, root, state, "1.5.1")
         run(
@@ -237,7 +255,7 @@ def main() -> int:
 
         print(
             "SESSION_LAUNCHER_E2E_OK positive=5 negative=3 "
-            "sync=fast_forward dirty=isolated_preserved divergence=blocked "
+            "sync=fast_forward dirty=isolated_preserved divergence=isolated_preserved "
             "auto_session=valid worktree=isolated"
         )
         return 0
