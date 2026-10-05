@@ -188,5 +188,37 @@ class SessionLauncherTests(unittest.TestCase):
 
 
 
+    def test_diverged_base_is_isolated_after_remote_sha_validation(self) -> None:
+        current = SimpleNamespace(head="1" * 40, status_count=0)
+        isolated_state = SimpleNamespace(head="2" * 40, status_count=0)
+        policy = {"worktree_root": "/safe", "git_state_timeout_seconds": 15}
+        calls = [
+            SimpleNamespace(returncode=1, stdout="", stderr=""),
+        ]
+        with mock.patch.object(sl.cg, "git_state", side_effect=[current, isolated_state]), mock.patch.object(
+            sl, "_fetch_and_verify_remote", return_value=("origin", "main", "https://github.com/example/repo.git")
+        ), mock.patch.object(sl.cg, "run_capture", side_effect=calls), mock.patch.object(
+            sl, "_prepare_isolated_base", return_value=Path("/safe/session-base-test")
+        ) as prepare:
+            state, path, mode = sl.sync_expected_head(
+                Path("/safe/source"), policy, "2" * 40, "origin/main", "test"
+            )
+        self.assertEqual(state.head, "2" * 40)
+        self.assertEqual(path, Path("/safe/session-base-test"))
+        self.assertEqual(mode, "isolated_diverged_base")
+        prepare.assert_called_once()
+
+    def test_diverged_base_still_blocks_when_remote_sha_mismatches(self) -> None:
+        current = SimpleNamespace(head="1" * 40, status_count=0)
+        policy = {"worktree_root": "/safe", "git_state_timeout_seconds": 15}
+        with mock.patch.object(sl.cg, "git_state", return_value=current), mock.patch.object(
+            sl, "_fetch_and_verify_remote", side_effect=cg.GatewayError("remote mismatch", cg.EXIT_STATE_CHANGED)
+        ), mock.patch.object(sl, "_prepare_isolated_base") as prepare:
+            with self.assertRaises(cg.GatewayError):
+                sl.sync_expected_head(Path("/safe/source"), policy, "2" * 40, "origin/main", "test")
+        prepare.assert_not_called()
+
+
+
 if __name__ == "__main__":
     unittest.main()
