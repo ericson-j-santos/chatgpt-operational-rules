@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-01T18:40:25.466062+00:00",
+  "generated_at": "2026-10-05T14:45:43.133027+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -96,6 +96,11 @@
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
       "sha256": "5491ffbda946b4492ffe4c929c0e5503a430071361fb5b1b28be8203d4d7b8a4",
       "size": 4689
+    },
+    {
+      "path": "docs/sql-server-enterprise-validation-gate.md",
+      "sha256": "e841ca1bcae8fbff581b0161ffad1e6898ac2a05aa9bca0bf2bc91db045dac63",
+      "size": 5556
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
