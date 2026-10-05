@@ -394,10 +394,18 @@ def sync_expected_head(
         repo,
     )
     if ancestor.returncode == 1:
-        raise cg.GatewayError(
-            "sincronização recusada: HEAD local diverge da referência remota",
-            cg.EXIT_STATE_CHANGED,
+        isolated = _prepare_isolated_base(
+            repo=repo,
+            policy=policy,
+            expected=expected,
+            remote=remote,
+            branch=branch,
+            source_url=source_url,
+            session_id=session_id,
         )
+        isolated_state = cg.git_state(isolated, True, policy)
+        assert isolated_state is not None
+        return isolated_state, isolated, "isolated_diverged_base"
     if ancestor.returncode != 0 or ancestor.stderr.strip():
         raise cg.GatewayError(
             "sincronização recusada: não foi possível provar ancestralidade",
