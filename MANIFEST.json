@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-05T15:53:23.009696+00:00",
+  "generated_at": "2026-10-07T09:37:20.543503+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -68,6 +68,11 @@
       "size": 1711
     },
     {
+      "path": "config/host-readiness.json",
+      "sha256": "7152a20ef9b7194c89701a5a28c56f9d6312a7a33094732b049cd38c657f27d5",
+      "size": 1461
+    },
+    {
       "path": "config/owner-risk3-exceptions.example.json",
       "sha256": "74aa5a5d27cb3fd76686286c42fdaab95435b120d2c9f7e149acfde915ceb7a3",
       "size": 1129
@@ -96,6 +101,11 @@
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
       "sha256": "5491ffbda946b4492ffe4c929c0e5503a430071361fb5b1b28be8203d4d7b8a4",
       "size": 4689
+    },
+    {
+      "path": "docs/host-readiness.md",
+      "sha256": "a62fdcf4c76b2a05b4e71f2bf5f21122cd9b2f38d8cc81d5bbc095b227eedba0",
+      "size": 2415
     },
     {
       "path": "docs/sql-server-enterprise-validation-gate.md",
@@ -331,6 +341,11 @@
       "path": "scripts/host_operating_profile.py",
       "sha256": "e0436acbdcb854aa0a07d51cbe06421cf5dc6ceef26f0c3ac873f5372d30ce05",
       "size": 3815
+    },
+    {
+      "path": "scripts/host_readiness.py",
+      "sha256": "48219f22f68fb3c63f9733ac4ca1069573efe1fdf5b9cbcca89c07b3296e8a92",
+      "size": 2953
     },
     {
       "path": "scripts/install_command_gateway_host.py",
@@ -716,6 +731,11 @@
       "path": "tests/test_host_operating_profile.py",
       "sha256": "0808baf84e3dcf586d00ef39fda068a0a97e7f5d8b97bc8355a892458b802e74",
       "size": 2014
+    },
+    {
+      "path": "tests/test_host_readiness.py",
+      "sha256": "36365e8b80a3803af3d1363c11fd18e7b3892391413bc2850c1f9e8eb18a5065",
+      "size": 1958
     },
     {
       "path": "tests/test_owner_host_power_once.py",

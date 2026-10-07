@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "purpose": "Minimum non-secret contract for onboarding and validating Runtime Platform hosts.",
+  "canonical_rules_repository": "ericson-j-santos/chatgpt-operational-rules",
+  "hosts": {
+    "noteri": {
+      "role": "secondary-runtime",
+      "runtime_repository": "ericson-j-santos/noteri-runtime",
+      "required_capabilities": ["command_gateway", "session_preflight", "github_runner", "runtime_health"],
+      "optional_capabilities": ["study_mode"],
+      "validation": {
+        "runtime_specific": "NORMAL -> ESTUDO -> NORMAL E2E on the real host"
+      }
+    },
+    "desktop-pc24x7": {
+      "role": "preferred-runtime",
+      "runtime_repository": "ericson-j-santos/desktop-pc24x7-runtime",
+      "required_capabilities": ["command_gateway", "session_preflight", "github_runner", "runtime_health", "restart_recovery"],
+      "optional_capabilities": [],
+      "validation": {
+        "runtime_specific": "health/readiness + restart/recovery + applicable DEV endpoint E2E on the real host"
+      }
+    }
+  },
+  "shared": {
+    "bootstrap_script": "scripts/install_command_gateway_host.py",
+    "session_preflight_script": "scripts/session_preflight.py",
+    "dual_host_preflight_script": "scripts/dual_host_preflight.py",
+    "new_host_success_marker": "HOST_BOOTSTRAP_OK",
+    "session_success_marker": "BOOTSTRAP_OK",
+    "secrets_policy": "Never store secrets, tokens or credentials in this contract or repository."
+  }
+}
