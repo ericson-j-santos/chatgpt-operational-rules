@@ -80,6 +80,8 @@ jobs:
         run: python scripts/host_bootstrap_e2e.py
       - name: Validate new-host inventory and isolated onboarding E2E
         run: python -m unittest -v tests/test_host_onboarding_report.py
+      - name: Validate native host capacity probe and negative controls
+        run: python -m unittest -v tests/test_native_host_capacity_probe.py
       - name: Run TodoEvent unit tests
         run: python -m unittest -v tests/test_todo_event_bus.py
       - name: Run TodoEvent E2E
