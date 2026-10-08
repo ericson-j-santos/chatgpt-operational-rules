@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "5df0ddab739f3fd6c6fe5502f81552a4e3df2c33fced1fdff98a223fbb51607f",
-      "size": 4855
+      "sha256": "19904f922c041e4b6b8e76db6cd8e94aa53927ea2c13b64c144afc5fd1386c0d",
+      "size": 5003
     },
     {
       "path": ".gitignore",
@@ -376,6 +376,11 @@
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
       "sha256": "5938827050ad96f50e5b70695160ee0d65d060c85b472b4fb80cd7770070c7f7",
       "size": 1503
+    },
+    {
+      "path": "scripts/native_host_capacity_probe.py",
+      "sha256": "0e3e500b359960ac1c4dfc4971a3f38c4b19d59be57a9cdccb126665de28685f",
+      "size": 6892
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -751,6 +756,11 @@
       "path": "tests/test_host_readiness.py",
       "sha256": "36365e8b80a3803af3d1363c11fd18e7b3892391413bc2850c1f9e8eb18a5065",
       "size": 1958
+    },
+    {
+      "path": "tests/test_native_host_capacity_probe.py",
+      "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
+      "size": 4572
     },
     {
       "path": "tests/test_owner_host_power_once.py",
