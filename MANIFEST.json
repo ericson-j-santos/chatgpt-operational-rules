@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-08T10:09:29.505Z",
+  "generated_at": "2026-10-08T19:16:59.990430+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "13b30dacef06eb931aa51606286820bd5f7971e9144971f45066adec4da680d7",
-      "size": 2225
+      "sha256": "8e7eb9a19a3abbc29d0abb2fa91699e29811beda61aecd6679b5277248b79586",
+      "size": 2476
     },
     {
       "path": "CHANGELOG.md",
@@ -59,8 +59,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "c7267f1a00a35cc8f93d95f91a59afba7e4494678afda8a3d3a2837f35862aee",
-      "size": 8310
+      "sha256": "75199e9712f5c5bfcf99671a9894c4206b4c1a156f891a18b417011e5b8cb5d7",
+      "size": 8632
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -201,6 +201,11 @@
       "path": "rules/github-workflow.md",
       "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
       "size": 975
+    },
+    {
+      "path": "rules/pre-delivery-validation.md",
+      "sha256": "e71e87e99e933654aace7099aeadf9fd6a21f017600d75359199e5f43f00159d",
+      "size": 3693
     },
     {
       "path": "rules/progress-watchdog.md",
