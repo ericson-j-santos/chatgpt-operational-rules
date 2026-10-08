@@ -39,6 +39,15 @@ Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e a
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 
+## Continuidade em um computador novo
+
+Para integrar outro computador sem reconstruir serviços, siga
+[`docs/new-computer-onboarding.md`](docs/new-computer-onboarding.md).
+O inventário mínimo e relatório de compatibilidade são produzidos por
+`scripts/host_onboarding_report.py` através de sessão governada ou de
+inventário fornecido por API autorizada. A análise **não** autoriza instalação
+nem substitui o E2E físico, as regras de bootstrap ou o Command Gateway.
+
 ## Projetos conhecidos
 - ReqSys Produto — prioridade principal P0 enquanto não houver regressão sistêmica do plano de controle.
 - Engineering Control Plane — melhoria contínua; pode reassumir P0 temporário somente diante de gargalo sistêmico comprovado que afete múltiplos repositórios.
