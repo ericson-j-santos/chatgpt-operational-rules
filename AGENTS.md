@@ -18,6 +18,8 @@ Antes de executar trabalho técnico:
 13. valide evidências e controles contra falso positivo antes de declarar sucesso.
 14. para recuperação/evolução de host com plano de controle já ativo, aplique `rules/control-plane-recovery.md`; use/extenda o plano de controle antes de qualquer launcher/GUI/manual, e trate bootstrap manual somente como migração única que instala auto-recovery permanente.
 
+15. Antes de enviar qualquer entrega técnica executável, aplicar `rules/pre-delivery-validation.md`: testar previamente, corrigir e retestar, vincular evidência à versão atual e declarar explicitamente quando o teste real estiver indisponível.
+
 Exceção única para host novo sem Gateway instalado: usar `scripts/install_command_gateway_host.py` com SHA completo aprovado e hash próprio esperado; exigir `HOST_BOOTSTRAP_OK` e então passar imediatamente ao `session_preflight.py`. Não usar essa exceção como terminal genérico.
 
 Se bootstrap, gateway, política, reserva ou validação falhar, interrompa a execução e reporte o bloqueio. Não contorne o controle.
