@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-07T09:37:20.543503+00:00",
+  "generated_at": "2026-10-08T10:09:29.505Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "5252944bd37ef9e1cc29c65a1fec730dc9624ae65e3cebceed666e66572c2b4c",
-      "size": 4713
+      "sha256": "5df0ddab739f3fd6c6fe5502f81552a4e3df2c33fced1fdff98a223fbb51607f",
+      "size": 4855
     },
     {
       "path": ".gitignore",
@@ -59,8 +59,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "a1c283245885a2669c9a87463e7f115c43fcd109491380de10a4ec2a5cc9f0d0",
-      "size": 7833
+      "sha256": "c7267f1a00a35cc8f93d95f91a59afba7e4494678afda8a3d3a2837f35862aee",
+      "size": 8310
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -104,8 +104,13 @@
     },
     {
       "path": "docs/host-readiness.md",
-      "sha256": "a62fdcf4c76b2a05b4e71f2bf5f21122cd9b2f38d8cc81d5bbc095b227eedba0",
-      "size": 2415
+      "sha256": "ea6d780475e0f8052149d6b8ea519e8c0d8a71506a3b211a6f6618d26d7b5d27",
+      "size": 2915
+    },
+    {
+      "path": "docs/new-computer-onboarding.md",
+      "sha256": "998eaeb321d410e5b28830d68df9db81f14a57015f9b52b6643d632f73d7846b",
+      "size": 10665
     },
     {
       "path": "docs/sql-server-enterprise-validation-gate.md",
@@ -336,6 +341,11 @@
       "path": "scripts/host_health_check.py",
       "sha256": "82a12ed90b8f922fb6a44677b3fcf450c9418ca133e9b45441f3fe798b797b3f",
       "size": 2450
+    },
+    {
+      "path": "scripts/host_onboarding_report.py",
+      "sha256": "7ec95090188153087c0d4382189012131a2dd3633bdae79668c989e5e6e3a329",
+      "size": 9585
     },
     {
       "path": "scripts/host_operating_profile.py",
@@ -726,6 +736,11 @@
       "path": "tests/test_host_health_check.py",
       "sha256": "a02e22c20722707baa120fd1b15b87e5414067e06ab2af2a50bdd1d67e61f4f7",
       "size": 1743
+    },
+    {
+      "path": "tests/test_host_onboarding_report.py",
+      "sha256": "793dd187a7903fbf96929956c3a0eb3d0267f60bfad6ca0f8ca0c2dd4ba8a60e",
+      "size": 6283
     },
     {
       "path": "tests/test_host_operating_profile.py",
