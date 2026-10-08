@@ -82,6 +82,19 @@ def validate_policy(policy: dict[str, Any]) -> None:
             raise GovernanceControlPlaneError(
                 f"{repository}: require_required_status_checks deve ser booleano"
             )
+        expected_contexts = item.get("expected_status_check_contexts", [])
+        if (
+            not isinstance(expected_contexts, list)
+            or not all(isinstance(value, str) and value.strip() for value in expected_contexts)
+            or len(set(expected_contexts)) != len(expected_contexts)
+        ):
+            raise GovernanceControlPlaneError(
+                f"{repository}: expected_status_check_contexts deve ser lista de contextos únicos"
+            )
+        if expected_contexts and not require_status_checks:
+            raise GovernanceControlPlaneError(
+                f"{repository}: expected_status_check_contexts exige require_required_status_checks"
+            )
 
 
 def _utc(value: str | None) -> datetime:
@@ -326,6 +339,10 @@ def evaluate_repository(
             required_status_checks_enforced = bool(required_status_checks)
             if not required_status_checks_enforced:
                 violations.append("required_status_checks_missing")
+            else:
+                expected = policy.get("expected_status_check_contexts", [])
+                if any(context not in required_status_checks for context in expected):
+                    violations.append("required_status_check_contexts_missing")
 
     if metadata.get("archived"):
         violations.append("repository_archived")

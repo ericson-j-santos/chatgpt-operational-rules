@@ -79,8 +79,8 @@
     },
     {
       "path": "config/repository-governance-control-plane.json",
-      "sha256": "ba0f17c64a577d2dd38a63f802129ea77828c21c2c49b5e09736cf395366da98",
-      "size": 3289
+      "sha256": "5fb0fe8023dd7005c53f5f081d77918978aba287ab2ff1325795a0cb80d0ae3b",
+      "size": 3976
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -474,8 +474,8 @@
     },
     {
       "path": "scripts/repository_governance_control_plane.py",
-      "sha256": "15c0bea8bd9932b6e5517e763793cfd98ab30a00e5d5389e2f5bc336587dee11",
-      "size": 17105
+      "sha256": "bce21a78cd3dbda0154cda28384eb161e6bdf3912cb381c3f2b4fef5f7ef3082",
+      "size": 18065
     },
     {
       "path": "scripts/repository_governance_remediation.py",
@@ -839,8 +839,8 @@
     },
     {
       "path": "tests/test_repository_governance_control_plane.py",
-      "sha256": "643a5e70f8cfe0f33ebace86114696faafb4ae3fa8a17631a3f5bf58a0becf7b",
-      "size": 9622
+      "sha256": "c15381ef0af2344b70b28a56d4dc023a5d79f4d28b3444734a0baa3c0baed88b",
+      "size": 13161
     },
     {
       "path": "tests/test_repository_governance_remediation.py",
