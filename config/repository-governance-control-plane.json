@@ -28,6 +28,29 @@
       "require_required_status_checks": true
     },
     {
+      "repository": "ericson-j-santos/chatgpt-operational-rules",
+      "visibility": "public",
+      "mode": "enforce",
+      "default_branch": "main",
+      "require_branch_protection": true,
+      "require_up_to_date": true,
+      "require_required_status_checks": true,
+      "expected_status_check_contexts": [
+        "Rules, Gateway, Session Bootstrap and E2E gate"
+      ],
+      "required_workflows": [
+        "Validate Operational Rules"
+      ],
+      "remediation": {
+        "update_branch": false,
+        "direct_merge": false,
+        "merge_queue": {
+          "enabled": false
+        },
+        "branch_protection": "provider_capability_blocked"
+      }
+    },
+    {
       "repository": "ericson-j-santos/data-ai-lab",
       "visibility": "private",
       "mode": "enforce",
