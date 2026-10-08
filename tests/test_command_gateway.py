@@ -30,6 +30,31 @@ class CommandGatewayTests(unittest.TestCase):
         self.assertNotIn(r"C:\Users\Windows\portal-portabilidade", allowed)
         self.assertNotIn(r"D:\portal-portabilidade", allowed)
 
+    def test_portal_variants_are_explicit_and_fail_closed_on_ambiguity(self) -> None:
+        """Controle de regressão documental, não simulação de dispatch real."""
+        rule = (ROOT / "rules" / "command-gateway.md").read_text(encoding="utf-8")
+        self.assertIn("Portal Portabilidade 2025 (JWT)", rule)
+        self.assertIn("Portal Portabilidade MSAL (Entra ID)", rule)
+        self.assertIn("ericson-j-santos/portal-portabilidade-2025", rule)
+        self.assertIn("ericson-j-santos/portal-portabilidade", rule)
+        self.assertIn("repository_full_name", rule)
+        self.assertIn("número de Issue, branch padrão e HEAD SHA completo", rule)
+        self.assertIn("falhar fechado", rule)
+        self.assertIn("BLOQUEADO", rule)
+        self.assertIn("não deslocar tarefas", rule)
+        self.assertIn("C:\\\\dev\\\\chatgpt-workers", rule)
+
+    def test_portal_identity_regression_detects_missing_variant(self) -> None:
+        """Controle negativo: regra antiga de variante única não satisfaz o gate."""
+        rule = (ROOT / "rules" / "command-gateway.md").read_text(encoding="utf-8")
+        required = ("Portal Portabilidade 2025 (JWT)", "Portal Portabilidade MSAL (Entra ID)")
+        old_single_variant = (
+            "Para Portal Portabilidade, usar clone/worktree isolado do "
+            "repositório canônico `ericson-j-santos/portal-portabilidade-2025`."
+        )
+        self.assertFalse(all(term in old_single_variant for term in required))
+        self.assertTrue(all(term in rule for term in required))
+
     def test_sensitive_reference_blocks_env_and_token(self) -> None:
         policy = {"denied_names": [".env", ".env.*"], "denied_segments": [".ssh"]}
         self.assertTrue(cg.sensitive_reference(["git", "diff", "--", ".env"], policy))
