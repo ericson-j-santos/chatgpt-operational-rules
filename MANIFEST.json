@@ -174,8 +174,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "45d368626b2ae6a59f521dba37dfb2879ecb57c5532ee38bec0c6e8d32f447d1",
-      "size": 7143
+      "sha256": "22669f93243838bc017163197445a7dc609737bcb906dbfa1d2dad7197951cfc",
+      "size": 8516
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -689,8 +689,8 @@
     },
     {
       "path": "tests/test_command_gateway.py",
-      "sha256": "fdf2d558b45999089a8ed5dee8b482c67f2a293f974c7cef819e3a9c55a669f7",
-      "size": 9055
+      "sha256": "d6fd130eb955d06fc27ecda6b36e7b3e9a230edfd3ff6a3d7b35f4494ea2ca3d",
+      "size": 10604
     },
     {
       "path": "tests/test_continuation_worker.py",
