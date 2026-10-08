@@ -6,6 +6,14 @@ Evitar inventário completo ou cópia cega do Noteri ao preparar outro computado
 O estado desejado é declarado em `config/host-readiness.json`; cada host deve
 verificar apenas o que falta para cumprir esse contrato.
 
+Para arquitetura, procedimento completo, inventário mínimo e relatório de
+compatibilidade antes da homologação, consulte
+[`new-computer-onboarding.md`](new-computer-onboarding.md). O coletor
+`scripts/host_onboarding_report.py` pode processar inventário obtido por canal
+já autorizado sem instalar nada no novo host. Sem controlador ou Gateway,
+o único primeiro comando local permitido continua sendo o bootstrap canônico;
+o inventário local deve vir **após** ele e o preflight governado.
+
 ## Fluxo Pareto
 
 1. Escolher o perfil do host: `noteri` ou `desktop-pc24x7`.
