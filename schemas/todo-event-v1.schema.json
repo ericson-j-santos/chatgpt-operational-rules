@@ -245,6 +245,110 @@
           "format": "date-time",
           "maxLength": 64,
           "description": "Trusted page snapshot timestamp. Read-before-write guard only, not atomic CAS; shared writer lock remains required."
+        },
+        "triage_projection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "page_id",
+            "canonical_key",
+            "request_sha256",
+            "request_id",
+            "before",
+            "suffix"
+          ],
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "canonical_key": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 256
+            },
+            "request_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{3,128}$"
+            },
+            "before": {
+              "type": "array",
+              "maxItems": 99,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "text"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "text"
+                  },
+                  "text": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "content"
+                    ],
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      "link": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "url"
+                        ],
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "maxLength": 2000
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "annotations": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "bold": {
+                        "type": "boolean"
+                      },
+                      "italic": {
+                        "type": "boolean"
+                      },
+                      "strikethrough": {
+                        "type": "boolean"
+                      },
+                      "underline": {
+                        "type": "boolean"
+                      },
+                      "code": {
+                        "type": "boolean"
+                      },
+                      "color": {
+                        "type": "string",
+                        "maxLength": 32
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "suffix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
         }
       },
       "allOf": [
@@ -328,5 +432,48 @@
         }
       ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "todo": {
+            "required": [
+              "triage_projection"
+            ]
+          }
+        },
+        "required": [
+          "todo"
+        ]
+      },
+      "then": {
+        "required": [
+          "producer"
+        ],
+        "properties": {
+          "producer": {
+            "const": "triage-publisher-v1"
+          },
+          "event_type": {
+            "const": "todo.evidence.updated"
+          },
+          "todo": {
+            "required": [
+              "evidence",
+              "expected_page_last_edited_at"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "PENDENTE",
+                  "EM ANDAMENTO"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
