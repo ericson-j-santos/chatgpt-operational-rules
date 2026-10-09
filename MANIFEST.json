@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-09T19:41:41.912060+00:00",
+  "generated_at": "2026-10-09T20:24:20.227241+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
-      "size": 10821
+      "sha256": "5d43b24ecd9ffc568fb5b25c96a8da0b0afbc517200c531c4c3f09b89d444869",
+      "size": 11126
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1de5be8aa1b42c8952cab547d740351cd36c7bf4e5b26ca0dab4220ed8a200ce",
-      "size": 5039
+      "sha256": "aacef933243350b248766a85582a9ea1708f318af7c0ebe79a66a96fa5e3621e",
+      "size": 6382
     },
     {
       "path": ".gitignore",
@@ -116,6 +116,11 @@
       "path": "docs/sql-server-enterprise-validation-gate.md",
       "sha256": "e841ca1bcae8fbff581b0161ffad1e6898ac2a05aa9bca0bf2bc91db045dac63",
       "size": 5556
+    },
+    {
+      "path": "docs/triage-reservation.md",
+      "sha256": "f3674c5ad93c7e9534b3f2c59ab51c92a4baceb48162e2405c2307fec528417e",
+      "size": 5076
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
@@ -588,6 +593,11 @@
       "size": 18156
     },
     {
+      "path": "scripts/triage_reservation_e2e.py",
+      "sha256": "ccd9fa7d79b8c9d33042b860a3033a218e02871df22af65e60174bc776300f04",
+      "size": 3998
+    },
+    {
       "path": "scripts/update_command_gateway_host.py",
       "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
       "size": 4462
@@ -629,8 +639,8 @@
     },
     {
       "path": "services/todo_gateway/asgi.py",
-      "sha256": "c7d6727c559185f04cf1bb7483c64b2d37f82b02d131c90b34e10e669e8fffad",
-      "size": 91
+      "sha256": "e4058bee5ad97845329f37a57052d7083918a818a8d7e7b29f24e20b6dde1e0e",
+      "size": 790
     },
     {
       "path": "services/todo_gateway/gateway.py",
@@ -661,6 +671,11 @@
       "path": "services/todo_gateway/service_main.py",
       "sha256": "1a8cd21afbdf084fbdbc9c82b00cf05e68ae32376df08db5bf3c9382045ea6cd",
       "size": 4192
+    },
+    {
+      "path": "services/todo_gateway/triage_reservation.py",
+      "sha256": "f3050615a5d57a07a6ef5d21dd688ca2a3a0ed02e5882386e2c2d9eb1ac3742f",
+      "size": 15752
     },
     {
       "path": "services/todo_gateway/worker.py",
@@ -804,8 +819,8 @@
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
-      "sha256": "13305dd4e947c6c7c4264fc4167288783dec5a6e24da577c7fa51d49f1c55fca",
-      "size": 3460
+      "sha256": "2643e60718244d96dcf5c5cc0018d0fb2630eb2a3667191c7171ddbc970662b6",
+      "size": 9323
     },
     {
       "path": "tests/test_progress_watchdog.py",
@@ -911,6 +926,11 @@
       "path": "tests/test_tool_router.py",
       "sha256": "1c235981f1ae62489e3ee514be648c151363a86ab8111027a59724adcb75d8aa",
       "size": 27491
+    },
+    {
+      "path": "tests/test_triage_reservation.py",
+      "sha256": "b2d272e5ea3a0169a2bdf5f70e8502e6c0befa426316a4eaa53db70d681a4673",
+      "size": 15076
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
