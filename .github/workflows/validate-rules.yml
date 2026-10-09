@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 10
     services:
       triage-postgres:
-        image: postgres:16
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_DB: todo_reservation_test
           POSTGRES_USER: postgres
@@ -25,7 +25,7 @@ jobs:
         ports:
           - 5432/tcp
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d todo_reservation_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
