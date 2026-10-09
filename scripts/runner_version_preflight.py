@@ -60,6 +60,55 @@ def runner_root_from_environment() -> Path:
     return path.parents[1]
 
 
+
+def version_from_fixed_file_info(words: list[int] | tuple[int, ...]) -> RunnerVersion:
+    """Interpreta VS_FIXEDFILEINFO (versão do arquivo, não texto não confiável)."""
+    if len(words) < 13 or int(words[0]) != 0xFEEF04BD:
+        raise RuntimeError("runner_version_fixed_info_invalid")
+    ms, ls = int(words[2]), int(words[3])
+    version = RunnerVersion(ms >> 16, ms & 0xFFFF, ls >> 16)
+    if version.major <= 0 or version.minor <= 0:
+        raise RuntimeError("runner_version_fixed_info_invalid")
+    return version
+
+
+def read_windows_file_version(executable: Path) -> RunnerVersion:
+    """Lê VERSIONINFO do binário do runner sem executá-lo ou carregar seu código."""
+    if os.name != "nt" or executable.name.casefold() != "runner.listener.exe":
+        raise RuntimeError("runner_version_metadata_host_or_binary_invalid")
+    import ctypes
+    from ctypes import wintypes
+
+    version_dll = ctypes.WinDLL("version", use_last_error=True)
+    size_func = version_dll.GetFileVersionInfoSizeW
+    size_func.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(wintypes.DWORD)]
+    size_func.restype = wintypes.DWORD
+    ignored = wintypes.DWORD(0)
+    size = int(size_func(str(executable), ctypes.byref(ignored)))
+    if size < 52 or size > 16 * 1024 * 1024:
+        raise RuntimeError("runner_version_metadata_size_invalid")
+    buffer = ctypes.create_string_buffer(size)
+    load_func = version_dll.GetFileVersionInfoW
+    load_func.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p]
+    load_func.restype = wintypes.BOOL
+    if not load_func(str(executable), 0, size, buffer):
+        raise RuntimeError("runner_version_metadata_read_failed")
+    query_func = version_dll.VerQueryValueW
+    query_func.argtypes = [
+        ctypes.c_void_p, wintypes.LPCWSTR,
+        ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.UINT),
+    ]
+    query_func.restype = wintypes.BOOL
+    value = ctypes.c_void_p()
+    length = wintypes.UINT(0)
+    if not query_func(buffer, "\\", ctypes.byref(value), ctypes.byref(length)):
+        raise RuntimeError("runner_version_metadata_root_missing")
+    if not value.value or length.value < 52:
+        raise RuntimeError("runner_version_metadata_root_invalid")
+    fields = ctypes.cast(value, ctypes.POINTER(ctypes.c_uint32 * 13)).contents
+    return version_from_fixed_file_info(fields)
+
+
 def detect_runner_version(root: Path | None = None) -> RunnerVersion:
     root = root or runner_root_from_environment()
     candidates = [
@@ -69,14 +118,22 @@ def detect_runner_version(root: Path | None = None) -> RunnerVersion:
     executable = next((item for item in candidates if item.is_file()), None)
     if executable is None:
         raise RuntimeError("runner_listener_missing")
-    completed = subprocess.run(
-        [str(executable), "--version"],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            [str(executable), "--version"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except OSError as exc:
+        # App Control pode impedir um segundo processo --version mesmo com
+        # Runner.Listener já atendendo o job. Nunca desabilitar o controle.
+        if getattr(exc, "winerror", None) != 4551 or executable.suffix.casefold() != ".exe":
+            raise
+        # Metadados binários do MESMO arquivo; ausência/erro permanece bloqueante.
+        return read_windows_file_version(executable)
     if completed.returncode != 0:
         raise RuntimeError("runner_version_probe_failed")
     return RunnerVersion.parse((completed.stdout or "") + "\n" + (completed.stderr or ""))
