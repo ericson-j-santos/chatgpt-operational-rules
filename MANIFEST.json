@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
-      "size": 10821
+      "sha256": "5d43b24ecd9ffc568fb5b25c96a8da0b0afbc517200c531c4c3f09b89d444869",
+      "size": 11126
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -819,8 +819,8 @@
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
-      "sha256": "13305dd4e947c6c7c4264fc4167288783dec5a6e24da577c7fa51d49f1c55fca",
-      "size": 3460
+      "sha256": "2643e60718244d96dcf5c5cc0018d0fb2630eb2a3667191c7171ddbc970662b6",
+      "size": 9323
     },
     {
       "path": "tests/test_progress_watchdog.py",
