@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-09T16:03:14.639700+00:00",
+  "generated_at": "2026-10-09T19:41:41.912060+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "19904f922c041e4b6b8e76db6cd8e94aa53927ea2c13b64c144afc5fd1386c0d",
-      "size": 5003
+      "sha256": "1de5be8aa1b42c8952cab547d740351cd36c7bf4e5b26ca0dab4220ed8a200ce",
+      "size": 5039
     },
     {
       "path": ".gitignore",
@@ -254,8 +254,8 @@
     },
     {
       "path": "schemas/todo-event-v1.schema.json",
-      "sha256": "ad2e169b2d2e5f8ad9100051d5e7d962cb096d5326887c50e7bc0690cf742fcc",
-      "size": 7039
+      "sha256": "342b35f99ea6cba61d0d263dff40867752bf398f018fd2d6de88a8df56fd4f32",
+      "size": 7323
     },
     {
       "path": "scripts/ai_todo_adapter.py",
@@ -619,8 +619,8 @@
     },
     {
       "path": "services/todo_gateway/README.md",
-      "sha256": "0ab40398a115e1dbad18d73f8779e1a0ededf84977cdd34b7272320abdeed269",
-      "size": 1922
+      "sha256": "20a2f2e09f21ae21fc542b38cc6dd0f52033f85757e8f02be6e3ebc00d81c820",
+      "size": 3374
     },
     {
       "path": "services/todo_gateway/__init__.py",
@@ -644,8 +644,8 @@
     },
     {
       "path": "services/todo_gateway/notion_sink.py",
-      "sha256": "d3c21897949cbac65e556c8a22f0814d270ecd89b60ab1941ecec0fd87404d6f",
-      "size": 5854
+      "sha256": "06b3e1421d0cbaea28e5bce78c8519c15c6366cd4ea5af0bdbde475136d53450",
+      "size": 9942
     },
     {
       "path": "services/todo_gateway/repository.py",
@@ -766,6 +766,11 @@
       "path": "tests/test_native_host_capacity_probe.py",
       "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
       "size": 4572
+    },
+    {
+      "path": "tests/test_notion_sink_integrity.py",
+      "sha256": "3b0632608a73511838655a87b409a4bf1e4c459ba6aa7e481bf433bf0a78e69c",
+      "size": 12644
     },
     {
       "path": "tests/test_owner_host_power_once.py",
@@ -889,8 +894,8 @@
     },
     {
       "path": "tests/test_todo_gateway_service.py",
-      "sha256": "2932b859fe1290f90d7e436abd653b6769840621fccbec9efd8d34482b8ea23e",
-      "size": 9707
+      "sha256": "d18eaa0c28e402d11d64c24224ac3d060a93253641efe452a3c13a0620a07cc8",
+      "size": 10501
     },
     {
       "path": "tests/test_todo_gateway_service_main.py",
