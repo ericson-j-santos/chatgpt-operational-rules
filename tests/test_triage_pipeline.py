@@ -386,5 +386,37 @@ class PipelineE2E(unittest.TestCase):
         self.assertEqual(self.remote.patches, 1)
 
 
+    def test_http_request_is_not_an_openapi_query_parameter(self):
+        response = httpx.get(self.url + "/openapi.json", timeout=5)
+        self.assertEqual(response.status_code, 200)
+        operation = response.json()["paths"]["/v1/triage/publish"]["post"]
+        self.assertFalse(any(p["name"] == "request" for p in operation.get("parameters", [])))
+        self.assertEqual(self.post(token="wrong").status_code, 401)
+
+    def test_second_batch_uses_confirmed_source_version_without_recounting(self):
+        self.body.update(inventory=["fixture/repository-01", "fixture/repository-02"], limit=1)
+        first = self.post()
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(process_once(self.queue, self.sink)["processed"], 1)
+        self.assertTrue(self.post().json()["readback_confirmed"])
+        first_evidence = copy.deepcopy(self.remote.page["properties"]["Evidência"]["rich_text"])
+        second_body = {**self.body, "request_id": "next-" + uuid4().hex,
+                       "expected_version": 1, "source_version": AFTER}
+        submitted = self.post(second_body)
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        self.assertEqual(submitted.json()["added"], ["fixture/repository-02"])
+        self.assertEqual(process_once(self.queue, self.sink)["processed"], 1)
+        self.assertTrue(self.post(second_body).json()["readback_confirmed"])
+        state, events = self.independent()
+        self.assertEqual(state["version"], 2)
+        self.assertEqual(sorted(state["records"]), self.body["inventory"])
+        self.assertEqual(len(events), 2)
+        self.assertTrue(all(row[2] == "PROCESSED" for row in events))
+        self.assertEqual(self.remote.patches, 2)
+        self.assertEqual(self.remote.page["properties"]["Evidência"]["rich_text"][:-1], first_evidence)
+        self.assertEqual(self.post(second_body).status_code, 200)
+        self.assertEqual(self.remote.patches, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

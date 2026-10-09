@@ -16,6 +16,7 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import httpx
+from fastapi import Request
 
 from scripts.todo_event_bus import TodoEvent
 from services.todo_gateway.notion_sink import (
@@ -485,7 +486,7 @@ def publisher_from_env(queue) -> TriagePublisher:
 
 
 def install_pipeline(app: Any, queue: Any, gateway_token: str, publisher=None) -> None:
-    from fastapi import Header, HTTPException, Request
+    from fastapi import Header, HTTPException
     from starlette.concurrency import run_in_threadpool
     from services.todo_gateway.gateway import _require_authorized, json_loads, MAX_BODY_BYTES
     publisher = publisher or publisher_from_env(queue)
