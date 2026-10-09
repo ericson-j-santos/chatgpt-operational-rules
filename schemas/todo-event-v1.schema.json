@@ -239,6 +239,12 @@
               "maximum": 20
             }
           }
+        },
+        "expected_page_last_edited_at": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64,
+          "description": "Trusted page snapshot timestamp. Read-before-write guard only, not atomic CAS; shared writer lock remains required."
         }
       },
       "allOf": [
