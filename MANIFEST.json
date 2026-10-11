@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-09T20:24:20.227241+00:00",
+  "generated_at": "2026-10-11T12:25:00+00:00",
   "files": [
     {"path":".gitattributes","sha256":"d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c","size":19},
     {"path":".github/workflows/data-analytics-weekly-radar.yml","sha256":"ef96a78bfc4077127e791a368a37ffa943f479872623868451c9ce1779e0a9ef","size":4148},
@@ -104,8 +104,8 @@
     {"path":"scripts/runner_version_preflight.py","sha256":"4ec5f4af67d7b8e5b859d7093241c6bcfa2dee9d9e37ec73f593b9c40784e09f","size":12120},
     {"path":"scripts/session_bootstrap.py","sha256":"812517afffe0ca894c14b3d7306efe74654813b2222b4bf53d9e8e595f3986dd","size":10976},
     {"path":"scripts/session_bootstrap_e2e.py","sha256":"85cbbcab4e6215acf76060a4a1d94edaacd21fd9f13f34b957b8965668fd79f9","size":7517},
-    {"path":"scripts/session_launcher.py","sha256":"a74a4ea0d806bef9f2c27f6be2912ddb547dbf8df084077a9144987f5fa03cca","size":21489},
-    {"path":"scripts/session_launcher_e2e.py","sha256":"5d67c395ee818e7071b970a9954a7a38130b36973aa346969a66e5f2f4fc60ef","size":11228},
+    {"path":"scripts/session_launcher.py","sha256":"189ab1479415fe2226a8833d13da9f1ad273b22872c69d9c8c456d6834bce82d","size":22312},
+    {"path":"scripts/session_launcher_e2e.py","sha256":"d8cf6fd75bd25dfae811703d8de487bb60652a62517f091872226709e91c439b","size":12788},
     {"path":"scripts/session_preflight.py","sha256":"91d4ba8268a5b17bb3231fe1010489a3562ae94430e06a9b8366e65ecccdde27","size":7022},
     {"path":"scripts/session_preflight_e2e.py","sha256":"922fc8c2c227cf5876ab730b2fc388d8c4730c32d1ebf5b6fa1618c51e9b53a2","size":6338},
     {"path":"scripts/set_owner_risk3_development_mode.py","sha256":"6317e605439199403961aac7c766b177f077f4c6318657f91506cf5056b70195","size":6059},
@@ -179,7 +179,7 @@
     {"path":"tests/test_repository_governance_remediation.py","sha256":"a70ce104fbb683f89c226a7affcee9903d0927c4d240042a93d2eab0ee8ae9de","size":15453},
     {"path":"tests/test_runner_version_preflight.py","sha256":"9a94ae9ad9d55c57641129a40b6d81824015aa5be20a9fabfef62845ce8403a6","size":8128},
     {"path":"tests/test_session_bootstrap.py","sha256":"bff476a81318349b6aa5254191e7e5f21cec098df027060275851674f725edce","size":7593},
-    {"path":"tests/test_session_launcher.py","sha256":"d0837dfccfb9aa8d2777d3851047a985befe64202b24155f0f2d4d885a6d78be","size":9593},
+    {"path":"tests/test_session_launcher.py","sha256":"6de56398370bcfd17dc7a771f2658436f4d058db3243b000ba4fede6b1a87fc2","size":12448},
     {"path":"tests/test_session_preflight.py","sha256":"49a297eb9c0465aea99c7824cc7c5847497adc7b48837b89b4041ea4d777896b","size":5131},
     {"path":"tests/test_todo_control_plane.py","sha256":"f87b18a0641bab43fd3f12b02849e18203365cea0feb86a04bbb6887507db5c0","size":12269},
     {"path":"tests/test_todo_event_bus.py","sha256":"b37d017242b16a2df69cb115d447100f90dc82e951622cd5cda8f54648df72dc","size":6428},
