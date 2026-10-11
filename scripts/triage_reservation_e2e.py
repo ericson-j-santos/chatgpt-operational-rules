@@ -47,7 +47,7 @@ def main() -> int:
                        "--policy", str(policy_path), "--correlation-id", correlation, "run",
                        "--cwd", launched["target_path"], "--session-id", session_id,
                        "--risk", "2", "--timeout", "180", "--expected-head", expected, "--",
-                       sys.executable, "-m", "unittest", "-v", "tests/test_triage_reservation.py"]
+                       sys.executable, "-m", "unittest", "-v", "tests/test_triage_reservation.py", "tests/test_triage_pipeline.py"]
             result = subprocess.run(command, capture_output=True, text=True, timeout=190, check=False)
             print(result.stdout)
             print(result.stderr, file=sys.stderr)
