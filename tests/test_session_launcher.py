@@ -73,6 +73,57 @@ class SessionLauncherTests(unittest.TestCase):
                     sl.validate_sync_ref(invalid)
 
 
+
+    def test_restricted_fetch_refspec_pins_only_the_requested_branch(self) -> None:
+        expected = "a" * 40
+        ok = lambda out="": SimpleNamespace(returncode=0, stdout=out, stderr="")
+        missing = SimpleNamespace(returncode=128, stdout="", stderr="not found")
+        calls = [ok(), missing, ok(), ok(expected + "\n"), ok("https://github.com/example/repo.git\n")]
+        with mock.patch.object(sl.cg, "run_capture", side_effect=calls) as captured:
+            result = sl._fetch_and_verify_remote(Path("/safe/source"), expected, "origin/main")
+        self.assertEqual(result, ("origin", "main", "https://github.com/example/repo.git"))
+        commands = [call.args[0] for call in captured.call_args_list]
+        self.assertEqual(
+            commands[2],
+            ["git", "fetch", "--no-tags", "origin", "refs/heads/main:refs/remotes/origin/main"],
+        )
+        self.assertEqual(len(commands), 5)
+
+    def test_restricted_fetch_missing_branch_fails_closed(self) -> None:
+        expected = "a" * 40
+        ok = SimpleNamespace(returncode=0, stdout="", stderr="")
+        missing = SimpleNamespace(returncode=128, stdout="", stderr="not found")
+        with mock.patch.object(sl.cg, "run_capture", side_effect=[ok, missing, missing]) as captured:
+            with self.assertRaises(cg.GatewayError) as ctx:
+                sl._fetch_and_verify_remote(Path("/safe/source"), expected, "origin/main")
+        self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
+        self.assertEqual(captured.call_count, 3)
+
+    def test_restricted_fetch_different_sha_still_blocks(self) -> None:
+        expected = "a" * 40
+        ok = lambda out="": SimpleNamespace(returncode=0, stdout=out, stderr="")
+        missing = SimpleNamespace(returncode=128, stdout="", stderr="not found")
+        with mock.patch.object(
+            sl.cg, "run_capture", side_effect=[ok(), missing, ok(), ok("b" * 40 + "\n")]
+        ) as captured:
+            with self.assertRaises(cg.GatewayError) as ctx:
+                sl._fetch_and_verify_remote(Path("/safe/source"), expected, "origin/main")
+        self.assertEqual(ctx.exception.exit_code, cg.EXIT_STATE_CHANGED)
+        self.assertEqual(captured.call_count, 4)
+
+    def test_existing_tracking_ref_does_not_fetch_twice(self) -> None:
+        expected = "a" * 40
+        ok = lambda out="": SimpleNamespace(returncode=0, stdout=out, stderr="")
+        with mock.patch.object(
+            sl.cg, "run_capture",
+            side_effect=[ok(), ok(expected + "\n"), ok("https://github.com/example/repo.git\n")],
+        ) as captured:
+            self.assertEqual(
+                sl._fetch_and_verify_remote(Path("/safe/source"), expected, "origin/main"),
+                ("origin", "main", "https://github.com/example/repo.git"),
+            )
+        self.assertEqual(captured.call_count, 3)
+
     def test_runner_version_preflight_is_fail_closed(self) -> None:
         installed = sl.rvp.RunnerVersion.parse("2.337.0")
         with mock.patch.object(sl.rvp, "detect_runner_version", return_value=installed), mock.patch.object(
