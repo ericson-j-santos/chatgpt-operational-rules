@@ -77,17 +77,21 @@ def load_pilot_manifest(path: Path) -> dict:
 
 
 def build_pilot_dry_run(manifest: dict, occupied: set[str] | None = None) -> dict:
-    occupied = occupied or set()
+    inventory_verified = occupied is not None
+    occupied_resources = set() if occupied is None else occupied
     resources = {
         manifest["service_name"], manifest["database_name"], manifest["database_role"],
         manifest["base_dir"], manifest["config_dir"], manifest["evidence_dir"],
         str(manifest["gateway_port"]), str(manifest["postgres_port"]),
     }
-    collisions = sorted(resources & occupied)
+    collisions = sorted(resources & occupied_resources)
+    status = "blocked" if collisions else ("planned" if inventory_verified else "static_plan")
     return {
         "schema_version": 1,
         "profile": PILOT_PROFILE,
-        "status": "blocked" if collisions else "planned",
+        "status": status,
+        "inventory_verified": inventory_verified,
+        "collisions_status": "verified" if inventory_verified else "not_verified",
         "dry_run": True,
         "host": manifest["host"],
         "environment": "dev",
