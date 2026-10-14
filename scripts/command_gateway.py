@@ -48,7 +48,7 @@ SECRET_RE = re.compile(
 )
 BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_|glpat-)[A-Za-z0-9_-]{10,}")
-POSTGRES_URI_RE = re.compile(r"(?i)\bpostgres(?:ql)?://\S+")
+POSTGRES_URI_RE = re.compile(r"""(?i)\bpostgres(?:ql)?://[^\s"'\\]+""")
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 
