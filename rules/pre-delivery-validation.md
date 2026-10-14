@@ -21,6 +21,18 @@ Toda resposta que contenha código, comandos, scripts, configuração, automaç�
 - **Configurações e integrações:** verificar esquema, permissões mínimas, dependências, cenário esperado e bloqueio de acesso indevido; comprovar o estado por leitura independente.
 - **Arquivos/artefatos:** validar existência, integridade, formato, abertura/leitura e, se aplicável, armazenamento de destino; testar funcionalidade do arquivo quando houver macros, fórmulas ou lógica.
 
+## Correção de causa-raiz e prevenção de recorrência (obrigatória)
+
+Para falhas em código, scripts, integrações, configuração ou CI, a entrega deve conter **a correção da causa-raiz e um mecanismo preventivo verificável**, não apenas um contorno do sintoma.
+
+1. Reproduzir e classificar a falha na versão anterior, quando seguro e viável, registrando entrada, ambiente, SHA e causa identificada. Se a reprodução real não for possível, manter a hipótese explicitamente não comprovada.
+2. Implementar a menor correção segura na fonte responsável, preservando contratos, configuração por ambiente, idempotência, concorrência e recuperação aplicáveis. Não resolver por desativação de teste, bypass de gate, exceção ampla ou retentativas sem mudança de precondição.
+3. Adicionar ou fortalecer **teste de regressão que detecte o defeito original** e casos de controle/erro. Quando necessário, acrescentar preflight, validação de contrato, verificação de dependências ou proteção no CI. Preferir demonstrar que o teste falha no comportamento anterior e passa depois da correção.
+4. Garantir que o teste ou controle preventivo seja de fato executado no fluxo CI relevante, vinculado ao HEAD final. `skipped`, execução verde sem efeito testado e mocks isolados não comprovam prevenção nem recuperação funcional.
+5. Revalidar o efeito no maior ambiente autorizado, com leitura independente no mesmo SHA e controle negativo quando aplicável. Se dependência física ou consentimento impedir o E2E, classificar como parcial/bloqueado e não anunciar a correção funcional como concluída.
+6. Registrar na issue/PR o defeito, a causa, a prevenção incorporada, os testes e runs no SHA atual e o risco residual. Se teste de regressão não for tecnicamente aplicável, documentar por que e qual controle equivalente impede ou detecta reincidência.
+7. Quando uma falha reaparecer, diagnosticar também **por que a proteção anterior não detectou o problema** e corrigir essa lacuna. Não repetir o mesmo patch, mesmo workflow ou mesmo dispatch sem mudança material verificável.
+
 ## Limites e transparência
 
 - Nunca declarar testado algo que não foi executado, nem inferir conclusão de códigos HTTP 2xx, exit code zero, CI verde ou mensagem de sucesso.
