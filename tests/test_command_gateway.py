@@ -6,7 +6,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -63,6 +65,44 @@ class CommandGatewayTests(unittest.TestCase):
     def test_redaction_masks_secret(self) -> None:
         masked = cg.redact("password=abc token=xyz Bearer abc.def")
         self.assertNotIn("abc", masked); self.assertNotIn("xyz", masked)
+
+    def test_blocked_postgres_uri_is_redacted_from_real_event_and_streams(self) -> None:
+        synthetic_secret = "synthetic-only-password"
+        uri = f"postgresql://synthetic-user:{synthetic_secret}@db.invalid/example"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            policy_path = root / "policy.json"
+            state = root / "state"
+            policy_path.write_text(json.dumps({
+                "version": 1,
+                "allowed_roots": [str(root)],
+                "denied_roots": [],
+                "denied_segments": [],
+                "denied_names": [],
+                "allowed_executables": [],
+                "allowed_executable_specs": [],
+                "blocked_executables": [],
+                "require_session_bootstrap": False,
+                "require_git_repo": False,
+                "state_dir": str(state),
+            }), encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            argv = [
+                "command_gateway.py", "--policy", str(policy_path),
+                "--correlation-id", "synthetic-redaction-test",
+                "run", "--cwd", str(root), "--risk", "1", "--",
+                "pg_dump", f"--dbname={uri}",
+            ]
+            with mock.patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(cg.EXIT_POLICY, cg.main())
+            event_text = (state / "events.jsonl").read_text(encoding="utf-8")
+            combined = stdout.getvalue() + stderr.getvalue() + event_text
+            self.assertNotIn(uri, combined)
+            self.assertNotIn(synthetic_secret, combined)
+            self.assertIn("[REDACTED_POSTGRES_URI]", event_text)
+            event = json.loads(event_text.strip())
+            self.assertEqual("blocked", event["result"])
 
     def test_validate_command_blocks_risk3_and_git_push(self) -> None:
         policy = {"allowed_executables": ["git"], "blocked_executables": [],
