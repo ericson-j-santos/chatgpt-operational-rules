@@ -198,9 +198,10 @@ class PreservationCoordinatorTests(unittest.TestCase):
             )
 
     def test_readback_requires_literal_true(self) -> None:
-        for value in ("true", 1, object()):
+        for index, value in enumerate(("true", 1, object())):
             with self.assertRaises(AccessCleanupFailed):
                 self.run_preserve(
+                    cleanup_journal=CleanupJournal(self.root / f"cleanup-{index}.json"),
                     access_is_removed=lambda _cidr, result=value: result,
                     validate_offline_restore=lambda _artifact: self.fail("restore must not run"),
                 )
