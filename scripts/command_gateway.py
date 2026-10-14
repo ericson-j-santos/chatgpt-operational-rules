@@ -127,18 +127,62 @@ def sensitive_reference(args: Sequence[str], policy: dict[str, Any]) -> bool:
     return False
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def assert_allowed_executable(raw: str, policy: dict[str, Any]) -> str:
+    exe = Path(raw).name.casefold()
+    if exe.endswith(".exe"):
+        exe = exe[:-4]
+    blocked = {item.casefold() for item in policy.get("blocked_executables", [])}
+    if exe in blocked:
+        raise GatewayError(f"executável não autorizado: {exe}")
+    allowed = {item.casefold() for item in policy.get("allowed_executables", [])}
+    if exe in allowed:
+        return exe
+
+    candidate = Path(expand_path(raw))
+    if not candidate.is_absolute():
+        raise GatewayError(f"executável não autorizado: {exe}")
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise GatewayError(f"caminho de executável inválido: {exe}") from exc
+
+    matched_path = False
+    for spec in policy.get("allowed_executable_specs", []):
+        if not isinstance(spec, dict):
+            continue
+        configured = spec.get("path")
+        expected_sha = str(spec.get("sha256") or "").casefold()
+        if not isinstance(configured, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
+            continue
+        try:
+            approved = Path(expand_path(configured)).resolve(strict=True)
+        except OSError:
+            continue
+        if norm(resolved) != norm(approved):
+            continue
+        matched_path = True
+        if sha256_file(resolved).casefold() != expected_sha:
+            raise GatewayError(f"integridade do executável não comprovada: {exe}")
+        return exe
+    if matched_path:
+        raise GatewayError(f"integridade do executável não comprovada: {exe}")
+    raise GatewayError(f"executável não autorizado: {exe}")
+
+
 def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> None:
     if risk not in (1, 2):
         raise GatewayError("risco 3 não é executado automaticamente")
     if not args:
         raise GatewayError("comando ausente")
-    exe = Path(args[0]).name.casefold()
-    if exe.endswith(".exe"):
-        exe = exe[:-4]
-    allowed = {item.casefold() for item in policy.get("allowed_executables", [])}
-    blocked = {item.casefold() for item in policy.get("blocked_executables", [])}
-    if exe in blocked or exe not in allowed:
-        raise GatewayError(f"executável não autorizado: {exe}")
+    exe = assert_allowed_executable(args[0], policy)
     if any(meta in arg for arg in args for meta in SHELL_META):
         raise GatewayError("composição/redirecionamento de shell bloqueado")
     if sensitive_reference(args, policy):
