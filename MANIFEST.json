@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-14T14:06:42.102Z",
+  "generated_at": "2026-10-14T14:08:40.504Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -869,8 +869,8 @@
     },
     {
       "path": "tests/test_render_postgres_preservation.py",
-      "sha256": "0f8c966673b4183a204ebe95f4f4c2797974e56c7ccef963b1714bab5130262a",
-      "size": 18641
+      "sha256": "29bcfd55d87aadd941e326c92794e80744cfbaf348c5a4450f440fd19d69ad8a",
+      "size": 18748
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
