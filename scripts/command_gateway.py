@@ -72,6 +72,7 @@ def utc_now() -> str:
 
 
 def redact(value: str) -> str:
+    value = POSTGRES_URI_RE.sub("[REDACTED_POSTGRES_URI]", value)
     value = SECRET_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", value)
     value = BEARER_RE.sub("Bearer [REDACTED]", value)
     return TOKEN_RE.sub("[REDACTED_TOKEN]", value)
