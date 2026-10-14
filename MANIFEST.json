@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-11T12:25:00+00:00",
+  "generated_at": "2026-10-14T12:51:52.855725+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "01a70a3c512779e9133d87d3bdb500938ef71eac61c0b952e9d98d0c46a9854d",
-      "size": 6600
+      "sha256": "d4104a13a66e7472a02a1e57144ce99df07e46b39e8d419bc2507b3c6ef88006",
+      "size": 6748
     },
     {
       "path": ".gitignore",
@@ -64,8 +64,8 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "bde2f4e16c0ec2e2f3d330c4a0b77a66febc77d25a6219643e37ddf3af4a93c7",
-      "size": 1711
+      "sha256": "a531ae52fad5ed1b4283d7f75a357b3f9710894a61615d0f41757d795ee2546a",
+      "size": 1745
     },
     {
       "path": "config/host-readiness.json",
@@ -274,8 +274,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "d0516a9e430b7acc3a10f327e0e0ba159c8821f624da4b34ed9e63e4a9e8506f",
-      "size": 24432
+      "sha256": "47f97647a5b82472c6e1bcc6ab2a1950e17acf7fd5f42ace4ea5409996952be4",
+      "size": 27316
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -289,8 +289,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "bbfcc6fa6c0b0daff983bae4e9fe64ad1ae1a737d8a04d5f27f511e764b3409a",
-      "size": 11905
+      "sha256": "d91d62b106f369e502544ba0de62d866015ce6fc93fd7e433dc5690b6edf2cbb",
+      "size": 14461
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -476,6 +476,11 @@
       "path": "scripts/rdc_task_resilience.py",
       "sha256": "423b54aa7bb8777ab0c66ae0c0ec3563c9155c567b1c8d9ea235ae38c4cb907a",
       "size": 9122
+    },
+    {
+      "path": "scripts/render_postgres_preservation.py",
+      "sha256": "0e7a16656dd8350235b193219ad1a7625ebac0ddded3673d8303827627641faa",
+      "size": 4830
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -714,8 +719,8 @@
     },
     {
       "path": "tests/test_command_gateway.py",
-      "sha256": "d6fd130eb955d06fc27ecda6b36e7b3e9a230edfd3ff6a3d7b35f4494ea2ca3d",
-      "size": 10604
+      "sha256": "a365140c7ea7e9c8a9a15d734316b43754f57dbab9fd33aa9450974e1bebf659",
+      "size": 12551
     },
     {
       "path": "tests/test_continuation_worker.py",
@@ -861,6 +866,11 @@
       "path": "tests/test_rdc_task_resilience.py",
       "sha256": "262c926a7439b688fa7a9874bd2aed6519125d19c678a86f0ecf8b5eda4fcd80",
       "size": 7334
+    },
+    {
+      "path": "tests/test_render_postgres_preservation.py",
+      "sha256": "c01b0b99073912c07833bc3811ff6b87afe11cf9d853a130b0cbd0def87d7688",
+      "size": 11936
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",

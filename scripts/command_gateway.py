@@ -48,6 +48,7 @@ SECRET_RE = re.compile(
 )
 BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_|glpat-)[A-Za-z0-9_-]{10,}")
+POSTGRES_URI_RE = re.compile(r"""(?i)\bpostgres(?:ql)?://[^\s"'\\]+""")
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 
@@ -71,6 +72,7 @@ def utc_now() -> str:
 
 
 def redact(value: str) -> str:
+    value = POSTGRES_URI_RE.sub("[REDACTED_POSTGRES_URI]", value)
     value = SECRET_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", value)
     value = BEARER_RE.sub("Bearer [REDACTED]", value)
     return TOKEN_RE.sub("[REDACTED_TOKEN]", value)
@@ -116,7 +118,7 @@ def sensitive_reference(args: Sequence[str], policy: dict[str, Any]) -> bool:
     denied_segments = {item.casefold() for item in policy.get("denied_segments", [])}
     for raw in args:
         token = raw.replace("\\", "/")
-        if SECRET_RE.search(raw) or BEARER_RE.search(raw) or TOKEN_RE.search(raw):
+        if SECRET_RE.search(raw) or BEARER_RE.search(raw) or TOKEN_RE.search(raw) or POSTGRES_URI_RE.search(raw):
             return True
         parts = [part for part in token.split("/") if part]
         if any(part.casefold() in denied_segments for part in parts):
@@ -127,22 +129,89 @@ def sensitive_reference(args: Sequence[str], policy: dict[str, Any]) -> bool:
     return False
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_executable_spec(
+    spec: object,
+    *,
+    expected_executable: str | None = None,
+    require_exists: bool = True,
+) -> tuple[Path, str]:
+    """Validate one exact executable authorization without broad name allowlisting."""
+    if not isinstance(spec, dict):
+        raise GatewayError("especificação de executável inválida")
+    configured = spec.get("path")
+    expected_sha = spec.get("sha256")
+    if not isinstance(configured, str) or not configured.strip():
+        raise GatewayError("especificação de executável sem caminho")
+    candidate = Path(expand_path(configured))
+    if not candidate.is_absolute():
+        raise GatewayError("caminho aprovado de executável deve ser absoluto")
+    if not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+        raise GatewayError("hash aprovado de executável inválido")
+    name = candidate.name.casefold().removesuffix(".exe")
+    if expected_executable is not None and name != expected_executable.casefold().removesuffix(".exe"):
+        raise GatewayError("nome do executável aprovado não corresponde ao esperado")
+    if require_exists:
+        try:
+            candidate = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise GatewayError(f"caminho de executável inválido: {name}") from exc
+    return candidate, expected_sha.casefold()
+
+
+def assert_allowed_executable(raw: str, policy: dict[str, Any]) -> str:
+    exe = Path(raw).name.casefold()
+    if exe.endswith(".exe"):
+        exe = exe[:-4]
+    blocked = {item.casefold() for item in policy.get("blocked_executables", [])}
+    if exe in blocked:
+        raise GatewayError(f"executável não autorizado: {exe}")
+    allowed = {item.casefold() for item in policy.get("allowed_executables", [])}
+    if exe in allowed:
+        return exe
+
+    candidate = Path(expand_path(raw))
+    if not candidate.is_absolute():
+        raise GatewayError(f"executável não autorizado: {exe}")
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise GatewayError(f"caminho de executável inválido: {exe}") from exc
+
+    matched_path = False
+    for spec in policy.get("allowed_executable_specs", []):
+        try:
+            approved, expected_sha = validate_executable_spec(spec)
+        except GatewayError:
+            continue
+        if norm(resolved) != norm(approved):
+            continue
+        matched_path = True
+        if sha256_file(resolved).casefold() != expected_sha:
+            raise GatewayError(f"integridade do executável não comprovada: {exe}")
+        return exe
+    if matched_path:
+        raise GatewayError(f"integridade do executável não comprovada: {exe}")
+    raise GatewayError(f"executável não autorizado: {exe}")
+
+
 def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> None:
     if risk not in (1, 2):
         raise GatewayError("risco 3 não é executado automaticamente")
     if not args:
         raise GatewayError("comando ausente")
-    exe = Path(args[0]).name.casefold()
-    if exe.endswith(".exe"):
-        exe = exe[:-4]
-    allowed = {item.casefold() for item in policy.get("allowed_executables", [])}
-    blocked = {item.casefold() for item in policy.get("blocked_executables", [])}
-    if exe in blocked or exe not in allowed:
-        raise GatewayError(f"executável não autorizado: {exe}")
-    if any(meta in arg for arg in args for meta in SHELL_META):
-        raise GatewayError("composição/redirecionamento de shell bloqueado")
     if sensitive_reference(args, policy):
         raise GatewayError("referência potencialmente sensível bloqueada")
+    exe = assert_allowed_executable(args[0], policy)
+    if any(meta in arg for arg in args for meta in SHELL_META):
+        raise GatewayError("composição/redirecionamento de shell bloqueado")
     if policy.get("deny_inline_code", True):
         if exe in {"python", "python3"} and any(arg in {"-c", "-m"} for arg in args[1:]):
             if "-c" in args[1:]:

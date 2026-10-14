@@ -84,5 +84,6 @@
   "require_preflight_snapshot": true,
   "session_source_roots": [
     "%LOCALAPPDATA%\\ReqSys\\NoteriGitHubRunner\\_work\\reqsys-v2-enterprise-real\\reqsys-v2-enterprise-real"
-  ]
+  ],
+  "allowed_executable_specs": []
 }
