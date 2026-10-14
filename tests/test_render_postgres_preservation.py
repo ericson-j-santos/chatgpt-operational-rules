@@ -47,8 +47,10 @@ class ExecutableSpecTests(unittest.TestCase):
             command_gateway.validate_command([str(self.tool), "--version"], 1, bad)
 
     def test_unauthorized_secret_and_wrong_risk_fail_closed(self) -> None:
+        unauthorized = self.root / "pg_restore"
+        unauthorized.write_bytes(b"unapproved-binary")
         with self.assertRaisesRegex(command_gateway.GatewayError, "não autorizado"):
-            command_gateway.validate_command([str(self.root / "pg_restore")], 1, self.policy)
+            command_gateway.validate_command([str(unauthorized)], 1, self.policy)
         with self.assertRaisesRegex(command_gateway.GatewayError, "sensível"):
             command_gateway.validate_command([str(self.tool), "password=leak"], 1, self.policy)
         with self.assertRaisesRegex(command_gateway.GatewayError, "risco 3"):
