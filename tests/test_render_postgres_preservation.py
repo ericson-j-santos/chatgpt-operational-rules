@@ -10,11 +10,14 @@ from pathlib import Path
 from scripts import command_gateway, continuation_worker
 from scripts.render_postgres_preservation import (
     AccessCleanupFailed,
+    ArtifactEvidence,
+    CleanupJournal,
     PreservationBlocked,
     PreservationPlan,
     TrustedPreflightEvidence,
     main,
     preserve,
+    validate_encrypted_artifact,
 )
 
 
@@ -73,11 +76,18 @@ class ExecutableSpecTests(unittest.TestCase):
 
 
 class PreservationCoordinatorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
     def plan(self, **overrides: object) -> PreservationPlan:
         values = {
             "enabled": True,
             "requested_allowlist_ip": "203.0.113.10",
-            "encrypted_output": Path("/safe/backup.age"),
+            "encrypted_output": self.root / "backup.age",
         }
         values.update(overrides)
         return PreservationPlan(**values)
@@ -93,10 +103,14 @@ class PreservationCoordinatorTests(unittest.TestCase):
 
     def run_preserve(self, *, plan=None, evidence=None, arguments=(), **callbacks):
         order = callbacks.pop("order", [])
+        selected_plan = plan or self.plan()
         preserve(
-            plan or self.plan(),
+            selected_plan,
             arguments=arguments,
             load_trusted_evidence=lambda: evidence or self.evidence(),
+            cleanup_journal=callbacks.pop(
+                "cleanup_journal", CleanupJournal(self.root / "cleanup.json")
+            ),
             add_access=callbacks.pop("add_access", lambda _cidr: order.append("add")),
             export_encrypted=callbacks.pop("export_encrypted", lambda: order.append("export")),
             remove_access=callbacks.pop("remove_access", lambda _cidr: order.append("remove")),
@@ -104,7 +118,11 @@ class PreservationCoordinatorTests(unittest.TestCase):
                 "access_is_removed", lambda _cidr: order.append("readback") or True
             ),
             validate_offline_restore=callbacks.pop(
-                "validate_offline_restore", lambda: order.append("restore")
+                "validate_offline_restore", lambda _artifact: order.append("restore")
+            ),
+            verify_artifact=callbacks.pop(
+                "verify_artifact",
+                lambda path: ArtifactEvidence(str(path), 1, "0" * 64),
             ),
         )
         return order
@@ -166,7 +184,7 @@ class PreservationCoordinatorTests(unittest.TestCase):
         with self.assertRaisesRegex(AccessCleanupFailed, "cleanup_failed"):
             self.run_preserve(
                 remove_access=fail_remove,
-                validate_offline_restore=lambda: self.fail("restore must not run"),
+                validate_offline_restore=lambda _artifact: self.fail("restore must not run"),
             )
 
     def test_readback_exception_is_terminal(self) -> None:
@@ -190,6 +208,42 @@ class PreservationCoordinatorTests(unittest.TestCase):
         order: list[str] = []
         self.run_preserve(order=order)
         self.assertEqual(["add", "export", "remove", "readback", "restore"], order)
+
+    def test_real_artifact_validator_returns_size_and_sha256(self) -> None:
+        artifact = self.root / "backup.age"
+        artifact.write_bytes(b"synthetic encrypted bytes")
+        evidence = validate_encrypted_artifact(artifact)
+        self.assertEqual(len(b"synthetic encrypted bytes"), evidence.size)
+        self.assertEqual(hashlib.sha256(b"synthetic encrypted bytes").hexdigest(), evidence.sha256)
+        self.assertEqual(str(artifact), evidence.path)
+
+    def test_empty_or_missing_artifact_is_rejected_before_restore(self) -> None:
+        for create_empty in (False, True):
+            artifact = self.root / ("empty.age" if create_empty else "missing.age")
+            if create_empty:
+                artifact.write_bytes(b"")
+            with self.assertRaises(PreservationBlocked):
+                validate_encrypted_artifact(artifact)
+
+    def test_cleanup_journal_is_cleared_only_after_confirmed_readback(self) -> None:
+        journal = CleanupJournal(self.root / "cleanup.json")
+        self.run_preserve(cleanup_journal=journal)
+        self.assertIsNone(journal.pending_cidr())
+        with self.assertRaises(AccessCleanupFailed):
+            self.run_preserve(
+                cleanup_journal=journal,
+                access_is_removed=lambda _cidr: False,
+            )
+        self.assertEqual("203.0.113.10/32", journal.pending_cidr())
+
+    def test_existing_different_cleanup_blocks_before_network(self) -> None:
+        journal = CleanupJournal(self.root / "cleanup.json")
+        journal.mark_pending("203.0.113.99/32")
+        called: list[str] = []
+        with self.assertRaisesRegex(PreservationBlocked, "different_cleanup"):
+            self.run_preserve(cleanup_journal=journal, order=called)
+        self.assertEqual([], called)
+        self.assertEqual("203.0.113.99/32", journal.pending_cidr())
 
     def test_main_rejects_sensitive_arguments_and_remains_dormant(self) -> None:
         with mock.patch("builtins.print") as output:
