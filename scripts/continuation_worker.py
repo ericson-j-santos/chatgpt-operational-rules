@@ -107,7 +107,16 @@ def _validate_repo(item: Continuation) -> tuple[Path, str]:
     return repo, _validate_head(item.todo.get("expected_head"))
 
 
-def _run_governed(repo: Path, head: str, script: str, extra: list[str] | None = None) -> None:
+def _run_governed(
+    repo: Path,
+    head: str,
+    script: str,
+    extra: list[str] | None = None,
+    *,
+    risk: int = 1,
+) -> None:
+    if risk not in (1, 2):
+        raise HumanGate("automation_action_risk_not_allowed")
     root = Path(__file__).resolve().parents[1]
     launcher = root / "scripts" / "session_launcher.py"
     policy = root / "config" / "command-gateway.policy.json"
@@ -121,7 +130,7 @@ def _run_governed(repo: Path, head: str, script: str, extra: list[str] | None = 
     target = Path(data["target_path"])
     gateway = root / "scripts" / "command_gateway.py"
     cmd=[sys.executable, str(gateway), "--policy", str(policy), "--correlation-id", corr, "run", "--cwd", str(target),
-         "--session-id", session, "--risk", "1", "--expected-head", head, "--", sys.executable, script]
+         "--session-id", session, "--risk", str(risk), "--expected-head", head, "--", sys.executable, script]
     if extra: cmd.extend(extra)
     run=subprocess.run(cmd, capture_output=True, text=True)
     if run.returncode != 0:
@@ -149,6 +158,24 @@ def _run_known_state_recovery(item: Continuation) -> None:
     if not script:
         raise HumanGate("automation_action_recovery_not_allowed")
     _run_governed(repo, head, script, ["--target-root", str(repo), "--expected-head", head])
+
+
+def _run_render_postgres_preservation(item: Continuation) -> None:
+    repo, head = _validate_repo(item)
+    root = Path(__file__).resolve().parents[1]
+    policy_path = root / "config" / "command-gateway.policy.json"
+    try:
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HumanGate("render_postgres_policy_unavailable") from exc
+    approved = {
+        Path(str(spec.get("path") or "")).name.casefold().removesuffix(".exe")
+        for spec in policy.get("allowed_executable_specs", [])
+        if isinstance(spec, dict)
+    }
+    if not {"pg_dump", "pg_restore"}.issubset(approved):
+        raise HumanGate("render_postgres_executables_not_specifically_approved")
+    _run_governed(repo, head, "scripts/render_postgres_preservation.py", risk=2)
 
 
 def _run_execution_lane_enqueue(item: Continuation) -> None:
@@ -185,6 +212,7 @@ ACTION_REGISTRY = {
     "operational_rules.ci_manifest_recovery.v1": _run_ci_manifest_recovery,
     "operational_rules.e2e_validation.v1": _run_e2e_validation,
     "operational_rules.known_state_recovery.v1": _run_known_state_recovery,
+    "operational_rules.render_postgres_preservation.v1": _run_render_postgres_preservation,
     "execution_lane.enqueue.v1": _run_execution_lane_enqueue,
 }
 
