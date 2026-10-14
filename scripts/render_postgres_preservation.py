@@ -161,7 +161,14 @@ class CleanupJournal:
         if network.version != 4 or network.prefixlen != 32:
             raise PreservationBlocked("cleanup_cidr_invalid")
         cidr = str(network)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            parent_metadata = os.lstat(self.path.parent)
+        except FileNotFoundError as exc:
+            raise PreservationBlocked("cleanup_journal_parent_missing") from exc
+        except OSError as exc:
+            raise PreservationBlocked("cleanup_journal_parent_unavailable") from exc
+        if not stat_module.S_ISDIR(parent_metadata.st_mode):
+            raise PreservationBlocked("cleanup_journal_parent_not_directory")
         _assert_no_symlink_components(self.path.parent, allow_missing_leaf=False)
         _assert_no_symlink_components(self.path, allow_missing_leaf=True)
         if self.pending_cidr() is not None:
