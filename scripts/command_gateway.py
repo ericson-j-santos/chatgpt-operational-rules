@@ -48,6 +48,7 @@ SECRET_RE = re.compile(
 )
 BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_|glpat-)[A-Za-z0-9_-]{10,}")
+POSTGRES_URI_RE = re.compile(r"(?i)\bpostgres(?:ql)?://\S+")
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 
@@ -116,7 +117,7 @@ def sensitive_reference(args: Sequence[str], policy: dict[str, Any]) -> bool:
     denied_segments = {item.casefold() for item in policy.get("denied_segments", [])}
     for raw in args:
         token = raw.replace("\\", "/")
-        if SECRET_RE.search(raw) or BEARER_RE.search(raw) or TOKEN_RE.search(raw):
+        if SECRET_RE.search(raw) or BEARER_RE.search(raw) or TOKEN_RE.search(raw) or POSTGRES_URI_RE.search(raw):
             return True
         parts = [part for part in token.split("/") if part]
         if any(part.casefold() in denied_segments for part in parts):
@@ -133,6 +134,35 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_executable_spec(
+    spec: object,
+    *,
+    expected_executable: str | None = None,
+    require_exists: bool = True,
+) -> tuple[Path, str]:
+    """Validate one exact executable authorization without broad name allowlisting."""
+    if not isinstance(spec, dict):
+        raise GatewayError("especificação de executável inválida")
+    configured = spec.get("path")
+    expected_sha = spec.get("sha256")
+    if not isinstance(configured, str) or not configured.strip():
+        raise GatewayError("especificação de executável sem caminho")
+    candidate = Path(expand_path(configured))
+    if not candidate.is_absolute():
+        raise GatewayError("caminho aprovado de executável deve ser absoluto")
+    if not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+        raise GatewayError("hash aprovado de executável inválido")
+    name = candidate.name.casefold().removesuffix(".exe")
+    if expected_executable is not None and name != expected_executable.casefold().removesuffix(".exe"):
+        raise GatewayError("nome do executável aprovado não corresponde ao esperado")
+    if require_exists:
+        try:
+            candidate = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise GatewayError(f"caminho de executável inválido: {name}") from exc
+    return candidate, expected_sha.casefold()
 
 
 def assert_allowed_executable(raw: str, policy: dict[str, Any]) -> str:
@@ -156,15 +186,9 @@ def assert_allowed_executable(raw: str, policy: dict[str, Any]) -> str:
 
     matched_path = False
     for spec in policy.get("allowed_executable_specs", []):
-        if not isinstance(spec, dict):
-            continue
-        configured = spec.get("path")
-        expected_sha = str(spec.get("sha256") or "").casefold()
-        if not isinstance(configured, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
-            continue
         try:
-            approved = Path(expand_path(configured)).resolve(strict=True)
-        except OSError:
+            approved, expected_sha = validate_executable_spec(spec)
+        except GatewayError:
             continue
         if norm(resolved) != norm(approved):
             continue
@@ -182,11 +206,11 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> 
         raise GatewayError("risco 3 não é executado automaticamente")
     if not args:
         raise GatewayError("comando ausente")
+    if sensitive_reference(args, policy):
+        raise GatewayError("referência potencialmente sensível bloqueada")
     exe = assert_allowed_executable(args[0], policy)
     if any(meta in arg for arg in args for meta in SHELL_META):
         raise GatewayError("composição/redirecionamento de shell bloqueado")
-    if sensitive_reference(args, policy):
-        raise GatewayError("referência potencialmente sensível bloqueada")
     if policy.get("deny_inline_code", True):
         if exe in {"python", "python3"} and any(arg in {"-c", "-m"} for arg in args[1:]):
             if "-c" in args[1:]:
