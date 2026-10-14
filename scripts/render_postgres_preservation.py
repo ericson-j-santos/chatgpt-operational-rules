@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Fail-closed coordinator for a future governed Render PostgreSQL preservation action.
+"""Dormant, fail-closed coordinator for a future governed preservation action.
 
-This module deliberately contains no credential broker, Render client, or subprocess
-fallback. Host-specific adapters must be approved and injected by the governed action.
+This is not a functional backup tool. It has no Render adapter, credential broker,
+subprocess fallback, or trusted evidence provider. Those host-specific components
+must be separately approved and injected. Activation also remains blocked until a
+durable recovery mechanism can remove temporary access after abrupt process or host
+termination.
 """
 from __future__ import annotations
 
 import ipaddress
 import json
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
@@ -29,10 +33,17 @@ class AccessCleanupFailed(RuntimeError):
 @dataclass(frozen=True)
 class PreservationPlan:
     enabled: bool
-    approved_credential_channel: bool
-    observed_desktop_ip: str
     requested_allowlist_ip: str
     encrypted_output: Path
+
+
+@dataclass(frozen=True)
+class TrustedPreflightEvidence:
+    """Evidence supplied by an approved host adapter, never by action payload."""
+
+    approval_is_current: bool
+    credential_channel_is_ready: bool
+    observed_desktop_ip: str
 
 
 def reject_sensitive_arguments(arguments: Sequence[str]) -> None:
@@ -40,19 +51,28 @@ def reject_sensitive_arguments(arguments: Sequence[str]) -> None:
         raise PreservationBlocked("sensitive_argument_rejected")
 
 
-def validate_plan(plan: PreservationPlan) -> str:
-    if not plan.enabled:
+def validate_plan(plan: PreservationPlan, evidence: TrustedPreflightEvidence) -> str:
+    if type(plan.enabled) is not bool or plan.enabled is not True:
         raise PreservationBlocked("preservation_action_not_enabled")
-    if not plan.approved_credential_channel:
+    if type(evidence.approval_is_current) is not bool or evidence.approval_is_current is not True:
+        raise PreservationBlocked("trusted_approval_missing")
+    if (
+        type(evidence.credential_channel_is_ready) is not bool
+        or evidence.credential_channel_is_ready is not True
+    ):
         raise PreservationBlocked("approved_credential_channel_missing")
+    if not isinstance(evidence.observed_desktop_ip, str) or not isinstance(
+        plan.requested_allowlist_ip, str
+    ):
+        raise PreservationBlocked("desktop_ip_invalid")
     try:
-        observed = ipaddress.ip_address(plan.observed_desktop_ip)
+        observed = ipaddress.ip_address(evidence.observed_desktop_ip)
         requested = ipaddress.ip_address(plan.requested_allowlist_ip)
     except ValueError as exc:
         raise PreservationBlocked("desktop_ip_invalid") from exc
     if observed.version != 4 or requested.version != 4 or observed != requested:
         raise PreservationBlocked("desktop_ip_mismatch")
-    if not plan.encrypted_output.is_absolute():
+    if not isinstance(plan.encrypted_output, Path) or not plan.encrypted_output.is_absolute():
         raise PreservationBlocked("encrypted_output_must_be_absolute")
     return f"{observed}/32"
 
@@ -60,14 +80,17 @@ def validate_plan(plan: PreservationPlan) -> str:
 def preserve(
     plan: PreservationPlan,
     *,
+    arguments: Sequence[str],
+    load_trusted_evidence: Callable[[], TrustedPreflightEvidence],
     add_access: Callable[[str], None],
     export_encrypted: Callable[[], None],
     remove_access: Callable[[str], None],
     access_is_removed: Callable[[str], bool],
     validate_offline_restore: Callable[[], None],
 ) -> None:
-    """Run export with mandatory compensation, then restore only after access removal."""
-    cidr = validate_plan(plan)
+    """Coordinate unit-testable adapters; no real adapter is provided here."""
+    reject_sensitive_arguments(arguments)
+    cidr = validate_plan(plan, load_trusted_evidence())
     access_attempted = False
     primary_error: BaseException | None = None
     try:
@@ -81,20 +104,25 @@ def preserve(
         if access_attempted:
             try:
                 remove_access(cidr)
-                if not access_is_removed(cidr):
+                if access_is_removed(cidr) is not True:
                     raise AccessCleanupFailed("temporary_access_removal_unproven")
             except BaseException as cleanup_error:
                 if primary_error is not None:
-                    raise AccessCleanupFailed("temporary_access_cleanup_failed_after_export_error") from cleanup_error
+                    raise AccessCleanupFailed(
+                        "temporary_access_cleanup_failed_after_export_error"
+                    ) from cleanup_error
                 raise AccessCleanupFailed("temporary_access_cleanup_failed") from cleanup_error
     validate_offline_restore()
 
 
-def main() -> int:
-    print(json.dumps({
-        "result": "blocked",
-        "reason": "host_specific_adapters_and_approved_credential_channel_not_configured",
-    }, sort_keys=True))
+def main(arguments: Sequence[str] | None = None) -> int:
+    try:
+        reject_sensitive_arguments(list(sys.argv[1:] if arguments is None else arguments))
+    except PreservationBlocked:
+        reason = "sensitive_argument_rejected"
+    else:
+        reason = "host_specific_adapters_trusted_evidence_and_recovery_not_configured"
+    print(json.dumps({"result": "blocked", "reason": reason}, sort_keys=True))
     return 20
 
 
