@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-14T12:36:20.303Z",
+  "generated_at": "2026-10-14T12:44:19.484687+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -274,8 +274,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "ea52025742d7b08300a87c941113bb5c1a24c525cd27f69769a0408dc13c4b32",
-      "size": 26035
+      "sha256": "a08c65704c8dc276fd2838aa1e0bcbe32ec85327a3ee3b9081f9b882a291f795",
+      "size": 27239
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -289,8 +289,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "3506434200837b0a64ae5ea3a0420ffe6f263486cd661971db106cc8884e65b3",
-      "size": 12975
+      "sha256": "d91d62b106f369e502544ba0de62d866015ce6fc93fd7e433dc5690b6edf2cbb",
+      "size": 14461
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -479,8 +479,8 @@
     },
     {
       "path": "scripts/render_postgres_preservation.py",
-      "sha256": "cd5b0d7ab33a28997267939574abfa20c53433c1a64859adcdff86c6fd3f893e",
-      "size": 3488
+      "sha256": "0e7a16656dd8350235b193219ad1a7625ebac0ddded3673d8303827627641faa",
+      "size": 4830
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
