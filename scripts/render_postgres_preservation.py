@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import tempfile
+import stat as stat_module
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
@@ -56,8 +57,53 @@ class ArtifactEvidence:
     sha256: str
 
 
+def _assert_no_symlink_components(path: Path, *, allow_missing_leaf: bool) -> None:
+    if not path.is_absolute():
+        raise PreservationBlocked("path_must_be_absolute")
+    current = Path(path.anchor)
+    parts = path.parts[1:] if path.anchor else path.parts
+    for index, part in enumerate(parts):
+        current /= part
+        try:
+            metadata = os.lstat(current)
+        except FileNotFoundError:
+            if allow_missing_leaf and index == len(parts) - 1:
+                return
+            raise PreservationBlocked("path_component_missing")
+        except OSError as exc:
+            raise PreservationBlocked("path_component_unavailable") from exc
+        if stat_module.S_ISLNK(metadata.st_mode):
+            raise PreservationBlocked("symlink_path_rejected")
+
+
+def _canonical_path(path: Path) -> str:
+    return os.path.normcase(os.path.realpath(os.fspath(path)))
+
+
+def assert_distinct_artifact_and_journal(artifact: Path, journal: Path) -> None:
+    if not artifact.is_absolute() or not journal.is_absolute():
+        raise PreservationBlocked("path_must_be_absolute")
+    if _canonical_path(artifact) == _canonical_path(journal):
+        raise PreservationBlocked("artifact_journal_path_collision")
+
+
+def _fsync_directory(directory: Path) -> None:
+    if not hasattr(os, "O_DIRECTORY"):
+        raise PreservationBlocked("directory_fsync_unsupported")
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+    except OSError as exc:
+        raise PreservationBlocked("directory_fsync_unavailable") from exc
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        raise PreservationBlocked("directory_fsync_failed") from exc
+    finally:
+        os.close(descriptor)
+
+
 class CleanupJournal:
-    """Secret-free durable marker consumed by a future approved cleanup supervisor."""
+    """Secret-free durable marker for a separately approved cleanup supervisor."""
 
     def __init__(self, path: Path) -> None:
         if not path.is_absolute():
@@ -65,11 +111,29 @@ class CleanupJournal:
         self.path = path
 
     def _read(self) -> dict[str, object] | None:
-        if not self.path.exists():
+        if not os.path.lexists(self.path):
             return None
+        _assert_no_symlink_components(self.path, allow_missing_leaf=False)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         try:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            descriptor = os.open(self.path, flags)
+        except OSError as exc:
+            raise PreservationBlocked("cleanup_journal_unavailable") from exc
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat_module.S_ISREG(metadata.st_mode):
+                raise PreservationBlocked("cleanup_journal_not_regular")
+            chunks: list[bytes] = []
+            while True:
+                chunk = os.read(descriptor, 65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            os.close(descriptor)
+        try:
+            payload = json.loads(b"".join(chunks).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise PreservationBlocked("cleanup_journal_invalid") from exc
         if (
             payload.get("version") != 1
@@ -97,12 +161,11 @@ class CleanupJournal:
         if network.version != 4 or network.prefixlen != 32:
             raise PreservationBlocked("cleanup_cidr_invalid")
         cidr = str(network)
-        existing = self.pending_cidr()
-        if existing is not None and existing != cidr:
-            raise PreservationBlocked("different_cleanup_already_pending")
-        if existing == cidr:
-            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        _assert_no_symlink_components(self.path.parent, allow_missing_leaf=False)
+        _assert_no_symlink_components(self.path, allow_missing_leaf=True)
+        if self.pending_cidr() is not None:
+            raise PreservationBlocked("cleanup_already_pending")
         payload = {"version": 1, "status": "cleanup_pending", "cidr": cidr}
         fd, temporary = tempfile.mkstemp(prefix=self.path.name + ".", dir=self.path.parent)
         temporary_path = Path(temporary)
@@ -117,6 +180,9 @@ class CleanupJournal:
             except OSError:
                 pass
             os.replace(temporary_path, self.path)
+            _fsync_directory(self.path.parent)
+            if self.pending_cidr() != cidr:
+                raise PreservationBlocked("cleanup_journal_persistence_unconfirmed")
         finally:
             try:
                 temporary_path.unlink()
@@ -128,9 +194,11 @@ class CleanupJournal:
             raise AccessCleanupFailed("cleanup_journal_does_not_match")
         try:
             self.path.unlink()
-        except OSError as exc:
+            _fsync_directory(self.path.parent)
+        except (OSError, PreservationBlocked) as exc:
             raise AccessCleanupFailed("cleanup_journal_clear_failed") from exc
-
+        if os.path.lexists(self.path):
+            raise AccessCleanupFailed("cleanup_journal_clear_unconfirmed")
 
 def reject_sensitive_arguments(arguments: Sequence[str]) -> None:
     if any(SENSITIVE_ARGUMENT.search(str(argument)) for argument in arguments):
@@ -138,23 +206,43 @@ def reject_sensitive_arguments(arguments: Sequence[str]) -> None:
 
 
 def validate_encrypted_artifact(path: Path) -> ArtifactEvidence:
+    """Return byte identity evidence; this does not prove cryptographic encryption."""
     if not isinstance(path, Path) or not path.is_absolute():
         raise PreservationBlocked("encrypted_output_must_be_absolute")
+    _assert_no_symlink_components(path, allow_missing_leaf=False)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        stat = path.stat()
+        descriptor = os.open(path, flags)
     except OSError as exc:
         raise PreservationBlocked("encrypted_artifact_unavailable") from exc
-    if not path.is_file() or stat.st_size < 1:
-        raise PreservationBlocked("encrypted_artifact_empty")
     digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
+        before = os.fstat(descriptor)
+        if not stat_module.S_ISREG(before.st_mode):
+            raise PreservationBlocked("encrypted_artifact_not_regular")
+        if before.st_size < 1:
+            raise PreservationBlocked("encrypted_artifact_empty")
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+        after = os.fstat(descriptor)
     except OSError as exc:
         raise PreservationBlocked("encrypted_artifact_unreadable") from exc
-    return ArtifactEvidence(path=str(path), size=stat.st_size, sha256=digest.hexdigest())
-
+    finally:
+        os.close(descriptor)
+    identity_before = (
+        before.st_dev, before.st_ino, before.st_size,
+        before.st_mtime_ns, before.st_ctime_ns,
+    )
+    identity_after = (
+        after.st_dev, after.st_ino, after.st_size,
+        after.st_mtime_ns, after.st_ctime_ns,
+    )
+    if identity_before != identity_after:
+        raise PreservationBlocked("encrypted_artifact_changed_during_read")
+    return ArtifactEvidence(path=str(path), size=before.st_size, sha256=digest.hexdigest())
 
 def validate_plan(plan: PreservationPlan, evidence: TrustedPreflightEvidence) -> str:
     if type(plan.enabled) is not bool or plan.enabled is not True:
@@ -198,6 +286,7 @@ def preserve(
     """Coordinate unit-testable adapters; no real adapter is provided here."""
     reject_sensitive_arguments(arguments)
     cidr = validate_plan(plan, load_trusted_evidence())
+    assert_distinct_artifact_and_journal(plan.encrypted_output, cleanup_journal.path)
     cleanup_journal.mark_pending(cidr)
     access_attempted = False
     primary_error: BaseException | None = None
