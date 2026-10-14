@@ -275,6 +275,17 @@ class PreservationCoordinatorTests(unittest.TestCase):
             self.assertEqual(2, directory_sync.call_count)
         self.assertIsNone(CleanupJournal(self.root / "cleanup.json").pending_cidr())
 
+    def test_missing_journal_parent_blocks_before_external_calls(self) -> None:
+        missing_parent = self.root / "not-created"
+        called: list[str] = []
+        with self.assertRaisesRegex(PreservationBlocked, "parent_missing"):
+            self.run_preserve(
+                cleanup_journal=CleanupJournal(missing_parent / "cleanup.json"),
+                order=called,
+            )
+        self.assertEqual([], called)
+        self.assertFalse(missing_parent.exists())
+
     def test_directory_sync_failure_blocks_before_network(self) -> None:
         called: list[str] = []
         with mock.patch.object(
