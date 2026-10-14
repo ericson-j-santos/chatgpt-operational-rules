@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-14T12:51:52.855725+00:00",
+  "generated_at": "2026-10-14T14:12:37.665Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -479,8 +479,8 @@
     },
     {
       "path": "scripts/render_postgres_preservation.py",
-      "sha256": "0e7a16656dd8350235b193219ad1a7625ebac0ddded3673d8303827627641faa",
-      "size": 4830
+      "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
+      "size": 13578
     },
     {
       "path": "scripts/render_todo_gateway_bootstrap.py",
@@ -869,8 +869,8 @@
     },
     {
       "path": "tests/test_render_postgres_preservation.py",
-      "sha256": "c01b0b99073912c07833bc3811ff6b87afe11cf9d853a130b0cbd0def87d7688",
-      "size": 11936
+      "sha256": "d06995aaaa82374e674a27ba15544a0bb87951dec1c2532a1289503cd55a53c7",
+      "size": 19230
     },
     {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
