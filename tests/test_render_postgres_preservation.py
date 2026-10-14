@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
-from scripts import command_gateway
+from scripts import command_gateway, continuation_worker
 from scripts.render_postgres_preservation import (
     AccessCleanupFailed,
     PreservationBlocked,
@@ -123,6 +124,24 @@ class PreservationCoordinatorTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(PreservationBlocked, "sensitive_argument"):
             reject_sensitive_arguments(["--dbname=postgresql://user:secret@example/db"])
+
+
+class DormantActionTests(unittest.TestCase):
+    def test_action_remains_disabled_without_exact_binary_specs(self) -> None:
+        item = continuation_worker.Continuation(
+            request_id="req", idempotency_key="idem", correlation_id="corr",
+            project="AI Control Plane", todo={}, attempts=0,
+        )
+        with mock.patch.object(
+            continuation_worker,
+            "_validate_repo",
+            return_value=(Path("."), "0" * 40),
+        ):
+            with self.assertRaisesRegex(
+                continuation_worker.HumanGate,
+                "executables_not_specifically_approved",
+            ):
+                continuation_worker._run_render_postgres_preservation(item)
 
 
 if __name__ == "__main__":
