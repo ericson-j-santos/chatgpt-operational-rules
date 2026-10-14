@@ -14,11 +14,15 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 try:
+    from scripts.command_gateway import GatewayError, validate_executable_spec
     from scripts.execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from scripts.host_operating_profile import default_profile_path, load_profile
+    from scripts.render_postgres_preservation import PreservationBlocked, reject_sensitive_arguments
 except ModuleNotFoundError:
+    from command_gateway import GatewayError, validate_executable_spec
     from execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from host_operating_profile import default_profile_path, load_profile
+    from render_postgres_preservation import PreservationBlocked, reject_sensitive_arguments
 
 
 @dataclass(frozen=True)
@@ -168,12 +172,21 @@ def _run_render_postgres_preservation(item: Continuation) -> None:
         policy = json.loads(policy_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise HumanGate("render_postgres_policy_unavailable") from exc
-    approved = {
-        Path(str(spec.get("path") or "")).name.casefold().removesuffix(".exe")
-        for spec in policy.get("allowed_executable_specs", [])
-        if isinstance(spec, dict)
-    }
-    if not {"pg_dump", "pg_restore"}.issubset(approved):
+    specs = policy.get("allowed_executable_specs", [])
+    approved: set[str] = set()
+    for expected in ("pg_dump", "pg_restore"):
+        for spec in specs if isinstance(specs, list) else []:
+            try:
+                validate_executable_spec(
+                    spec,
+                    expected_executable=expected,
+                    require_exists=False,
+                )
+            except GatewayError:
+                continue
+            approved.add(expected)
+            break
+    if approved != {"pg_dump", "pg_restore"}:
         raise HumanGate("render_postgres_executables_not_specifically_approved")
     _run_governed(repo, head, "scripts/render_postgres_preservation.py", risk=2)
 
@@ -217,6 +230,29 @@ ACTION_REGISTRY = {
 }
 
 
+def _payload_strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        result: list[str] = []
+        for key, item in value.items():
+            result.extend((str(key), *_payload_strings(item)))
+        return result
+    if isinstance(value, (list, tuple, set)):
+        result = []
+        for item in value:
+            result.extend(_payload_strings(item))
+        return result
+    return []
+
+
+def _reject_render_sensitive_payload(todo: dict[str, Any]) -> None:
+    try:
+        reject_sensitive_arguments(_payload_strings(todo))
+    except PreservationBlocked as exc:
+        raise HumanGate("render_postgres_sensitive_payload_rejected") from exc
+
+
 def execute(item: Continuation) -> None:
     """Executa somente ações tipadas e explicitamente registradas."""
     action = str(item.todo.get("automation_action") or "").strip()
@@ -225,6 +261,8 @@ def execute(item: Continuation) -> None:
     handler = ACTION_REGISTRY.get(action)
     if handler is None:
         raise HumanGate(f"automation_action_not_registered:{action}")
+    if action == "operational_rules.render_postgres_preservation.v1":
+        _reject_render_sensitive_payload(item.todo)
     handler(item)
 
 
