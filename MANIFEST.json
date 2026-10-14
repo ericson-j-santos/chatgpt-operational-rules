@@ -214,8 +214,8 @@
     },
     {
       "path": "rules/pre-delivery-validation.md",
-      "sha256": "e71e87e99e933654aace7099aeadf9fd6a21f017600d75359199e5f43f00159d",
-      "size": 3693
+      "sha256": "e90f0791810bae7fee175bd10a424278a5a38461666b04b128a8d38fd7d0da47",
+      "size": 5824
     },
     {
       "path": "rules/progress-watchdog.md",
