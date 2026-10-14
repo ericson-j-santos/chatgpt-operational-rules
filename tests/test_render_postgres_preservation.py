@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
 
-from scripts import command_gateway, continuation_worker
+from scripts import command_gateway, continuation_worker, render_postgres_preservation as preservation
 from scripts.render_postgres_preservation import (
     AccessCleanupFailed,
     ArtifactEvidence,
@@ -243,14 +244,96 @@ class PreservationCoordinatorTests(unittest.TestCase):
                 journal.mark_pending(cidr)
         self.assertIsNone(journal.pending_cidr())
 
-    def test_existing_different_cleanup_blocks_before_network(self) -> None:
-        journal = CleanupJournal(self.root / "cleanup.json")
-        journal.mark_pending("203.0.113.99/32")
+    def test_any_reopened_pending_journal_blocks_before_network(self) -> None:
+        first = CleanupJournal(self.root / "cleanup.json")
+        first.mark_pending("203.0.113.10/32")
+        reopened = CleanupJournal(self.root / "cleanup.json")
         called: list[str] = []
-        with self.assertRaisesRegex(PreservationBlocked, "different_cleanup"):
-            self.run_preserve(cleanup_journal=journal, order=called)
+        with self.assertRaisesRegex(PreservationBlocked, "cleanup_already_pending"):
+            self.run_preserve(cleanup_journal=reopened, order=called)
         self.assertEqual([], called)
-        self.assertEqual("203.0.113.99/32", journal.pending_cidr())
+        self.assertEqual("203.0.113.10/32", reopened.pending_cidr())
+
+    def test_journal_entry_and_removal_are_directory_synced(self) -> None:
+        journal = CleanupJournal(self.root / "cleanup.json")
+        real_sync = preservation._fsync_directory
+        with mock.patch.object(os, "fsync", wraps=os.fsync) as file_sync, mock.patch.object(
+            os, "replace", wraps=os.replace
+        ) as replace, mock.patch.object(
+            preservation, "_fsync_directory", wraps=real_sync
+        ) as directory_sync:
+            journal.mark_pending("203.0.113.10/32")
+            self.assertGreaterEqual(file_sync.call_count, 1)
+            replace.assert_called_once()
+            directory_sync.assert_called_once_with(self.root)
+            self.assertEqual(
+                "203.0.113.10/32",
+                CleanupJournal(self.root / "cleanup.json").pending_cidr(),
+            )
+            journal.clear("203.0.113.10/32")
+            self.assertEqual(2, directory_sync.call_count)
+        self.assertIsNone(CleanupJournal(self.root / "cleanup.json").pending_cidr())
+
+    def test_directory_sync_failure_blocks_before_network(self) -> None:
+        called: list[str] = []
+        with mock.patch.object(
+            preservation,
+            "_fsync_directory",
+            side_effect=PreservationBlocked("directory_fsync_unsupported"),
+        ):
+            with self.assertRaisesRegex(PreservationBlocked, "directory_fsync_unsupported"):
+                self.run_preserve(order=called)
+        self.assertEqual([], called)
+
+    def test_artifact_and_journal_canonical_collision_blocks_before_network(self) -> None:
+        shared = self.root / "shared.bin"
+        called: list[str] = []
+        with self.assertRaisesRegex(PreservationBlocked, "path_collision"):
+            self.run_preserve(
+                plan=self.plan(encrypted_output=shared),
+                cleanup_journal=CleanupJournal(shared),
+                order=called,
+            )
+        self.assertEqual([], called)
+
+    def test_symlinks_and_non_regular_artifacts_are_rejected(self) -> None:
+        target = self.root / "target.age"
+        target.write_bytes(b"bytes")
+        link = self.root / "link.age"
+        link.symlink_to(target)
+        with self.assertRaisesRegex(PreservationBlocked, "symlink"):
+            validate_encrypted_artifact(link)
+        with self.assertRaisesRegex(PreservationBlocked, "not_regular"):
+            validate_encrypted_artifact(self.root)
+        journal_target = self.root / "journal-target"
+        journal_target.write_text("{}", encoding="utf-8")
+        journal_link = self.root / "journal-link"
+        journal_link.symlink_to(journal_target)
+        with self.assertRaisesRegex(PreservationBlocked, "symlink"):
+            CleanupJournal(journal_link).pending_cidr()
+
+    def test_artifact_mutation_during_single_descriptor_read_is_rejected(self) -> None:
+        artifact = self.root / "mutable.age"
+        artifact.write_bytes(b"synthetic bytes")
+        real_fstat = os.fstat
+        calls = 0
+        def changed_fstat(descriptor):
+            nonlocal calls
+            calls += 1
+            current = real_fstat(descriptor)
+            if calls == 2:
+                changed = mock.Mock()
+                changed.st_mode = current.st_mode
+                changed.st_dev = current.st_dev
+                changed.st_ino = current.st_ino
+                changed.st_size = current.st_size
+                changed.st_mtime_ns = current.st_mtime_ns + 1
+                changed.st_ctime_ns = current.st_ctime_ns
+                return changed
+            return current
+        with mock.patch.object(os, "fstat", side_effect=changed_fstat):
+            with self.assertRaisesRegex(PreservationBlocked, "changed_during_read"):
+                validate_encrypted_artifact(artifact)
 
     def test_main_rejects_sensitive_arguments_and_remains_dormant(self) -> None:
         with mock.patch("builtins.print") as output:
