@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-15T19:37:18.101390+00:00",
+  "generated_at": "2026-10-15T19:42:09.541612+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "438074940c33963ccda0aa9af63e7a98ad631021617f2e9d13b4a99558d8ab10",
-      "size": 6842
+      "sha256": "1bb932fd9bfe0fa391e541d7b5c1f9d2d8f2b660358bd7b60555fc90eab668c2",
+      "size": 6812
     },
     {
       "path": ".gitignore",
@@ -774,8 +774,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "9f6a9afc6d8e4f3bb84458ee8f784157905bc56e15945e6d8dda86d10a88ccbd",
-      "size": 4328
+      "sha256": "b95706b71b4ab022dc60cf21539dfd9a7b07cf5e67714bc8d18cc6e64a9c12d4",
+      "size": 5714
     },
     {
       "path": "tests/test_host_bootstrap.py",
