@@ -95,5 +95,6 @@
       "expected_remote": "3f88cd5c35c1ab85c3dc13a30ad0bc645a1ff6b5",
       "expected_head": "22b435ea287971e3e1ff0126d7cc3f096eae5747"
     }
-  ]
+  ],
+  "allowed_executable_specs": []
 }
