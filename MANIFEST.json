@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-14T14:12:37.665Z",
+  "generated_at": "2026-10-15T19:37:18.101390+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "d4104a13a66e7472a02a1e57144ce99df07e46b39e8d419bc2507b3c6ef88006",
-      "size": 6748
+      "sha256": "438074940c33963ccda0aa9af63e7a98ad631021617f2e9d13b4a99558d8ab10",
+      "size": 6842
     },
     {
       "path": ".gitignore",
@@ -64,8 +64,8 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "a531ae52fad5ed1b4283d7f75a357b3f9710894a61615d0f41757d795ee2546a",
-      "size": 1745
+      "sha256": "cd3ecdfb7c91ca8b68a49d405c5650d97ddce60432a3bb7b2d8467d9cf580454",
+      "size": 2317
     },
     {
       "path": "config/host-readiness.json",
@@ -169,8 +169,8 @@
     },
     {
       "path": "rules/branch-publication.md",
-      "sha256": "b61dec74ffab39008122952d5e7cb9653cdb3ea1fb1b524fde673dbbb0abc75f",
-      "size": 1888
+      "sha256": "5613f3e2018fa2f8d2f361dbebd27673062f9b27072fcb31be2f4aea123182b5",
+      "size": 2876
     },
     {
       "path": "rules/chat-bootstrap.md",
@@ -274,8 +274,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "47f97647a5b82472c6e1bcc6ab2a1950e17acf7fd5f42ace4ea5409996952be4",
-      "size": 27316
+      "sha256": "3e906f67c69542e7d039f648fe088cbf605829a9dab12e50d9fed6fc032f8a87",
+      "size": 29592
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -608,6 +608,11 @@
       "size": 4031
     },
     {
+      "path": "scripts/update_branch_fast_forward_governed.py",
+      "sha256": "ba27e8615558b66948dc0947514f79acf25406f9d4437882c320da896a483cab",
+      "size": 5623
+    },
+    {
       "path": "scripts/update_command_gateway_host.py",
       "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
       "size": 4462
@@ -766,6 +771,11 @@
       "path": "tests/test_gitlab_webhook_relay.py",
       "sha256": "232701d1af43821f142f06032f0382dba023e2e0cf0b9ceaaf5e9091597f1e46",
       "size": 856
+    },
+    {
+      "path": "tests/test_governed_branch_update_policy.py",
+      "sha256": "9f6a9afc6d8e4f3bb84458ee8f784157905bc56e15945e6d8dda86d10a88ccbd",
+      "size": 4328
     },
     {
       "path": "tests/test_host_bootstrap.py",
@@ -956,6 +966,11 @@
       "path": "tests/test_triage_reservation.py",
       "sha256": "b2d272e5ea3a0169a2bdf5f70e8502e6c0befa426316a4eaa53db70d681a4673",
       "size": 15076
+    },
+    {
+      "path": "tests/test_update_branch_fast_forward_governed.py",
+      "sha256": "7f51d233fb5c52630b65703021ac91786af33150a6bd85b2baae234f0e5881f0",
+      "size": 6176
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
