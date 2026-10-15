@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 10
     services:
       triage-postgres:
-        image: public.ecr.aws/docker/library/postgres:16
+        image: postgres:16
         env:
           POSTGRES_DB: todo_reservation_test
           POSTGRES_USER: postgres
@@ -62,7 +62,7 @@ jobs:
       - name: Run execution lane isolated E2E
         run: python -m scripts.execution_lane_e2e
       - name: Run Command Gateway unit tests
-        run: python -m unittest -v tests/test_command_gateway.py
+        run: python -m unittest -v tests/test_command_gateway.py tests/test_governed_branch_update_policy.py tests/test_update_branch_fast_forward_governed.py
       - name: Run dormant Render PostgreSQL preservation safety tests
         run: python -m unittest -v tests/test_render_postgres_preservation.py
       - name: Run restricted host health unit tests
