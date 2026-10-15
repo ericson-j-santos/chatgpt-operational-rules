@@ -85,6 +85,32 @@ class GovernedBranchPolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(cg.GatewayError, "integridade"):
                 cg.validate_command([str(executable)], 1, policy, self.cwd)
 
+    def assert_ci_contract(self, workflow: str) -> None:
+        self.assertIn("image: postgres:16", workflow)
+        self.assertNotIn("public.ecr.aws/docker/library/postgres", workflow)
+        self.assertIn(
+            "run: python -m unittest -v tests/test_command_gateway.py "
+            "tests/test_governed_branch_update_policy.py "
+            "tests/test_update_branch_fast_forward_governed.py",
+            workflow,
+        )
+        self.assertIn("run: python scripts/triage_reservation_e2e.py", workflow)
+        self.assertIn("if-no-files-found: error", workflow)
+        self.assertNotIn("continue-on-error:", workflow)
+
+    def test_ci_runs_regressions_and_real_postgresql_without_ecr_mirror(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
+        self.assert_ci_contract(workflow)
+
+    def test_ci_contract_detects_previous_registry_and_omitted_tests(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
+        for broken in (
+            workflow.replace("image: postgres:16", "image: public.ecr.aws/docker/library/postgres:16"),
+            workflow.replace(" tests/test_update_branch_fast_forward_governed.py", ""),
+        ):
+            with self.assertRaises(AssertionError):
+                self.assert_ci_contract(broken)
+
     def test_main_redaction_remains_present(self) -> None:
         sensitive = "postgresql://synthetic:fixture-password@example.invalid/database"
         self.assertTrue(cg.sensitive_reference([sensitive], self.policy))
