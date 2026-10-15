@@ -133,21 +133,23 @@ jobs:
           echo "action=rerun_failed_jobs_once" >> "$GITHUB_OUTPUT"
           echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch validation for action-required run
-        id: revalidate
+      - name: Preserve workflow approval requirement
+        id: approval
         if: >-
           steps.context.outputs.enabled == 'true' &&
           steps.context.outputs.conclusion == 'action_required'
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_REF: ${{ steps.context.outputs.head_ref }}
           HEAD_SHA: ${{ steps.context.outputs.head_sha }}
         run: |
           set -euo pipefail
-          gh workflow run validate-rules.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_REF"
-          echo "action=validation_dispatched_without_code_change" >> "$GITHUB_OUTPUT"
+          if [[ ! "${HEAD_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid HEAD identity; approval remains blocked." >&2
+            exit 1
+          fi
+          echo "action=blocked_workflow_approval_required" >> "$GITHUB_OUTPUT"
           echo "result_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "Original run requires approval; no workflow was dispatched."
 
       - name: Checkout exact failing PR head
         if: >-
@@ -220,8 +222,8 @@ jobs:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           ORIGINAL_SHA: ${{ steps.context.outputs.head_sha }}
           CONCLUSION: ${{ steps.context.outputs.conclusion }}
-          ACTION: ${{ steps.repair.outputs.action || steps.retry.outputs.action || steps.revalidate.outputs.action || 'escalate_unresolved_failure' }}
-          RESULT_SHA: ${{ steps.repair.outputs.result_sha || steps.retry.outputs.result_sha || steps.revalidate.outputs.result_sha || steps.context.outputs.head_sha }}
+          ACTION: ${{ steps.repair.outputs.action || steps.retry.outputs.action || steps.approval.outputs.action || 'escalate_unresolved_failure' }}
+          RESULT_SHA: ${{ steps.repair.outputs.result_sha || steps.retry.outputs.result_sha || steps.approval.outputs.result_sha || steps.context.outputs.head_sha }}
         run: |
           set -euo pipefail
           MARKER='<!-- operational-rules-pr-ci-self-heal -->'
@@ -239,6 +241,7 @@ jobs:
           | Merge automático | \`não\` |
 
           A automação altera código somente quando a correção fica restrita a \`MANIFEST.json\`. Demais falhas permanecem fail-closed para correção objetiva.
+          Em \`action_required\`, preservar a aprovação do run original: não aprovar, redisparar, criar commit vazio ou trocar o evento para aparentar sucesso. Um run separado não resolve essa aprovação.
           EOF
 
           COMMENT_ID="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
@@ -255,6 +258,7 @@ jobs:
           (steps.repair.outputs.action == 'escalate_no_allowlisted_manifest_fix' ||
            steps.repair.outputs.action == 'blocked_by_self_heal_safety_gate' ||
            steps.repair.outputs.action == 'blocked_concurrent_pr_update' ||
+           steps.context.outputs.conclusion == 'action_required' ||
            (steps.context.outputs.conclusion == 'timed_out' && steps.retry.outputs.action == ''))
         shell: bash
         run: |

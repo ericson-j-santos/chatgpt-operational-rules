@@ -15,11 +15,30 @@ jobs:
     name: Rules, Gateway, Session Bootstrap and E2E gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      triage-postgres:
+        image: public.ecr.aws/docker/library/postgres:16
+        env:
+          POSTGRES_DB: todo_reservation_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres -d todo_reservation_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_REF: ${{ github.head_ref || github.ref_name }}
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
       - name: Configure Python
         uses: actions/setup-python@v5
         with:
@@ -43,7 +62,9 @@ jobs:
       - name: Run execution lane isolated E2E
         run: python -m scripts.execution_lane_e2e
       - name: Run Command Gateway unit tests
-        run: python -m unittest -v tests/test_command_gateway.py
+        run: python -m unittest -v tests/test_command_gateway.py tests/test_governed_branch_update_policy.py tests/test_update_branch_fast_forward_governed.py
+      - name: Run dormant Render PostgreSQL preservation safety tests
+        run: python -m unittest -v tests/test_render_postgres_preservation.py
       - name: Run restricted host health unit tests
         run: python -m unittest -v tests/test_host_health_check.py
       - name: Run Command Gateway E2E
@@ -89,12 +110,28 @@ jobs:
       - name: Install TODO Gateway dependencies
         run: python -m pip install --disable-pip-version-check -r services/todo_gateway/requirements.txt
       - name: Run TODO Gateway unit tests
-        run: python -m unittest -v tests/test_todo_gateway_service.py tests/test_todo_control_plane.py tests/test_gitlab_webhook.py
+        run: python -m unittest -v tests/test_todo_gateway_service.py tests/test_notion_sink_integrity.py tests/test_todo_control_plane.py tests/test_gitlab_webhook.py
       - name: Run PC24x7 canonical runtime and anti-regression tests
         run: python -m unittest -v tests/test_todo_gateway_pc24x7.py
+      - name: Run native Debian installer contract tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest==8.3.5
+          python -m pytest -q tests/test_todo_gateway_debian_systemd.py
       - name: Run TODO Gateway service-main tests
         run: python -m unittest -v tests/test_todo_gateway_service_main.py
       - name: Run legacy Render contingency tests
         run: python -m unittest -v tests/test_render_todo_gateway_bootstrap.py
       - name: Run TODO Gateway E2E
         run: python -m scripts.todo_gateway_e2e
+      - name: Run shared triage reservation E2E with real PostgreSQL
+        env:
+          TRIAGE_TEST_DSN: host=127.0.0.1 port=${{ job.services.triage-postgres.ports[5432] }} dbname=todo_reservation_test user=postgres password=disposable-ci-only connect_timeout=5
+        run: python scripts/triage_reservation_e2e.py
+      - name: Preserve triage reservation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: triage-reservation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/triage-reservation-evidence.json
+          if-no-files-found: error
+          retention-days: 7

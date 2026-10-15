@@ -1,0 +1,95 @@
+"""Regression tests for preserving both gateway capabilities after PR #147."""
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import command_gateway as cg
+
+
+class GovernedBranchPolicyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.policy = cg.load_policy(ROOT / "config" / "command-gateway.policy.json")
+        self.record = dict(self.policy["governed_branch_updates"][0])
+        self.record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
+        self.policy["governed_branch_updates"] = [self.record]
+        self.cwd = Path(self.record["repo_root"])
+        self.command = [
+            "python", self.record["script"],
+            "--repo", self.record["repo_root"],
+            "--remote", self.record["remote"],
+            "--branch", self.record["branch"],
+            "--expected-remote", self.record["expected_remote"],
+            "--expected-head", self.record["expected_head"],
+            "--correlation-id", "pr147-regression",
+        ]
+
+    def test_reviewed_invocation_is_repeatable_and_does_not_mutate_policy(self) -> None:
+        before = copy.deepcopy(self.policy)
+        for _ in range(2):
+            cg.validate_command(self.command, 2, self.policy, self.cwd)
+        self.assertEqual(before, self.policy)
+
+    def test_branch_force_and_incomplete_invocations_are_blocked(self) -> None:
+        changed_branch = list(self.command)
+        changed_branch[changed_branch.index("--branch") + 1] = "main"
+        for command in (
+            changed_branch, self.command + ["--force"],
+            self.command + ["--force-with-lease"], self.command[:-2],
+        ):
+            with self.subTest(command=command):
+                with self.assertRaises(cg.GatewayError):
+                    cg.validate_command(command, 2, self.policy, self.cwd)
+
+    def test_missing_capability_and_different_worktree_are_blocked(self) -> None:
+        without_capability = copy.deepcopy(self.policy)
+        without_capability.pop("governed_branch_updates")
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(self.command, 2, without_capability, self.cwd)
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(self.command, 2, self.policy, self.cwd / "different")
+
+    def test_direct_push_and_risk3_remain_blocked(self) -> None:
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(["git", "push"], 2, self.policy, self.cwd)
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(self.command, 3, self.policy, self.cwd)
+
+    def test_policy_preserves_executable_specs_and_session_guards(self) -> None:
+        self.assertIn("allowed_executable_specs", self.policy)
+        self.assertEqual([], self.policy["allowed_executable_specs"])
+        for key in (
+            "require_session_bootstrap", "require_preflight_snapshot",
+            "risk2_requires_clean_tree", "deny_inline_code",
+        ):
+            self.assertIs(self.policy[key], True)
+
+    def test_pinned_executable_hash_is_still_enforced(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "synthetic-check"
+            executable.write_bytes(b"synthetic fixture, never executed")
+            policy = copy.deepcopy(self.policy)
+            policy["allowed_executable_specs"] = [{
+                "path": str(executable),
+                "sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+            }]
+            cg.validate_command([str(executable)], 1, policy, self.cwd)
+            executable.write_bytes(b"changed synthetic fixture")
+            with self.assertRaisesRegex(cg.GatewayError, "integridade"):
+                cg.validate_command([str(executable)], 1, policy, self.cwd)
+
+    def test_main_redaction_remains_present(self) -> None:
+        sensitive = "postgresql://synthetic:fixture-password@example.invalid/database"
+        self.assertTrue(cg.sensitive_reference([sensitive], self.policy))
+        self.assertEqual("[REDACTED_POSTGRES_URI]", cg.redact(sensitive))
+
+
+if __name__ == "__main__":
+    unittest.main()

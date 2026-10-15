@@ -46,7 +46,7 @@ def process_once(
                 item.event.event_id,
                 str(exc),
                 max_attempts=max_attempts,
-                backoff_seconds=backoff_seconds,
+                backoff_seconds=max(backoff_seconds, getattr(exc, "retry_after_seconds", 0)),
             )
             result["dlq" if target == "DLQ" else "retried"] += 1
         else:
@@ -62,10 +62,9 @@ def build_from_env():
         raise RuntimeError("DATABASE_URL is required")
     if not notion_token or not data_source_id:
         raise RuntimeError("NOTION_TOKEN and NOTION_DATA_SOURCE_ID are required")
-    return (
-        PostgresQueueRepository(database_url),
-        NotionTodoSink(notion_token, data_source_id),
-    )
+    from services.todo_gateway.triage_pipeline import TriageProjectionSink
+    queue = PostgresQueueRepository(database_url)
+    return queue, TriageProjectionSink(notion_token, data_source_id, queue=queue)
 
 
 def main() -> int:

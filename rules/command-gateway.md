@@ -35,7 +35,33 @@ O perfil padrão autoriza somente:
 
 O namespace `C:\dev\chatgpt-workers\*` é o local preferencial para múltiplos chats/agentes. Cada frente deve usar diretório e branch próprios; não compartilhar o mesmo working tree entre workers.
 
-Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys. Para Portal Portabilidade, usar clone/worktree isolado do repositório canônico `ericson-j-santos/portal-portabilidade-2025`.
+Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys.
+
+### Escopos distintos de Portal Portabilidade
+
+Há duas implementações **não intercambiáveis**. Não presumir que uma Issue,
+TODO ou teste possa ser executado no outro repositório:
+
+- **Portal Portabilidade 2025 (JWT)**: `ericson-j-santos/portal-portabilidade-2025`,
+  que usa login próprio/JWT. Este é o repositório canônico do produto 2025
+  previamente especificado por esta regra.
+- **Portal Portabilidade MSAL (Entra ID)**: `ericson-j-santos/portal-portabilidade`,
+  que contém o fluxo de autenticação Microsoft Entra/MSAL. Ele é alvo distinto,
+  não alias, clone nem branch do produto JWT.
+
+Para selecionar um executor, exigir que o TODO canônico e a Issue GitHub aberta
+apontem para a **mesma** combinação explícita de variante,
+`repository_full_name`, número de Issue, branch padrão e HEAD SHA completo,
+lidos de forma independente e atualizados imediatamente antes do despacho.
+Quando o pedido disser apenas "Portal Portabilidade", não identificar variante
+ou misturar JWT/MSAL, **falhar fechado** e manter o TODO **BLOQUEADO** até
+reconciliação da identidade (issue de governança #98). Não inferir migração,
+não renomear repositório e não deslocar tarefas entre as duas implementações.
+
+Ambos os projetos somente podem usar worktrees isolados sob
+`C:\\dev\\chatgpt-workers\\*`, respeitando bootstrap, locks, Gateway e os
+demais controles deste documento; a documentação não amplia allowlists,
+permissões administrativas ou autorização de produção.
 
 O perfil padrão não autoriza clones existentes no diretório de usuário, o volume `D:` nem outros diretórios fora da allowlist. Um novo projeto só entra no gateway ao ser colocado no namespace de workers ou por alteração explícita desta política.
 

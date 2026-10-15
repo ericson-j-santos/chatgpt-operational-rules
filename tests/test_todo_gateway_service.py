@@ -106,14 +106,26 @@ class GatewayTests(unittest.TestCase):
 
 
 def notion_page(page_id: str, event: TodoEvent) -> dict:
-    return {
-        "id": page_id,
-        "properties": {
-            "Chave de idempotência": {"rich_text": [{"plain_text": event.idempotency_key}]},
-            "Correlation ID": {"rich_text": [{"plain_text": event.correlation_id}]},
-            "Status": {"select": {"name": event.todo["status"]}},
-        },
+    # Independent fixture: do not ask the sink under test to define expected values.
+    properties = {
+        "Título": {"title": [{"plain_text": event.todo["title"]}]},
+        "Projeto": {"rich_text": [{"plain_text": event.project}]},
+        "Chave de idempotência": {"rich_text": [{"plain_text": event.idempotency_key}]},
+        "Correlation ID": {"rich_text": [{"plain_text": event.correlation_id}]},
+        "Status": {"select": {"name": event.todo["status"]}},
+        "Tipo": {"select": {"name": event.todo["type"]}},
     }
+    for key, name in {
+        "external_id": "Identificador externo", "blocker": "Bloqueio",
+        "next_action": "Próxima ação", "completion_criteria": "Critério de conclusão",
+        "evidence": "Evidência",
+    }.items():
+        if key in event.todo:
+            properties[name] = {"rich_text": [{"plain_text": event.todo[key] or ""}]}
+    for key, name in {"priority": "Prioridade", "source": "Fonte"}.items():
+        if key in event.todo:
+            properties[name] = {"select": {"name": event.todo[key]}}
+    return {"id": page_id, "properties": properties}
 
 
 class NotionSinkTests(unittest.TestCase):

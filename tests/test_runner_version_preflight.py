@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "scripts" / "runner_version_preflight.py"
@@ -89,6 +91,87 @@ class RunnerVersionPreflightTests(unittest.TestCase):
         )
         self.assertFalse(result["ok"])
         self.assertFalse(result["registration_supported"])
+
+
+    def test_native_file_version_is_parsed_from_fixed_resource(self) -> None:
+        fields = [0xFEEF04BD, 0x10000, (2 << 16) | 337, 0] + [0] * 9
+        self.assertEqual(m.version_from_fixed_file_info(fields), m.RunnerVersion(2, 337, 0))
+
+    def test_invalid_resource_signature_fails_closed(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "runner_version_fixed_info_invalid"):
+            m.version_from_fixed_file_info([0] * 13)
+
+    def test_truncated_resource_fails_closed(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "runner_version_fixed_info_invalid"):
+            m.version_from_fixed_file_info([0xFEEF04BD])
+
+    def test_only_winerror_4551_can_select_windows_metadata(self) -> None:
+        denied = OSError("application control")
+        denied.winerror = 4551
+        metadata = m.RunnerVersion.parse("2.337.0")
+        with (
+            mock.patch.object(m.Path, "is_file", return_value=True),
+            mock.patch.object(m.subprocess, "run", side_effect=denied),
+            mock.patch.object(m, "read_windows_file_version", return_value=metadata) as fallback,
+        ):
+            self.assertEqual(m.detect_runner_version(Path("runner")), metadata)
+            fallback.assert_called_once()
+
+    def test_other_os_error_never_selects_metadata(self) -> None:
+        error = OSError("not app control")
+        error.winerror = 5
+        with (
+            mock.patch.object(m.Path, "is_file", return_value=True),
+            mock.patch.object(m.subprocess, "run", side_effect=error),
+            mock.patch.object(m, "read_windows_file_version") as fallback,
+        ):
+            with self.assertRaises(OSError):
+                m.detect_runner_version(Path("runner"))
+            fallback.assert_not_called()
+
+    def test_failed_process_exit_cannot_use_fallback(self) -> None:
+        with (
+            mock.patch.object(m.Path, "is_file", return_value=True),
+            mock.patch.object(m.subprocess, "run", return_value=SimpleNamespace(returncode=1)),
+            mock.patch.object(m, "read_windows_file_version") as fallback,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "runner_version_probe_failed"):
+                m.detect_runner_version(Path("runner"))
+            fallback.assert_not_called()
+
+    def test_standard_process_version_remains_primary(self) -> None:
+        completed = SimpleNamespace(returncode=0, stdout="2.337.0", stderr="")
+        with (
+            mock.patch.object(m.Path, "is_file", return_value=True),
+            mock.patch.object(m.subprocess, "run", return_value=completed),
+            mock.patch.object(m, "read_windows_file_version") as fallback,
+        ):
+            self.assertEqual(m.detect_runner_version(Path("runner")), m.RunnerVersion(2, 337, 0))
+            fallback.assert_not_called()
+
+    def test_missing_metadata_does_not_claim_runner_supported(self) -> None:
+        denied = OSError("application control")
+        denied.winerror = 4551
+        with (
+            mock.patch.object(m.Path, "is_file", return_value=True),
+            mock.patch.object(m.subprocess, "run", side_effect=denied),
+            mock.patch.object(m, "read_windows_file_version", side_effect=RuntimeError("metadata missing")),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "metadata missing"):
+                m.detect_runner_version(Path("runner"))
+
+    def test_wrong_binary_never_uses_version_metadata(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "runner_version_metadata_host_or_binary_invalid"):
+            m.read_windows_file_version(Path("other.exe"))
+
+    def test_metadata_does_not_bypass_minimum_version(self) -> None:
+        fields = [0xFEEF04BD, 0x10000, (2 << 16) | 328, 0] + [0] * 9
+        observed = m.version_from_fixed_file_info(fields)
+        self.assertLess(observed, m.RunnerVersion(*m.REGISTRATION_MINIMUM))
+
+    def test_repeat_metadata_parsing_is_idempotent(self) -> None:
+        fields = [0xFEEF04BD, 0x10000, (2 << 16) | 337, 0] + [0] * 9
+        self.assertEqual(m.version_from_fixed_file_info(fields), m.version_from_fixed_file_info(fields))
 
 
 if __name__ == "__main__":

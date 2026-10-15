@@ -82,6 +82,19 @@ def validate_policy(policy: dict[str, Any]) -> None:
             raise GovernanceControlPlaneError(
                 f"{repository}: require_required_status_checks deve ser booleano"
             )
+        expected_contexts = item.get("expected_status_check_contexts", [])
+        if (
+            not isinstance(expected_contexts, list)
+            or not all(isinstance(value, str) and value.strip() for value in expected_contexts)
+            or len(set(expected_contexts)) != len(expected_contexts)
+        ):
+            raise GovernanceControlPlaneError(
+                f"{repository}: expected_status_check_contexts deve ser lista de contextos únicos"
+            )
+        if expected_contexts and not require_status_checks:
+            raise GovernanceControlPlaneError(
+                f"{repository}: expected_status_check_contexts exige require_required_status_checks"
+            )
 
 
 def _utc(value: str | None) -> datetime:
@@ -192,6 +205,29 @@ def required_status_check_contexts(
                 context = check.get("context") if isinstance(check, dict) else None
                 if isinstance(context, str) and context.strip():
                     contexts.add(context.strip())
+    return sorted(contexts)
+
+
+def classic_branch_required_status_checks(branch: dict[str, Any]) -> list[str]:
+    """Extrai checks da proteção clássica apenas quando efetivamente exigidos."""
+    if branch.get("protected") is not True:
+        return []
+    protection = branch.get("protection")
+    if not isinstance(protection, dict) or protection.get("enabled") is not True:
+        return []
+    config = protection.get("required_status_checks")
+    if not isinstance(config, dict):
+        return []
+    if config.get("enforcement_level") not in {"everyone", "non_admins"}:
+        return []
+    contexts: set[str] = set()
+    for name in config.get("contexts") or []:
+        if isinstance(name, str) and name.strip():
+            contexts.add(name.strip())
+    for item in config.get("checks") or []:
+        name = item.get("context") if isinstance(item, dict) else None
+        if isinstance(name, str) and name.strip():
+            contexts.add(name.strip())
     return sorted(contexts)
 
 
@@ -314,18 +350,25 @@ def evaluate_repository(
     required_status_checks: list[str] = []
     required_status_checks_enforced = False
     if policy.get("require_required_status_checks", False):
-        if rulesets_error:
-            violations.append("required_status_checks_unverifiable")
-        elif not isinstance(rulesets, list):
-            violations.append("required_status_checks_unverifiable")
-        else:
-            required_status_checks = required_status_check_contexts(
-                rulesets,
-                default_branch=expected_branch,
-            )
-            required_status_checks_enforced = bool(required_status_checks)
-            if not required_status_checks_enforced:
+        # A proteção clássica e os rulesets são fontes oficiais independentes.
+        # Um nome de workflow verde não é, sozinho, uma regra obrigatória.
+        classic = classic_branch_required_status_checks(branch)
+        ruleset_checks = (
+            required_status_check_contexts(rulesets, default_branch=expected_branch)
+            if not rulesets_error and isinstance(rulesets, list)
+            else []
+        )
+        required_status_checks = sorted(set(classic) | set(ruleset_checks))
+        required_status_checks_enforced = bool(required_status_checks)
+        if not required_status_checks_enforced:
+            if rulesets_error or not isinstance(rulesets, list):
+                violations.append("required_status_checks_unverifiable")
+            else:
                 violations.append("required_status_checks_missing")
+        else:
+            expected = policy.get("expected_status_check_contexts", [])
+            if any(context not in required_status_checks for context in expected):
+                violations.append("required_status_check_contexts_missing")
 
     if metadata.get("archived"):
         violations.append("repository_archived")

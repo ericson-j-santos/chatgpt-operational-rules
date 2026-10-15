@@ -6,7 +6,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -30,6 +32,31 @@ class CommandGatewayTests(unittest.TestCase):
         self.assertNotIn(r"C:\Users\Windows\portal-portabilidade", allowed)
         self.assertNotIn(r"D:\portal-portabilidade", allowed)
 
+    def test_portal_variants_are_explicit_and_fail_closed_on_ambiguity(self) -> None:
+        """Controle de regressão documental, não simulação de dispatch real."""
+        rule = (ROOT / "rules" / "command-gateway.md").read_text(encoding="utf-8")
+        self.assertIn("Portal Portabilidade 2025 (JWT)", rule)
+        self.assertIn("Portal Portabilidade MSAL (Entra ID)", rule)
+        self.assertIn("ericson-j-santos/portal-portabilidade-2025", rule)
+        self.assertIn("ericson-j-santos/portal-portabilidade", rule)
+        self.assertIn("repository_full_name", rule)
+        self.assertIn("número de Issue, branch padrão e HEAD SHA completo", rule)
+        self.assertIn("falhar fechado", rule)
+        self.assertIn("BLOQUEADO", rule)
+        self.assertIn("não deslocar tarefas", rule)
+        self.assertIn("C:\\\\dev\\\\chatgpt-workers", rule)
+
+    def test_portal_identity_regression_detects_missing_variant(self) -> None:
+        """Controle negativo: regra antiga de variante única não satisfaz o gate."""
+        rule = (ROOT / "rules" / "command-gateway.md").read_text(encoding="utf-8")
+        required = ("Portal Portabilidade 2025 (JWT)", "Portal Portabilidade MSAL (Entra ID)")
+        old_single_variant = (
+            "Para Portal Portabilidade, usar clone/worktree isolado do "
+            "repositório canônico `ericson-j-santos/portal-portabilidade-2025`."
+        )
+        self.assertFalse(all(term in old_single_variant for term in required))
+        self.assertTrue(all(term in rule for term in required))
+
     def test_sensitive_reference_blocks_env_and_token(self) -> None:
         policy = {"denied_names": [".env", ".env.*"], "denied_segments": [".ssh"]}
         self.assertTrue(cg.sensitive_reference(["git", "diff", "--", ".env"], policy))
@@ -39,6 +66,44 @@ class CommandGatewayTests(unittest.TestCase):
         masked = cg.redact("password=abc token=xyz Bearer abc.def")
         self.assertNotIn("abc", masked); self.assertNotIn("xyz", masked)
 
+    def test_blocked_postgres_uri_is_redacted_from_real_event_and_streams(self) -> None:
+        synthetic_secret = "synthetic-only-password"
+        uri = f"postgresql://synthetic-user:{synthetic_secret}@db.invalid/example"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            policy_path = root / "policy.json"
+            state = root / "state"
+            policy_path.write_text(json.dumps({
+                "version": 1,
+                "allowed_roots": [str(root)],
+                "denied_roots": [],
+                "denied_segments": [],
+                "denied_names": [],
+                "allowed_executables": [],
+                "allowed_executable_specs": [],
+                "blocked_executables": [],
+                "require_session_bootstrap": False,
+                "require_git_repo": False,
+                "state_dir": str(state),
+            }), encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            argv = [
+                "command_gateway.py", "--policy", str(policy_path),
+                "--correlation-id", "synthetic-redaction-test",
+                "run", "--cwd", str(root), "--risk", "1", "--",
+                "pg_dump", f"--dbname={uri}",
+            ]
+            with mock.patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(cg.EXIT_POLICY, cg.main())
+            event_text = (state / "events.jsonl").read_text(encoding="utf-8")
+            combined = stdout.getvalue() + stderr.getvalue() + event_text
+            self.assertNotIn(uri, combined)
+            self.assertNotIn(synthetic_secret, combined)
+            self.assertIn("[REDACTED_POSTGRES_URI]", event_text)
+            event = json.loads(event_text.strip())
+            self.assertEqual("blocked", event["result"])
+
     def test_validate_command_blocks_risk3_and_git_push(self) -> None:
         policy = {"allowed_executables": ["git"], "blocked_executables": [],
                   "denied_names": [], "denied_segments": [], "deny_inline_code": True}
@@ -46,44 +111,6 @@ class CommandGatewayTests(unittest.TestCase):
             cg.validate_command(["git", "status"], 3, policy)
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(["git", "push"], 2, policy)
-
-    def test_governed_update_allows_only_reviewed_invocation(self) -> None:
-        policy = cg.load_policy(POLICY)
-        record = dict(policy["governed_branch_updates"][0])
-        record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
-        policy["governed_branch_updates"] = [record]
-        cwd = Path(record["repo_root"])
-        command = [
-            "python",
-            record["script"],
-            "--repo", record["repo_root"],
-            "--remote", record["remote"],
-            "--branch", record["branch"],
-            "--expected-remote", record["expected_remote"],
-            "--expected-head", record["expected_head"],
-            "--correlation-id", "gateway-test-rp23ogs",
-        ]
-        cg.validate_command(command, 2, policy, cwd)
-
-    def test_governed_update_rejects_branch_or_force_options(self) -> None:
-        policy = cg.load_policy(POLICY)
-        record = dict(policy["governed_branch_updates"][0])
-        record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
-        policy["governed_branch_updates"] = [record]
-        cwd = Path(record["repo_root"])
-        base = [
-            "python", record["script"], "--repo", record["repo_root"],
-            "--remote", record["remote"], "--branch", record["branch"],
-            "--expected-remote", record["expected_remote"],
-            "--expected-head", record["expected_head"],
-            "--correlation-id", "gateway-test-rp23ogs",
-        ]
-        wrong_branch = list(base)
-        wrong_branch[wrong_branch.index("--branch") + 1] = "main"
-        with self.assertRaises(cg.GatewayError):
-            cg.validate_command(wrong_branch, 2, policy, cwd)
-        with self.assertRaises(cg.GatewayError):
-            cg.validate_command(base + ["--force"], 2, policy, cwd)
 
     def test_gui_input_automation_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

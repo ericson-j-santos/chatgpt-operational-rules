@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
@@ -113,6 +114,76 @@ def ruleset_with_required_checks(*contexts):
 
 
 class RepositoryGovernanceControlPlaneTests(unittest.TestCase):
+    def test_canonical_repo_is_enforced_with_exact_mandatory_context(self):
+        config = json.loads(
+            (ROOT / "config" / "repository-governance-control-plane.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        MODULE.validate_policy(config)
+        matching = [
+            item for item in config["repositories"]
+            if item["repository"] == "ericson-j-santos/chatgpt-operational-rules"
+        ]
+        self.assertEqual(1, len(matching))
+        item = matching[0]
+        self.assertEqual("public", item["visibility"])
+        self.assertEqual("enforce", item["mode"])
+        self.assertEqual("main", item["default_branch"])
+        self.assertTrue(item["require_branch_protection"])
+        self.assertTrue(item["require_up_to_date"])
+        self.assertTrue(item["require_required_status_checks"])
+        self.assertEqual(
+            ["Rules, Gateway, Session Bootstrap and E2E gate"],
+            item["expected_status_check_contexts"],
+        )
+        self.assertEqual(["Validate Operational Rules"], item["required_workflows"])
+        self.assertIs(item["remediation"]["direct_merge"], False)
+        self.assertIs(item["remediation"]["update_branch"], False)
+        self.assertEqual("provider_capability_blocked", item["remediation"]["branch_protection"])
+        unprotected = MODULE.evaluate_repository(item, raw_repo(protected=False, rulesets=[]))
+        self.assertEqual("degraded", unprotected["status"])
+        self.assertIn("branch_unprotected", unprotected["violations"])
+        self.assertIn("required_status_checks_missing", unprotected["violations"])
+
+    def test_wrong_required_check_name_is_not_false_green(self):
+        item = policy(protected=True, require_status_checks=True)
+        item["expected_status_check_contexts"] = [
+            "Rules, Gateway, Session Bootstrap and E2E gate"
+        ]
+        mismatched = MODULE.evaluate_repository(
+            item, raw_repo(protected=True, rulesets=[ruleset_with_required_checks("Other green check")])
+        )
+        self.assertEqual("degraded", mismatched["status"])
+        self.assertIn("required_status_check_contexts_missing", mismatched["violations"])
+        self.assertTrue(mismatched["required_status_checks_enforced"])
+        self.assertEqual(["Other green check"], mismatched["required_status_checks"])
+
+        matched = MODULE.evaluate_repository(
+            item, raw_repo(
+                protected=True,
+                rulesets=[ruleset_with_required_checks(
+                    "Rules, Gateway, Session Bootstrap and E2E gate"
+                )],
+            ),
+        )
+        self.assertEqual("healthy", matched["status"])
+        self.assertEqual([], matched["violations"])
+
+    def test_expected_context_policy_rejects_invalid_or_unsafe_cases(self):
+        baseline = policy(protected=True, require_status_checks=True)
+        for bad in [[""], ["CI", "CI"], "CI", [None]]:
+            case = dict(baseline)
+            case["expected_status_check_contexts"] = bad
+            with self.subTest(bad=bad), self.assertRaises(MODULE.GovernanceControlPlaneError):
+                MODULE.validate_policy({"schema_version": 1, "repositories": [case]})
+
+        disabled = dict(baseline)
+        disabled["require_required_status_checks"] = False
+        disabled["expected_status_check_contexts"] = ["CI"]
+        with self.assertRaises(MODULE.GovernanceControlPlaneError):
+            MODULE.validate_policy({"schema_version": 1, "repositories": [disabled]})
+
     def test_policy_rejects_duplicate_repository(self):
         item = policy()
         document = {"schema_version": 1, "repositories": [item, copy.deepcopy(item)]}
@@ -211,6 +282,79 @@ class RepositoryGovernanceControlPlaneTests(unittest.TestCase):
         self.assertEqual("healthy", result["status"])
         self.assertTrue(result["required_status_checks_enforced"])
         self.assertEqual(["CI", "PR Evidence Gate"], result["required_status_checks"])
+
+    def test_classic_branch_protection_with_exact_context_is_healthy(self):
+        expected = "Rules, Gateway, Session Bootstrap and E2E gate"
+        item = policy(protected=True, require_status_checks=True)
+        item["expected_status_check_contexts"] = [expected]
+        old_style = raw_repo(protected=True, rulesets=[])
+        old_style["branch"]["protection"] = {
+            "enabled": True,
+            "required_status_checks": {
+                "enforcement_level": "everyone",
+                "contexts": [expected],
+                "checks": [{"context": expected}],
+            },
+        }
+        result = MODULE.evaluate_repository(item, old_style)
+        self.assertEqual("healthy", result["status"])
+        self.assertTrue(result["required_status_checks_enforced"])
+        self.assertEqual([expected], result["required_status_checks"])
+
+    def test_classic_branch_wrong_check_and_disabled_protection_fail_closed(self):
+        expected = "Rules, Gateway, Session Bootstrap and E2E gate"
+        item = policy(protected=True, require_status_checks=True)
+        item["expected_status_check_contexts"] = [expected]
+        for level in ("off", "", None):
+            source = raw_repo(protected=True, rulesets=[])
+            source["branch"]["protection"] = {
+                "enabled": True,
+                "required_status_checks": {
+                    "enforcement_level": level, "contexts": [expected], "checks": []
+                },
+            }
+            result = MODULE.evaluate_repository(item, source)
+            with self.subTest(level=level):
+                self.assertIn("required_status_checks_missing", result["violations"])
+                self.assertFalse(result["required_status_checks_enforced"])
+
+        mismatched = raw_repo(protected=True, rulesets=[])
+        mismatched["branch"]["protection"] = {
+            "enabled": True,
+            "required_status_checks": {
+                "enforcement_level": "everyone", "contexts": ["Other check"], "checks": []
+            },
+        }
+        result = MODULE.evaluate_repository(item, mismatched)
+        self.assertIn("required_status_check_contexts_missing", result["violations"])
+
+        disabled = raw_repo(protected=True, rulesets=[])
+        disabled["branch"]["protection"] = {
+            "enabled": False,
+            "required_status_checks": {
+                "enforcement_level": "everyone", "contexts": [expected], "checks": []
+            },
+        }
+        self.assertIn(
+            "required_status_checks_missing", MODULE.evaluate_repository(item, disabled)["violations"]
+        )
+
+    def test_classic_protection_readable_even_if_ruleset_api_forbidden(self):
+        expected = "Rules, Gateway, Session Bootstrap and E2E gate"
+        item = policy(protected=True, require_status_checks=True)
+        item["expected_status_check_contexts"] = [expected]
+        source = raw_repo(
+            protected=True, rulesets=None, rulesets_error="403 Resource not accessible"
+        )
+        source["branch"]["protection"] = {
+            "enabled": True,
+            "required_status_checks": {
+                "enforcement_level": "everyone", "contexts": [], "checks": [{"context": expected}]
+            },
+        }
+        result = MODULE.evaluate_repository(item, source)
+        self.assertEqual("healthy", result["status"])
+        self.assertEqual([expected], result["required_status_checks"])
 
     def test_required_status_checks_unverifiable_degrades_repository(self):
         result = MODULE.evaluate_repository(

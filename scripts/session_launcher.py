@@ -235,6 +235,24 @@ def _fetch_and_verify_remote(
 
     remote_ref = f"refs/remotes/{remote}/{branch}^{{commit}}"
     advertised = cg.run_capture(["git", "rev-parse", "--verify", remote_ref], repo)
+    if advertised.returncode != 0:
+        # A restrictive remote.fetch refspec can make an otherwise successful
+        # fetch populate only FETCH_HEAD. Fetch exactly the pinned branch once,
+        # never a wildcard or arbitrary ref provided by an untrusted caller.
+        exact_refspec = f"refs/heads/{branch}:refs/remotes/{remote}/{branch}"
+        pinned_fetch = cg.run_capture(
+            ["git", "fetch", "--no-tags", remote, exact_refspec],
+            repo,
+            timeout=60,
+        )
+        if pinned_fetch.returncode != 0:
+            raise cg.GatewayError(
+                "sincronização recusada: referência remota não resolvida",
+                cg.EXIT_STATE_CHANGED,
+            )
+        advertised = cg.run_capture(
+            ["git", "rev-parse", "--verify", remote_ref], repo
+        )
     if advertised.returncode != 0 or advertised.stderr.strip():
         raise cg.GatewayError(
             "sincronização recusada: referência remota não resolvida",

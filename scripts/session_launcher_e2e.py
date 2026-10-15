@@ -167,6 +167,35 @@ def main() -> int:
         if git(stale, "rev-parse", "HEAD") != remote_head:
             raise AssertionError("base stale não avançou exatamente até expected_head")
 
+        restricted, restricted_head, restricted_remote = make_remote_scenario(
+            root, "sync-restricted-refspec"
+        )
+        git(restricted_remote, "symbolic-ref", "HEAD", "refs/heads/main")
+        git(restricted, "config", "--unset-all", "remote.origin.fetch")
+        git(restricted, "update-ref", "-d", "refs/remotes/origin/main")
+        restricted_before = git(restricted, "rev-parse", "HEAD")
+        restricted_launch = run(
+            LAUNCHER,
+            [
+                "--policy", str(policy_path),
+                "--repo", str(restricted),
+                "--session-id", "sync-restricted-refspec",
+                "--expected-head", restricted_head,
+                "--sync-ref", "origin/main",
+                "--correlation-id", "launcher-e2e-sync-restricted",
+            ],
+            0,
+        )
+        restricted_payload = json.loads(restricted_launch.stdout.splitlines()[-1])
+        if restricted_payload.get("base_sync") != "fast_forward":
+            raise AssertionError("restricted fetch did not fast-forward on exact SHA")
+        if git(restricted, "rev-parse", "HEAD") != restricted_head:
+            raise AssertionError("restricted fetch did not validate expected HEAD")
+        if git(restricted, "rev-parse", "refs/remotes/origin/main") != restricted_head:
+            raise AssertionError("explicit branch fetch did not create tracking ref")
+        if restricted_before == restricted_head:
+            raise AssertionError("restricted fetch fixture did not require sync")
+
         dirty, dirty_remote_head, dirty_remote = make_remote_scenario(root, "sync-dirty")
         dirty_original_head = git(dirty, "rev-parse", "HEAD")
         (dirty / "baseline.txt").write_text("dirty-preserved\n", encoding="utf-8", newline="\n")
@@ -254,8 +283,8 @@ def main() -> int:
         )
 
         print(
-            "SESSION_LAUNCHER_E2E_OK positive=5 negative=3 "
-            "sync=fast_forward dirty=isolated_preserved divergence=isolated_preserved "
+            "SESSION_LAUNCHER_E2E_OK positive=6 negative=3 "
+            "sync=fast_forward restricted_refspec=verified dirty=isolated_preserved divergence=isolated_preserved "
             "auto_session=valid worktree=isolated"
         )
         return 0

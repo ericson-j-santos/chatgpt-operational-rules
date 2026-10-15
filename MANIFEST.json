@@ -1,6 +1,6 @@
 {
   "version": "1.6.10",
-  "generated_at": "2026-10-08T10:09:29.505Z",
+  "generated_at": "2026-10-14T14:12:37.665Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "324200c731db5627c5e3ac5853963b2fd0fea0021d3864609ee2230db631805f",
-      "size": 10821
+      "sha256": "5d43b24ecd9ffc568fb5b25c96a8da0b0afbc517200c531c4c3f09b89d444869",
+      "size": 11126
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "19904f922c041e4b6b8e76db6cd8e94aa53927ea2c13b64c144afc5fd1386c0d",
-      "size": 5003
+      "sha256": "d4104a13a66e7472a02a1e57144ce99df07e46b39e8d419bc2507b3c6ef88006",
+      "size": 6748
     },
     {
       "path": ".gitignore",
@@ -49,8 +49,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "13b30dacef06eb931aa51606286820bd5f7971e9144971f45066adec4da680d7",
-      "size": 2225
+      "sha256": "8e7eb9a19a3abbc29d0abb2fa91699e29811beda61aecd6679b5277248b79586",
+      "size": 2476
     },
     {
       "path": "CHANGELOG.md",
@@ -59,13 +59,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "c7267f1a00a35cc8f93d95f91a59afba7e4494678afda8a3d3a2837f35862aee",
-      "size": 8310
+      "sha256": "75199e9712f5c5bfcf99671a9894c4206b4c1a156f891a18b417011e5b8cb5d7",
+      "size": 8632
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "bde2f4e16c0ec2e2f3d330c4a0b77a66febc77d25a6219643e37ddf3af4a93c7",
-      "size": 1711
+      "sha256": "a531ae52fad5ed1b4283d7f75a357b3f9710894a61615d0f41757d795ee2546a",
+      "size": 1745
     },
     {
       "path": "config/host-readiness.json",
@@ -79,8 +79,8 @@
     },
     {
       "path": "config/repository-governance-control-plane.json",
-      "sha256": "ba0f17c64a577d2dd38a63f802129ea77828c21c2c49b5e09736cf395366da98",
-      "size": 3289
+      "sha256": "5fb0fe8023dd7005c53f5f081d77918978aba287ab2ff1325795a0cb80d0ae3b",
+      "size": 3976
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -116,6 +116,16 @@
       "path": "docs/sql-server-enterprise-validation-gate.md",
       "sha256": "e841ca1bcae8fbff581b0161ffad1e6898ac2a05aa9bca0bf2bc91db045dac63",
       "size": 5556
+    },
+    {
+      "path": "docs/triage-pipeline.md",
+      "sha256": "917e08af85218731727318ed2e89a9490d636ff1493a468fb2c61f31bb24c23b",
+      "size": 5338
+    },
+    {
+      "path": "docs/triage-reservation.md",
+      "sha256": "f3674c5ad93c7e9534b3f2c59ab51c92a4baceb48162e2405c2307fec528417e",
+      "size": 5076
     },
     {
       "path": "docs/uso-command-gateway-no-pc.md",
@@ -174,8 +184,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "45d368626b2ae6a59f521dba37dfb2879ecb57c5532ee38bec0c6e8d32f447d1",
-      "size": 7143
+      "sha256": "22669f93243838bc017163197445a7dc609737bcb906dbfa1d2dad7197951cfc",
+      "size": 8516
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -203,6 +213,11 @@
       "size": 975
     },
     {
+      "path": "rules/pre-delivery-validation.md",
+      "sha256": "e90f0791810bae7fee175bd10a424278a5a38461666b04b128a8d38fd7d0da47",
+      "size": 5824
+    },
+    {
       "path": "rules/progress-watchdog.md",
       "sha256": "6a9cd44fedc3f21be5dcbd8cb702d33103d52057dc79a24d30f97da777f3bea3",
       "size": 4186
@@ -224,8 +239,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "61791a05194a1018e3a9f4c756f9a1da58da69a03aaa32bfaa0429f1c5e26f56",
-      "size": 8689
+      "sha256": "e232c52855f4f61050dba3cc9b8694096b1f52a9d8e93f61efdb0c299f0b13d6",
+      "size": 9129
     },
     {
       "path": "rules/terminal-execution.md",
@@ -249,8 +264,8 @@
     },
     {
       "path": "schemas/todo-event-v1.schema.json",
-      "sha256": "ad2e169b2d2e5f8ad9100051d5e7d962cb096d5326887c50e7bc0690cf742fcc",
-      "size": 7039
+      "sha256": "7ed9409b8298d6651729398cf9a8485f6ffd2dbfa9f68049033681b47c26398b",
+      "size": 11345
     },
     {
       "path": "scripts/ai_todo_adapter.py",
@@ -259,8 +274,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "d0516a9e430b7acc3a10f327e0e0ba159c8821f624da4b34ed9e63e4a9e8506f",
-      "size": 24432
+      "sha256": "47f97647a5b82472c6e1bcc6ab2a1950e17acf7fd5f42ace4ea5409996952be4",
+      "size": 27316
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -274,8 +289,8 @@
     },
     {
       "path": "scripts/continuation_worker.py",
-      "sha256": "bbfcc6fa6c0b0daff983bae4e9fe64ad1ae1a737d8a04d5f27f511e764b3409a",
-      "size": 11905
+      "sha256": "d91d62b106f369e502544ba0de62d866015ce6fc93fd7e433dc5690b6edf2cbb",
+      "size": 14461
     },
     {
       "path": "scripts/continuous_source_ingest.py",
@@ -369,8 +384,8 @@
     },
     {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
-      "sha256": "544f561ba3e0397368121f496ccd8baafee4973e80686d9f8b254f5b18773b8f",
-      "size": 6875
+      "sha256": "4d36508ee5f65138ff716e83a756a2b241c7ca3c70e4cd1c06206806da52bc04",
+      "size": 11746
     },
     {
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
@@ -463,14 +478,19 @@
       "size": 9122
     },
     {
+      "path": "scripts/render_postgres_preservation.py",
+      "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
+      "size": 13578
+    },
+    {
       "path": "scripts/render_todo_gateway_bootstrap.py",
       "sha256": "c0838f46e4d0751ff8e794e84140dc7e76f5c380c5421d58a20d3fab45fb52ac",
       "size": 6511
     },
     {
       "path": "scripts/repository_governance_control_plane.py",
-      "sha256": "15c0bea8bd9932b6e5517e763793cfd98ab30a00e5d5389e2f5bc336587dee11",
-      "size": 17105
+      "sha256": "589866c35184664b9f6595d290b351386fb8e7876f77cfba2d62e9100d73a430",
+      "size": 19296
     },
     {
       "path": "scripts/repository_governance_remediation.py",
@@ -484,8 +504,8 @@
     },
     {
       "path": "scripts/runner_version_preflight.py",
-      "sha256": "845f24613f0e18678cbc8717af76e2b2bd24ebde7988902535dfbd5089d5d29e",
-      "size": 9288
+      "sha256": "4ec5f4af67d7b8e5b859d7093241c6bcfa2dee9d9e37ec73f593b9c40784e09f",
+      "size": 12120
     },
     {
       "path": "scripts/session_bootstrap.py",
@@ -499,13 +519,13 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "a74a4ea0d806bef9f2c27f6be2912ddb547dbf8df084077a9144987f5fa03cca",
-      "size": 21489
+      "sha256": "189ab1479415fe2226a8833d13da9f1ad273b22872c69d9c8c456d6834bce82d",
+      "size": 22312
     },
     {
       "path": "scripts/session_launcher_e2e.py",
-      "sha256": "5d67c395ee818e7071b970a9954a7a38130b36973aa346969a66e5f2f4fc60ef",
-      "size": 11228
+      "sha256": "d8cf6fd75bd25dfae811703d8de487bb60652a62517f091872226709e91c439b",
+      "size": 12788
     },
     {
       "path": "scripts/session_preflight.py",
@@ -583,6 +603,11 @@
       "size": 18156
     },
     {
+      "path": "scripts/triage_reservation_e2e.py",
+      "sha256": "48cacb652296fb6bb26a6776279d0c7d576a737bf85b32cea6d2c798e027d27c",
+      "size": 4031
+    },
+    {
       "path": "scripts/update_command_gateway_host.py",
       "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
       "size": 4462
@@ -614,8 +639,8 @@
     },
     {
       "path": "services/todo_gateway/README.md",
-      "sha256": "0ab40398a115e1dbad18d73f8779e1a0ededf84977cdd34b7272320abdeed269",
-      "size": 1922
+      "sha256": "20a2f2e09f21ae21fc542b38cc6dd0f52033f85757e8f02be6e3ebc00d81c820",
+      "size": 3374
     },
     {
       "path": "services/todo_gateway/__init__.py",
@@ -624,8 +649,8 @@
     },
     {
       "path": "services/todo_gateway/asgi.py",
-      "sha256": "c7d6727c559185f04cf1bb7483c64b2d37f82b02d131c90b34e10e669e8fffad",
-      "size": 91
+      "sha256": "1c8323588455b13807b4f377885ed2fa8551490fa4356396e38049b1b474cb19",
+      "size": 1281
     },
     {
       "path": "services/todo_gateway/gateway.py",
@@ -639,8 +664,8 @@
     },
     {
       "path": "services/todo_gateway/notion_sink.py",
-      "sha256": "d3c21897949cbac65e556c8a22f0814d270ecd89b60ab1941ecec0fd87404d6f",
-      "size": 5854
+      "sha256": "06b3e1421d0cbaea28e5bce78c8519c15c6366cd4ea5af0bdbde475136d53450",
+      "size": 9942
     },
     {
       "path": "services/todo_gateway/repository.py",
@@ -658,9 +683,19 @@
       "size": 4192
     },
     {
+      "path": "services/todo_gateway/triage_pipeline.py",
+      "sha256": "790987f6816290ff27c27665b65230c6aee72247c4248a5598ca56e84b0d90bf",
+      "size": 27452
+    },
+    {
+      "path": "services/todo_gateway/triage_reservation.py",
+      "sha256": "f3050615a5d57a07a6ef5d21dd688ca2a3a0ed02e5882386e2c2d9eb1ac3742f",
+      "size": 15752
+    },
+    {
       "path": "services/todo_gateway/worker.py",
-      "sha256": "25f574d5b160bf2835bfb3bdacd7179aeadc7a8119e5c143aac526bf81a8ef99",
-      "size": 2766
+      "sha256": "09fef454a846310f19b4c86fa63142fbf60dda8171d10cd22fde7c170e46ad21",
+      "size": 2898
     },
     {
       "path": "sql/todo_bus_postgres.sql",
@@ -684,8 +719,8 @@
     },
     {
       "path": "tests/test_command_gateway.py",
-      "sha256": "fdf2d558b45999089a8ed5dee8b482c67f2a293f974c7cef819e3a9c55a669f7",
-      "size": 9055
+      "sha256": "a365140c7ea7e9c8a9a15d734316b43754f57dbab9fd33aa9450974e1bebf659",
+      "size": 12551
     },
     {
       "path": "tests/test_continuation_worker.py",
@@ -763,6 +798,11 @@
       "size": 4572
     },
     {
+      "path": "tests/test_notion_sink_integrity.py",
+      "sha256": "3b0632608a73511838655a87b409a4bf1e4c459ba6aa7e481bf433bf0a78e69c",
+      "size": 12644
+    },
+    {
       "path": "tests/test_owner_host_power_once.py",
       "sha256": "c35ae2ebbecfa3891b4577bfe34334352740d16bf9d08853ed888451566ecd24",
       "size": 7453
@@ -794,8 +834,8 @@
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
-      "sha256": "13305dd4e947c6c7c4264fc4167288783dec5a6e24da577c7fa51d49f1c55fca",
-      "size": 3460
+      "sha256": "2643e60718244d96dcf5c5cc0018d0fb2630eb2a3667191c7171ddbc970662b6",
+      "size": 9323
     },
     {
       "path": "tests/test_progress_watchdog.py",
@@ -828,14 +868,19 @@
       "size": 7334
     },
     {
+      "path": "tests/test_render_postgres_preservation.py",
+      "sha256": "d06995aaaa82374e674a27ba15544a0bb87951dec1c2532a1289503cd55a53c7",
+      "size": 19230
+    },
+    {
       "path": "tests/test_render_todo_gateway_bootstrap.py",
       "sha256": "090da23b23521ea36b085fb09246fbfc81df6f0f78f9293177043bff368b7db0",
       "size": 4861
     },
     {
       "path": "tests/test_repository_governance_control_plane.py",
-      "sha256": "643a5e70f8cfe0f33ebace86114696faafb4ae3fa8a17631a3f5bf58a0becf7b",
-      "size": 9622
+      "sha256": "13dfeadc0ab539fd4ba4ada88489684b37504db6fb1c40a0e4c253017103a817",
+      "size": 16587
     },
     {
       "path": "tests/test_repository_governance_remediation.py",
@@ -844,8 +889,8 @@
     },
     {
       "path": "tests/test_runner_version_preflight.py",
-      "sha256": "1a98082e8bebef31b2c9dfbfa5d796e7da25b2615321e6b3fa9805a0624bb1f4",
-      "size": 3936
+      "sha256": "9a94ae9ad9d55c57641129a40b6d81824015aa5be20a9fabfef62845ce8403a6",
+      "size": 8128
     },
     {
       "path": "tests/test_session_bootstrap.py",
@@ -854,8 +899,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "d0837dfccfb9aa8d2777d3851047a985befe64202b24155f0f2d4d885a6d78be",
-      "size": 9593
+      "sha256": "6de56398370bcfd17dc7a771f2658436f4d058db3243b000ba4fede6b1a87fc2",
+      "size": 12448
     },
     {
       "path": "tests/test_session_preflight.py",
@@ -874,8 +919,8 @@
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
-      "sha256": "40d69d4d51b032b546c09ad6313828b76b1b5b82cc9dc286496270e1f61d19c1",
-      "size": 1953
+      "sha256": "d2da9d35a99424b14776e270ce95f87383f07cdee90260413dcd45fde14f939a",
+      "size": 6484
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
@@ -884,8 +929,8 @@
     },
     {
       "path": "tests/test_todo_gateway_service.py",
-      "sha256": "2932b859fe1290f90d7e436abd653b6769840621fccbec9efd8d34482b8ea23e",
-      "size": 9707
+      "sha256": "d18eaa0c28e402d11d64c24224ac3d060a93253641efe452a3c13a0620a07cc8",
+      "size": 10501
     },
     {
       "path": "tests/test_todo_gateway_service_main.py",
@@ -901,6 +946,16 @@
       "path": "tests/test_tool_router.py",
       "sha256": "1c235981f1ae62489e3ee514be648c151363a86ab8111027a59724adcb75d8aa",
       "size": 27491
+    },
+    {
+      "path": "tests/test_triage_pipeline.py",
+      "sha256": "227d928ea74fcbb656b4d3705f380a8c7a22a2730d09bcb4ceabc5c4e0c428ba",
+      "size": 22676
+    },
+    {
+      "path": "tests/test_triage_reservation.py",
+      "sha256": "b2d272e5ea3a0169a2bdf5f70e8502e6c0befa426316a4eaa53db70d681a4673",
+      "size": 15076
     },
     {
       "path": "tests/test_update_command_gateway_host.py",

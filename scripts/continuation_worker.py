@@ -14,11 +14,15 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 try:
+    from scripts.command_gateway import GatewayError, validate_executable_spec
     from scripts.execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from scripts.host_operating_profile import default_profile_path, load_profile
+    from scripts.render_postgres_preservation import PreservationBlocked, reject_sensitive_arguments
 except ModuleNotFoundError:
+    from command_gateway import GatewayError, validate_executable_spec
     from execution_lane_client import ExecutionLaneClient, ExecutionLaneError, validate_execution_request
     from host_operating_profile import default_profile_path, load_profile
+    from render_postgres_preservation import PreservationBlocked, reject_sensitive_arguments
 
 
 @dataclass(frozen=True)
@@ -107,7 +111,16 @@ def _validate_repo(item: Continuation) -> tuple[Path, str]:
     return repo, _validate_head(item.todo.get("expected_head"))
 
 
-def _run_governed(repo: Path, head: str, script: str, extra: list[str] | None = None) -> None:
+def _run_governed(
+    repo: Path,
+    head: str,
+    script: str,
+    extra: list[str] | None = None,
+    *,
+    risk: int = 1,
+) -> None:
+    if risk not in (1, 2):
+        raise HumanGate("automation_action_risk_not_allowed")
     root = Path(__file__).resolve().parents[1]
     launcher = root / "scripts" / "session_launcher.py"
     policy = root / "config" / "command-gateway.policy.json"
@@ -121,7 +134,7 @@ def _run_governed(repo: Path, head: str, script: str, extra: list[str] | None = 
     target = Path(data["target_path"])
     gateway = root / "scripts" / "command_gateway.py"
     cmd=[sys.executable, str(gateway), "--policy", str(policy), "--correlation-id", corr, "run", "--cwd", str(target),
-         "--session-id", session, "--risk", "1", "--expected-head", head, "--", sys.executable, script]
+         "--session-id", session, "--risk", str(risk), "--expected-head", head, "--", sys.executable, script]
     if extra: cmd.extend(extra)
     run=subprocess.run(cmd, capture_output=True, text=True)
     if run.returncode != 0:
@@ -149,6 +162,33 @@ def _run_known_state_recovery(item: Continuation) -> None:
     if not script:
         raise HumanGate("automation_action_recovery_not_allowed")
     _run_governed(repo, head, script, ["--target-root", str(repo), "--expected-head", head])
+
+
+def _run_render_postgres_preservation(item: Continuation) -> None:
+    repo, head = _validate_repo(item)
+    root = Path(__file__).resolve().parents[1]
+    policy_path = root / "config" / "command-gateway.policy.json"
+    try:
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HumanGate("render_postgres_policy_unavailable") from exc
+    specs = policy.get("allowed_executable_specs", [])
+    approved: set[str] = set()
+    for expected in ("pg_dump", "pg_restore"):
+        for spec in specs if isinstance(specs, list) else []:
+            try:
+                validate_executable_spec(
+                    spec,
+                    expected_executable=expected,
+                    require_exists=False,
+                )
+            except GatewayError:
+                continue
+            approved.add(expected)
+            break
+    if approved != {"pg_dump", "pg_restore"}:
+        raise HumanGate("render_postgres_executables_not_specifically_approved")
+    _run_governed(repo, head, "scripts/render_postgres_preservation.py", risk=2)
 
 
 def _run_execution_lane_enqueue(item: Continuation) -> None:
@@ -185,8 +225,32 @@ ACTION_REGISTRY = {
     "operational_rules.ci_manifest_recovery.v1": _run_ci_manifest_recovery,
     "operational_rules.e2e_validation.v1": _run_e2e_validation,
     "operational_rules.known_state_recovery.v1": _run_known_state_recovery,
+    "operational_rules.render_postgres_preservation.v1": _run_render_postgres_preservation,
     "execution_lane.enqueue.v1": _run_execution_lane_enqueue,
 }
+
+
+def _payload_strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        result: list[str] = []
+        for key, item in value.items():
+            result.extend((str(key), *_payload_strings(item)))
+        return result
+    if isinstance(value, (list, tuple, set)):
+        result = []
+        for item in value:
+            result.extend(_payload_strings(item))
+        return result
+    return []
+
+
+def _reject_render_sensitive_payload(todo: dict[str, Any]) -> None:
+    try:
+        reject_sensitive_arguments(_payload_strings(todo))
+    except PreservationBlocked as exc:
+        raise HumanGate("render_postgres_sensitive_payload_rejected") from exc
 
 
 def execute(item: Continuation) -> None:
@@ -197,6 +261,8 @@ def execute(item: Continuation) -> None:
     handler = ACTION_REGISTRY.get(action)
     if handler is None:
         raise HumanGate(f"automation_action_not_registered:{action}")
+    if action == "operational_rules.render_postgres_preservation.v1":
+        _reject_render_sensitive_payload(item.todo)
     handler(item)
 
 
