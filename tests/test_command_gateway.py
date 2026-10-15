@@ -47,6 +47,44 @@ class CommandGatewayTests(unittest.TestCase):
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(["git", "push"], 2, policy)
 
+    def test_governed_update_allows_only_reviewed_invocation(self) -> None:
+        policy = cg.load_policy(POLICY)
+        record = dict(policy["governed_branch_updates"][0])
+        record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
+        policy["governed_branch_updates"] = [record]
+        cwd = Path(record["repo_root"])
+        command = [
+            "python",
+            record["script"],
+            "--repo", record["repo_root"],
+            "--remote", record["remote"],
+            "--branch", record["branch"],
+            "--expected-remote", record["expected_remote"],
+            "--expected-head", record["expected_head"],
+            "--correlation-id", "gateway-test-rp23ogs",
+        ]
+        cg.validate_command(command, 2, policy, cwd)
+
+    def test_governed_update_rejects_branch_or_force_options(self) -> None:
+        policy = cg.load_policy(POLICY)
+        record = dict(policy["governed_branch_updates"][0])
+        record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
+        policy["governed_branch_updates"] = [record]
+        cwd = Path(record["repo_root"])
+        base = [
+            "python", record["script"], "--repo", record["repo_root"],
+            "--remote", record["remote"], "--branch", record["branch"],
+            "--expected-remote", record["expected_remote"],
+            "--expected-head", record["expected_head"],
+            "--correlation-id", "gateway-test-rp23ogs",
+        ]
+        wrong_branch = list(base)
+        wrong_branch[wrong_branch.index("--branch") + 1] = "main"
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(wrong_branch, 2, policy, cwd)
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(base + ["--force"], 2, policy, cwd)
+
     def test_gui_input_automation_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -127,7 +127,7 @@ def sensitive_reference(args: Sequence[str], policy: dict[str, Any]) -> bool:
     return False
 
 
-def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> None:
+def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any], cwd: Path | None = None) -> None:
     if risk not in (1, 2):
         raise GatewayError("risco 3 não é executado automaticamente")
     if not args:
@@ -155,6 +155,7 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any]) -> 
         raise GatewayError("operação Git crítica/destrutiva bloqueada")
     if exe == "docker" and any(tail[: len(p)] == p for p in DOCKER_DESTRUCTIVE):
         raise GatewayError("operação Docker destrutiva bloqueada")
+    validate_governed_branch_update(args, cwd or Path.cwd(), policy)
 
 
 def python_script_path(args: Sequence[str], cwd: Path) -> Path | None:
@@ -173,6 +174,51 @@ def python_script_path(args: Sequence[str], cwd: Path) -> Path | None:
             return None
         return candidate if candidate.is_absolute() else cwd / candidate
     return None
+
+
+def validate_governed_branch_update(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:
+    """Allow only the reviewed, one-branch maintenance helper invocation."""
+    exe = Path(args[0]).name.casefold() if args else ""
+    if exe.endswith(".exe"):
+        exe = exe[:-4]
+    script = python_script_path(args, cwd)
+    if exe not in {"python", "python3"} or script is None:
+        return
+    if script.name != "update_branch_fast_forward_governed.py":
+        return
+    records = policy.get("governed_branch_updates", [])
+    if len(records) != 1:
+        raise GatewayError("governed branch update capability is not configured")
+    record = records[0]
+    if norm(script) != norm(record.get("script", "")):
+        raise GatewayError("governed branch update script is not allowlisted")
+    if norm(cwd) != norm(record.get("repo_root", "")):
+        raise GatewayError("governed branch update repository is not allowlisted")
+
+    pairs: dict[str, str] = {}
+    idx = 2
+    allowed = {"--repo", "--remote", "--branch", "--expected-remote", "--expected-head", "--correlation-id"}
+    while idx < len(args):
+        key = args[idx]
+        if key not in allowed or idx + 1 >= len(args):
+            raise GatewayError("governed branch update arguments are restricted")
+        pairs[key] = args[idx + 1]
+        idx += 2
+    required = allowed
+    if set(pairs) != required:
+        raise GatewayError("governed branch update requires the complete reviewed argument set")
+    if norm(pairs["--repo"]) != norm(record.get("repo_root", "")):
+        raise GatewayError("governed branch update repo argument is not allowlisted")
+    for key, record_key in (
+        ("--remote", "remote"),
+        ("--branch", "branch"),
+        ("--expected-remote", "expected_remote"),
+        ("--expected-head", "expected_head"),
+    ):
+        if pairs[key].casefold() != str(record.get(record_key, "")).casefold():
+            raise GatewayError(f"governed branch update {key} is not allowlisted")
+    if any(token.casefold() in {"--force", "-f", "--force-with-lease"} for token in args):
+        raise GatewayError("force push is forbidden for governed branch maintenance")
 
 
 def assert_safe_gui_automation(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:
@@ -402,7 +448,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             timeout: int, expected_head: str | None, allow_dirty: bool,
             allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
     assert_allowed_path(cwd, policy)
-    validate_command(args, risk, policy)
+    validate_command(args, risk, policy, cwd)
     assert_safe_gui_automation(args, cwd, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
     if timeout < 1 or timeout > max_timeout:

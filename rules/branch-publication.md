@@ -28,3 +28,11 @@ Se a branch remota existir em SHA diferente, a ação deve falhar fechada. Atual
 
 ## Critério de conclusão
 A publicação está concluída somente quando o SHA remoto coincide com `expected-head`, a repetição é idempotente e os testes negativos comprovam bloqueio para branch protegida, árvore suja e branch remota divergente.
+
+## Fast-forward maintenance (explicit allowlist)
+
+Updating an already published branch remains blocked by default. An exception requires a `governed_branch_updates` record in the loaded Command Gateway policy with exact repository, worktree, branch, `expected_remote`, `expected_head`, and versioned script values.
+
+The maintenance helper must require a clean worktree, `HEAD == expected_head`, remote equal to `expected_remote`, fast-forward ancestry, an unprotected branch, Gateway locking, no `--force` or `--force-with-lease`, and an independent final SHA readback. Direct `git push` remains blocked.
+
+The pre-push remote comparison is not atomic CAS: a remote change can occur between the last read and push. Evidence must record `remote_compare_atomic=false`; the helper performs a second immediate read, fails on observed divergence, and confirms the final SHA afterward. A true atomic guarantee requires a separately reviewed remote compare-and-swap transport before activation.
