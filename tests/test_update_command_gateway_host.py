@@ -32,7 +32,7 @@ class HostRuntimeUpdateTests(unittest.TestCase):
 
     def seed_legacy_runtime(
         self, install: Path
-    ) -> tuple[dict[str, tuple[bytes, int]], Path]:
+    ) -> tuple[dict[str, tuple[bytes, int]], Path, int]:
         previous: dict[str, tuple[bytes, int]] = {}
         for source, destination in updater.bootstrap.RUNTIME_MAP.items():
             if source == "scripts/runner_version_preflight.py":
@@ -42,17 +42,24 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             payload = f"legacy:{destination}\n".encode("utf-8")
             target.write_bytes(payload)
             target.chmod(0o640)
-            previous[destination] = (payload, 0o640)
+            observed_mode = stat.S_IMODE(target.stat().st_mode)
+            if os.name != "nt":
+                self.assertEqual(observed_mode, 0o640)
+            previous[destination] = (payload, observed_mode)
         unmanaged = install / "unmanaged.keep"
         unmanaged.write_bytes(b"preserve-me\n")
         unmanaged.chmod(0o600)
-        return previous, unmanaged
+        unmanaged_mode = stat.S_IMODE(unmanaged.stat().st_mode)
+        if os.name != "nt":
+            self.assertEqual(unmanaged_mode, 0o600)
+        return previous, unmanaged, unmanaged_mode
 
     def assert_legacy_state(
         self,
         install: Path,
         previous: dict[str, tuple[bytes, int]],
         unmanaged: Path,
+        unmanaged_mode: int,
     ) -> None:
         for destination, (payload, mode) in previous.items():
             target = install / destination
@@ -62,7 +69,9 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             (install / "bin" / "runner_version_preflight.py").exists()
         )
         self.assertEqual(unmanaged.read_bytes(), b"preserve-me\n")
-        self.assertEqual(stat.S_IMODE(unmanaged.stat().st_mode), 0o600)
+        self.assertEqual(
+            stat.S_IMODE(unmanaged.stat().st_mode), unmanaged_mode
+        )
 
     def update_argv(
         self, install: Path, work_root: Path, commit: str
@@ -120,7 +129,7 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                     install = root / "install"
                     work_root = root / "workers"
                     bundle = self.make_current_bundle(root)
-                    previous, unmanaged = self.seed_legacy_runtime(install)
+                    previous, unmanaged, unmanaged_mode = self.seed_legacy_runtime(install)
                     (install / "update-receipt.json").write_text(
                         json.dumps(
                             {
@@ -165,7 +174,10 @@ class HostRuntimeUpdateTests(unittest.TestCase):
 
                     self.assertTrue(snapshot_seen)
                     self.assert_legacy_state(
-                        install, previous, unmanaged
+                        install,
+                        previous,
+                        unmanaged,
+                        unmanaged_mode,
                     )
                     receipt = json.loads(
                         (install / "update-receipt.json").read_text(
@@ -200,7 +212,7 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             install = root / "install"
             work_root = root / "workers"
             bundle = self.make_current_bundle(root)
-            previous, unmanaged = self.seed_legacy_runtime(install)
+            previous, unmanaged, unmanaged_mode = self.seed_legacy_runtime(install)
             commit = "e" * 40
             argv = self.update_argv(install, work_root, commit)
             with mock.patch.object(
@@ -215,7 +227,12 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 self.assertEqual(
                     updater.main(), updater.EXIT_HOST_UPDATE
                 )
-            self.assert_legacy_state(install, previous, unmanaged)
+            self.assert_legacy_state(
+                install,
+                previous,
+                unmanaged,
+                unmanaged_mode,
+            )
             receipt = json.loads(
                 (install / "update-receipt.json").read_text(
                     encoding="utf-8"
@@ -251,7 +268,7 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             install = root / "install"
             work_root = root / "workers"
             bundle = self.make_current_bundle(root)
-            previous, unmanaged = self.seed_legacy_runtime(install)
+            previous, unmanaged, unmanaged_mode = self.seed_legacy_runtime(install)
             commit = "d" * 40
             argv = self.update_argv(install, work_root, commit)
             with mock.patch.object(
