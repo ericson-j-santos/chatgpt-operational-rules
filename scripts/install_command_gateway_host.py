@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -34,6 +35,7 @@ RUNTIME_MAP = {
     "scripts/session_bootstrap.py": "bin/session_bootstrap.py",
     "scripts/session_preflight.py": "bin/session_preflight.py",
     "scripts/session_launcher.py": "bin/session_launcher.py",
+    "scripts/runner_version_preflight.py": "bin/runner_version_preflight.py",
     "config/command-gateway.policy.json": "config/policy.json",
 }
 MINGIT_VERSION = "2.55.0.5"
@@ -210,6 +212,52 @@ def verify_payload(rel: str, payload: bytes, entry: dict[str, Any]) -> None:
         raise HostBootstrapError(f"integridade divergente: {rel}")
 
 
+def _manifest_script_modules(index: dict[str, dict[str, Any]]) -> dict[str, str]:
+    modules: dict[str, str] = {}
+    scripts_root = PurePosixPath("scripts")
+    for rel in index:
+        path = PurePosixPath(rel)
+        if path.parent == scripts_root and path.suffix == ".py":
+            modules[path.stem] = rel
+    return modules
+
+
+def validate_runtime_import_closure(
+    bundle_dir: Path, index: dict[str, dict[str, Any]]
+) -> None:
+    """Fail closed when an installed Python entrypoint imports an omitted local module."""
+    local_modules = _manifest_script_modules(index)
+    mapped_modules = {
+        PurePosixPath(source).stem: source
+        for source, destination in RUNTIME_MAP.items()
+        if PurePosixPath(source).suffix == ".py"
+        and PurePosixPath(destination).parent == PurePosixPath("bin")
+    }
+    missing: list[str] = []
+    for source in sorted(mapped_modules.values()):
+        path = bundle_dir / source
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=source)
+        except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+            raise HostBootstrapError(
+                f"não foi possível analisar imports do runtime: {source}: {exc}"
+            ) from exc
+        imported: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                imported.add(node.module.split(".", 1)[0])
+        for module in sorted(imported):
+            local_source = local_modules.get(module)
+            if local_source and module not in mapped_modules:
+                missing.append(f"{source} -> {local_source}")
+    if missing:
+        raise HostBootstrapError(
+            "fechamento transitivo incompleto do runtime: " + ", ".join(missing)
+        )
+
+
 def download_bundle(commit: str, bundle_dir: Path) -> dict[str, Any]:
     commit = validate_commit(commit)
     bundle_dir.mkdir(parents=True, exist_ok=True)
@@ -224,6 +272,7 @@ def download_bundle(commit: str, bundle_dir: Path) -> dict[str, Any]:
         target = bundle_dir / source
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
+    validate_runtime_import_closure(bundle_dir, index)
     return manifest
 
 
@@ -238,6 +287,7 @@ def verify_bundle(bundle_dir: Path) -> tuple[dict[str, Any], dict[str, dict[str,
         if not path.is_file():
             raise HostBootstrapError(f"bundle sem arquivo obrigatório: {source}")
         verify_payload(source, path.read_bytes(), index[source])
+    validate_runtime_import_closure(bundle_dir, index)
     return manifest, index
 
 
