@@ -97,6 +97,43 @@ class HostBootstrapTests(unittest.TestCase):
             for dest in hb.RUNTIME_MAP.values():
                 self.assertTrue((install_root / dest).is_file())
 
+    def test_atomic_write_removes_only_its_own_temp_after_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+            with mock.patch.object(
+                hb.os,
+                "replace",
+                side_effect=PermissionError("injected-replace-failure"),
+            ):
+                with self.assertRaisesRegex(
+                    PermissionError, "injected-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            self.assertEqual(list(root.glob("managed.txt.tmp-*")), [])
+
+    def test_atomic_write_preserves_divergent_temp_after_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+
+            def diverge_then_fail(source, _destination):
+                Path(source).write_bytes(b"divergent")
+                raise PermissionError("injected-replace-failure")
+
+            with mock.patch.object(hb.os, "replace", side_effect=diverge_then_fail):
+                with self.assertRaisesRegex(
+                    PermissionError, "injected-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            leftovers = list(root.glob("managed.txt.tmp-*"))
+            self.assertEqual(len(leftovers), 1)
+            self.assertEqual(leftovers[0].read_bytes(), b"divergent")
+
     def test_reinstall_creates_backup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
