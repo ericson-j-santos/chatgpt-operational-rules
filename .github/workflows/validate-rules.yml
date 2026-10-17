@@ -96,7 +96,7 @@ jobs:
       - name: Run Remote Desktop Commander owner arbitration tests
         run: python -m unittest -v tests/test_rdc_owner_arbitration.py
       - name: Run Host Bootstrap unit tests
-        run: python -m unittest -v tests/test_host_bootstrap.py
+        run: python -m unittest -v tests/test_host_bootstrap.py tests/test_update_command_gateway_host.py
       - name: Run Host Bootstrap E2E
         run: python scripts/host_bootstrap_e2e.py
       - name: Validate new-host inventory and isolated onboarding E2E

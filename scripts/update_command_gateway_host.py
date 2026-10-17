@@ -4,8 +4,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
-import shutil
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -36,12 +34,9 @@ def atomic_json(path: Path, payload: dict) -> None:
 
 
 def restore_backup(install_root: Path, backup_dir: Path | None) -> None:
-    if backup_dir is None or not backup_dir.is_dir():
+    if backup_dir is None:
         return
-    for dest in bootstrap.RUNTIME_MAP.values():
-        previous = backup_dir / dest
-        if previous.is_file():
-            bootstrap.atomic_write(install_root / dest, previous.read_bytes())
+    bootstrap.restore_runtime_rollback(install_root, backup_dir)
 
 
 def main() -> int:
@@ -70,9 +65,16 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="reqsys-host-update-") as tmp:
             bundle = Path(tmp)
             bootstrap.download_bundle(commit, bundle)
-            result = bootstrap.install_bundle(bundle, install_root, ns.work_root, commit)
-            raw_backup = result.get("backup_dir")
-            backup_dir = Path(raw_backup) if raw_backup else None
+            backup_dir = bootstrap.prepare_runtime_rollback(
+                bundle, install_root
+            )
+            result = bootstrap.install_bundle(
+                bundle,
+                install_root,
+                ns.work_root,
+                commit,
+                rollback_dir=backup_dir,
+            )
 
         git_executable, git_source = bootstrap.resolve_git(install_root)
         validation_repo, validation_head = bootstrap.prepare_validation_repo(
@@ -95,17 +97,25 @@ def main() -> int:
         print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
         return 0
     except Exception as exc:
-        try:
-            restore_backup(install_root, backup_dir)
-        except Exception:
-            pass
+        rollback_succeeded: bool | None = None
+        rollback_error: str | None = None
+        if backup_dir is not None:
+            try:
+                restore_backup(install_root, backup_dir)
+                rollback_succeeded = True
+            except Exception as rollback_exc:
+                rollback_succeeded = False
+                rollback_error = str(rollback_exc)
         blocked = {
             "result": "HOST_UPDATE_BLOCKED",
             "gateway_exit_code": EXIT_HOST_UPDATE,
             "source_commit": commit,
             "blocked_at": utc_now(),
             "error": str(exc),
+            "backup_dir": str(backup_dir) if backup_dir else None,
             "rollback_attempted": backup_dir is not None,
+            "rollback_succeeded": rollback_succeeded,
+            "rollback_error": rollback_error,
         }
         try:
             atomic_json(receipt_path, blocked)

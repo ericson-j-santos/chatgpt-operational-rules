@@ -1,6 +1,6 @@
 {
-  "version": "1.6.10",
-  "generated_at": "2026-10-15T19:42:09.541612+00:00",
+  "version": "1.6.11",
+  "generated_at": "2026-10-17T18:39:33.562Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1bb932fd9bfe0fa391e541d7b5c1f9d2d8f2b660358bd7b60555fc90eab668c2",
-      "size": 6812
+      "sha256": "f6d837ddffe8d507086e016c935988f37186ca42e1751e2314f8b0ac470fd562",
+      "size": 6854
     },
     {
       "path": ".gitignore",
@@ -54,17 +54,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "572409aef120f0a9446db0fdfab7188f6e9586dd6125b934a274fe1d69447e56",
-      "size": 13632
+      "sha256": "9c228c4d820e848b79499b685f6cfa533211b7f58d49ad5c8f9caa58c6599ebe",
+      "size": 14673
     },
     {
       "path": "README.md",
-      "sha256": "75199e9712f5c5bfcf99671a9894c4206b4c1a156f891a18b417011e5b8cb5d7",
+      "sha256": "8318507d45a4b9db9875653fd2d443c138bffce4a3fedf3368ebfe8894076542",
       "size": 8632
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "cd3ecdfb7c91ca8b68a49d405c5650d97ddce60432a3bb7b2d8467d9cf580454",
+      "sha256": "b3ab3dcb846dcc4a7e47574e22503ac748b3e8d77b20a173c7916efcdb5ebf4f",
       "size": 2317
     },
     {
@@ -199,8 +199,8 @@
     },
     {
       "path": "rules/e2e-validation.md",
-      "sha256": "1d677bccaf235160a9c294a3748aa028cc1abdadd1f07cc6b4d9e51461a40f1d",
-      "size": 5625
+      "sha256": "233348fa5dba0939f82e8033b28aa04c95d5c23f0f2883abe8230fa843662564",
+      "size": 6759
     },
     {
       "path": "rules/evidence-validation.md",
@@ -349,8 +349,8 @@
     },
     {
       "path": "scripts/host_bootstrap_e2e.py",
-      "sha256": "a38c707de222562129b66306790c38015a76e824a6b301670e9553865e734a85",
-      "size": 5328
+      "sha256": "4d7aac32862775900ef624b8aabacf9f5824e0ee7915a63d90bbd0cbe08d0312",
+      "size": 5392
     },
     {
       "path": "scripts/host_health_check.py",
@@ -374,8 +374,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "006c1e44ea96b58fe05c9cb7602298a0d99d45eca137f570baba2565de93e83c",
-      "size": 20909
+      "sha256": "f73d843c86953e5f1eaca791850b5b10ccb670389cef722c2b7d921ff381f561",
+      "size": 31899
     },
     {
       "path": "scripts/install_gitlab_relay_registrar_windows.py",
@@ -614,13 +614,13 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "c2f45c4b9ffbb7f1196abf49f3ca06ea6f9e041753b994e422f18683028c41c8",
-      "size": 4462
+      "sha256": "fbed2c036415a4f97637c453c37e3060a580d549f68a519785d0a02926589103",
+      "size": 4835
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "79a156becf958559f20298b345495f86052fa1aad42cc2f8724e776e6e4687ad",
-      "size": 9492
+      "sha256": "396d1addc1dd45d98a75288edc2a58a8a7e9312581bb1aaf9252fb3316d55f79",
+      "size": 9587
     },
     {
       "path": "services/__init__.py",
@@ -779,8 +779,8 @@
     },
     {
       "path": "tests/test_host_bootstrap.py",
-      "sha256": "a4edae93fdedddb0d5a8b20e0ecc3158245859e2e010f8d3316675eb9f157f6d",
-      "size": 9905
+      "sha256": "84a53d3140964787f504d63ec2fb72c14c7019e38c6d15666ca1f00ca15a3e37",
+      "size": 14822
     },
     {
       "path": "tests/test_host_health_check.py",
@@ -974,8 +974,8 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "2b822ff6a9f278a064e1f43fe4cd5dcb29eddb1c2acc54f13f230023e8743636",
-      "size": 2152
+      "sha256": "63101a569a51c733a0b96005a6dae4ead3dbb477f7f01c602a05e3bc0efd1807",
+      "size": 13262
     }
   ]
 }
