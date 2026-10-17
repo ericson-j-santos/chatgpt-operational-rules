@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -13,7 +14,8 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import install_command_gateway_host as hb
@@ -24,13 +26,47 @@ class HostBootstrapTests(unittest.TestCase):
         bundle = root / "bundle"
         entries = []
         for source in hb.RUNTIME_MAP:
-            payload = f"payload:{source}\n".encode("utf-8")
+            prefix = "# " if source.endswith(".py") else ""
+            payload = f"{prefix}payload:{source}\n".encode("utf-8")
             target = bundle / source
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(payload)
             entries.append({"path": source, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
         (bundle / "MANIFEST.json").write_text(json.dumps({"version": version, "files": entries}), encoding="utf-8")
         return bundle
+
+    def make_source_bundle(self, root: Path) -> Path:
+        bundle = root / "source-bundle"
+        bundle.mkdir(parents=True)
+        shutil.copy2(ROOT / "MANIFEST.json", bundle / "MANIFEST.json")
+        for source in hb.RUNTIME_MAP:
+            target = bundle / source
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / source, target)
+        return bundle
+
+    def run_installed_launcher(self, install_root: Path) -> subprocess.CompletedProcess[str]:
+        outside_source = install_root.parent / "outside-source-tree"
+        outside_source.mkdir(exist_ok=True)
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        env["PYTHONNOUSERSITE"] = "1"
+        return subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                str(install_root / "bin" / "session_launcher.py"),
+                "--help",
+            ],
+            cwd=outside_source,
+            env=env,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=30,
+        )
 
     def test_validate_commit_requires_full_sha(self) -> None:
         valid = "a" * 40
@@ -181,6 +217,93 @@ class HostBootstrapTests(unittest.TestCase):
         hb.emit_json({"text": "📝"}, file=stream); stream.flush()
         self.assertIn("\\ud83d\\udcdd", raw.getvalue().decode("cp1252").lower())
 
+
+    def test_runtime_map_includes_runner_version_preflight(self) -> None:
+        self.assertEqual(
+            hb.RUNTIME_MAP["scripts/runner_version_preflight.py"],
+            "bin/runner_version_preflight.py",
+        )
+
+    def test_clean_install_runs_launcher_help_outside_source_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install_root = root / "install"
+            hb.install_bundle(
+                self.make_source_bundle(root),
+                install_root,
+                root / "workers",
+                "e" * 40,
+            )
+            result = self.run_installed_launcher(install_root)
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=f"stdout={result.stdout}\nstderr={result.stderr}",
+            )
+            self.assertIn("usage:", result.stdout.lower())
+            self.assertNotIn("ModuleNotFoundError", result.stderr)
+
+    def test_verify_bundle_rejects_removed_runtime_module(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_source_bundle(root)
+            (bundle / "scripts" / "runner_version_preflight.py").unlink()
+            with self.assertRaisesRegex(
+                hb.HostBootstrapError, "bundle sem arquivo obrigatório"
+            ):
+                hb.verify_bundle(bundle)
+
+    def test_verify_bundle_rejects_unmapped_transitive_local_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_source_bundle(root)
+            helper_rel = "scripts/runtime_bundle_helper.py"
+            helper = b"VALUE = 1\n"
+            helper_path = bundle / helper_rel
+            helper_path.write_bytes(helper)
+            launcher_rel = "scripts/session_launcher.py"
+            launcher_path = bundle / launcher_rel
+            launcher_payload = launcher_path.read_bytes() + b"\nimport runtime_bundle_helper\n"
+            launcher_path.write_bytes(launcher_payload)
+
+            manifest_path = bundle / "MANIFEST.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            by_path = {entry["path"]: entry for entry in manifest["files"]}
+            by_path[launcher_rel]["sha256"] = hashlib.sha256(
+                launcher_payload
+            ).hexdigest()
+            by_path[launcher_rel]["size"] = len(launcher_payload)
+            manifest["files"].append(
+                {
+                    "path": helper_rel,
+                    "sha256": hashlib.sha256(helper).hexdigest(),
+                    "size": len(helper),
+                }
+            )
+            manifest_path.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                hb.HostBootstrapError,
+                "fechamento transitivo incompleto.*runtime_bundle_helper",
+            ):
+                hb.verify_bundle(bundle)
+
+    def test_ci_blocks_without_install_and_update_regressions(self) -> None:
+        workflow = (
+            ROOT / ".github" / "workflows" / "validate-rules.yml"
+        ).read_text(encoding="utf-8")
+        expected = (
+            "run: python -m unittest -v tests/test_host_bootstrap.py "
+            "tests/test_update_command_gateway_host.py"
+        )
+        self.assertIn(expected, workflow)
+        with self.assertRaises(AssertionError):
+            self.assertIn(expected, workflow.replace(
+                " tests/test_update_command_gateway_host.py", ""
+            ))
 
 if __name__ == "__main__":
     unittest.main()
