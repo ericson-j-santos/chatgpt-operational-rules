@@ -105,3 +105,32 @@ Continuar coletando:
 Usar essas medições para selecionar o próximo incremento Pareto em melhoria
 contínua, sem reabrir automaticamente Auto-Remediator, dashboards ou expansões
 sofisticadas antes de um novo gargalo sistêmico comprovado.
+
+<!-- gitlab-secondary-architecture-contract-20261017 -->
+## GitLab secundário e CI próprio PC24x7 — contrato operacional
+
+### Fonte e fluxo de integração
+- GitHub `ericson-j-santos/reqsys-v2-enterprise-real`, branch `main`, permanece a fonte canônica para código, Pull Requests, testes, gates, revisões, releases e homologações.
+- GitLab `ericson-j-santos/reqsys-v2-enterprise-real` opera somente como espelho unidirecional **GitHub → GitLab** e CI secundário. Nunca tratar mudanças independentes no GitLab como fonte de verdade nem criar sincronização bidirecional.
+- Reutilizar `scripts/sync_gitlab_mirror.py`, `.github/workflows/gitlab-main-mirror.yml` e a credencial técnica gerenciada no Azure Key Vault. Não criar outro sincronizador, token nem canal de push.
+- O mirror é permitido somente com atestação da identidade técnica exata, ancestralidade comprovada, fast-forward sem force-push e releitura independente do SHA GitLab igual ao HEAD corrente do GitHub. Divergência e acesso insuficiente bloqueiam a operação.
+
+### Segurança e admissão de merge
+- Exigir branch `main` GitLab protegida, `allow_force_push=false`, permissão de push estritamente limitada à identidade técnica de mirror e **nenhum acesso genérico de Developers**.
+- Configurar `only_allow_merge_if_pipeline_succeeds=true` e `allow_merge_on_skipped_pipeline=false`; exigir jobs obrigatórios de scanner e evidência realmente executados no SHA correto. Jobs skipped, no jobs run, allow_failure, 2xx ou pipeline green sem gate real não são comprovação de merge elegível.
+- GitLab Free não oferece aprovação obrigatória equivalente aos controles de revisão do GitHub. Não declarar equivalência de governança nem autorizar merge canônico pelo GitLab; conservar merge governado no GitHub até prova formal de alternativa.
+- Achados de scanner, incluindo Gitleaks, exigem triagem confidencial, correção da causa, teste de regressão e verificação limpa. Não divulgar achados sensíveis, criar allowlist ampla, desativar scanner ou ignorar falha para atingir CI verde.
+- Alterações de branch protegida, membros, permissions e credenciais requerem autorização explícita por alvo e ambiente e confirmação do efeito por API independente; ausência de ferramenta com escrita autorizada é bloqueio, não permissão para bypass.
+
+### Runner de projeto PC24x7
+- Preferir **GitLab project runner próprio** em piloto DEV no PC24x7 para reduzir uso de compute dos runners GitLab.com, respeitando custo adicional zero; nunca inferir que infraestrutura física é gratuita.
+- Antes de instalar/registrar, inventariar o host real, disponibilidade de CPU/RAM/disco, processos e jobs existentes, sistema operacional, runtime supervisionado, secrets e rollback. Cumprir `session_launcher.py`, `SESSION_LAUNCH_OK`, Command Gateway e worktree/sessão exclusivos; sem terminal irrestrito, SSH, GUI ou RDC como contorno.
+- Criar runner com escopo, tags e menor privilégio, sem conceder variáveis protegidas a MRs não confiáveis; separar jobs confiáveis de código externo e limitar concorrência. Alinhar com a migração gradual sem Docker documentada em `chatgpt-operational-rules#128`; não interromper runners GitHub existentes.
+- Aceite físico exige job real executado no project runner esperado, SHA e correlação exatos, controle negativo de elegibilidade, repetição sem duplicidade, readback independente do GitLab e host, e capacidade de recuperação/reversão. Sem esse E2E: `PARCIAL`/`BLOQUEADO`, nunca homologado.
+
+### Custos, artefatos e continuidade
+- Antes de excluir artefatos ou alterar retenção no GitHub Actions, reconciliar Billing autenticado com artefatos, Packages, histórico e consumo acumulado do ciclo; volume ativo em bytes não prova custo faturável.
+- Preservar a última evidência necessária para gates, reconstituição de histórico e recuperação; não apagar artefatos em massa nem sacrificar auditabilidade para liberar cota.
+- Registrar checkpoint em issue/TODO Global existente com `correlation_id`, HEADs de ambos os remotos, pipeline/job IDs, evidência de aceitação e próximo bloqueio. Não duplicar filas/PRs ou despachar pipelines repetidos sem mudança material de precondição.
+
+Referências operacionais: ReqSys issues #846 e #855; regras `projects/reqsys.md`, `projects/runtime-platform.md`, `rules/e2e-validation.md`, `rules/pre-delivery-validation.md`, `rules/security-governance.md` e `rules/artifact-storage.md`.
