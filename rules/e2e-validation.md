@@ -70,6 +70,18 @@ Esta regra define a validação mínima obrigatória para incrementos técnicos 
 - confirmar estado antes/depois e efeito persistido;
 - não aceitar apenas renderização sem erro como prova de funcionamento.
 
+## Regressões de pacote e runtime persistente
+
+Quando a falha ocorre no artefato instalado, mas não na árvore fonte, o aceite deve cobrir explicitamente a fronteira de empacotamento:
+
+- reproduzir a falha observada no artefato ou bundle instalado e registrar a causa-raiz técnica;
+- adicionar teste de regressão positivo e controle negativo que falhe quando o módulo, arquivo ou dependência transitiva obrigatória for removido;
+- tornar esses testes bloqueantes no CI que protege a publicação canônica;
+- executar o entrypoint real a partir de uma instalação limpa, fora da árvore fonte, sem `PYTHONPATH`, diretório corrente ou site de usuário que possam mascarar dependências ausentes;
+- quando houver runtime persistente, testar também migração/upgrade de uma versão legada representativa para a versão corrente, incluindo backup, recibo e pós-condição;
+- registrar o SHA exato do artefato validado e separar a aprovação do código da verificação operacional no host físico;
+- não declarar impossibilidade absoluta de regressão: registrar os controles executados e os riscos residuais observáveis.
+
 ## Evidência mínima
 
 Registrar, quando aplicável:
