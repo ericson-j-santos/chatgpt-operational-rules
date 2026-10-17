@@ -19,7 +19,8 @@ def make_bundle(root: Path) -> Path:
     bundle = root / "bundle"
     entries = []
     for source in hb.RUNTIME_MAP:
-        payload = f"runtime:{source}\n".encode("utf-8")
+        prefix = "# " if source.endswith(".py") else ""
+        payload = f"{prefix}runtime:{source}\n".encode("utf-8")
         target = bundle / source
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
