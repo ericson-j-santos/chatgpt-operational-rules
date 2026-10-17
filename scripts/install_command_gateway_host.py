@@ -298,46 +298,281 @@ def atomic_write(path: Path, payload: bytes) -> None:
     os.replace(temp, path)
 
 
-def install_bundle(bundle_dir: Path, install_root: Path, work_root: Path, source_commit: str) -> dict[str, Any]:
+def _managed_target(install_root: Path, destination: str) -> Path:
+    relative = PurePosixPath(destination)
+    if relative.is_absolute() or not relative.parts or any(
+        part in ("", ".", "..") for part in relative.parts
+    ):
+        raise HostBootstrapError(f"destino gerenciado inválido: {destination}")
+    root = install_root.resolve()
+    target = root.joinpath(*relative.parts)
+    try:
+        common = Path(os.path.commonpath([str(root), str(target.resolve())]))
+    except ValueError as exc:
+        raise HostBootstrapError(
+            f"destino gerenciado fora da instalação: {destination}"
+        ) from exc
+    if common != root:
+        raise HostBootstrapError(
+            f"destino gerenciado fora da instalação: {destination}"
+        )
+    return target
+
+
+def prepare_runtime_rollback(
+    bundle_dir: Path, install_root: Path
+) -> Path:
+    """Persist a verified rollback snapshot before the first runtime mutation."""
+    _, index = verify_bundle(bundle_dir)
+    install_root.mkdir(parents=True, exist_ok=True)
+    backup_dir = install_root / (
+        f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex}"
+    )
+    entries: dict[str, dict[str, Any]] = {}
+    for source, destination in RUNTIME_MAP.items():
+        target = _managed_target(install_root, destination)
+        desired = (bundle_dir / source).read_bytes()
+        expected = index[source]
+        entry: dict[str, Any] = {
+            "source": source,
+            "existed": target.exists(),
+            "desired_sha256": sha256_bytes(desired),
+            "desired_size": len(desired),
+        }
+        if (
+            entry["desired_sha256"] != str(expected.get("sha256", "")).lower()
+            or entry["desired_size"] != expected.get("size")
+        ):
+            raise HostBootstrapError(
+                f"payload divergiu antes do snapshot: {source}"
+            )
+        if target.exists():
+            if target.is_symlink() or not target.is_file():
+                raise HostBootstrapError(
+                    f"arquivo gerenciado preexistente inválido: {destination}"
+                )
+            previous = backup_dir / "files" / destination
+            previous.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(target, previous)
+            current_stat = target.stat()
+            entry.update(
+                {
+                    "previous_sha256": sha256_file(target),
+                    "previous_size": current_stat.st_size,
+                    "previous_mode": stat.S_IMODE(current_stat.st_mode),
+                }
+            )
+        entries[destination] = entry
+    snapshot = {
+        "version": 1,
+        "install_root": str(install_root.resolve()),
+        "created_at": utc_now(),
+        "entries": entries,
+    }
+    atomic_write(
+        backup_dir / "rollback-manifest.json",
+        (
+            json.dumps(snapshot, ensure_ascii=False, sort_keys=True, indent=2)
+            + "\n"
+        ).encode("utf-8"),
+    )
+    return backup_dir
+
+
+def _load_runtime_rollback(
+    install_root: Path, backup_dir: Path
+) -> dict[str, Any]:
+    root = install_root.resolve()
+    backup = backup_dir.resolve()
+    try:
+        common = Path(os.path.commonpath([str(root), str(backup)]))
+    except ValueError as exc:
+        raise HostBootstrapError("backup fora da instalação") from exc
+    if common != root:
+        raise HostBootstrapError("backup fora da instalação")
+    manifest_path = backup / "rollback-manifest.json"
+    try:
+        snapshot = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HostBootstrapError("manifesto de rollback ausente ou inválido") from exc
+    if snapshot.get("version") != 1:
+        raise HostBootstrapError("versão do manifesto de rollback inválida")
+    if os.path.normcase(str(Path(snapshot.get("install_root", "")).resolve())) != os.path.normcase(str(root)):
+        raise HostBootstrapError("raiz do manifesto de rollback divergente")
+    entries = snapshot.get("entries")
+    if not isinstance(entries, dict) or set(entries) != set(RUNTIME_MAP.values()):
+        raise HostBootstrapError("conjunto gerenciado do rollback divergente")
+    for destination, entry in entries.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("existed"), bool):
+            raise HostBootstrapError(
+                f"entrada de rollback inválida: {destination}"
+            )
+        validate_sha256(str(entry.get("desired_sha256", "")))
+        if not isinstance(entry.get("desired_size"), int):
+            raise HostBootstrapError(
+                f"tamanho desejado inválido no rollback: {destination}"
+            )
+        if entry["existed"]:
+            previous = backup / "files" / destination
+            if previous.is_symlink() or not previous.is_file():
+                raise HostBootstrapError(
+                    f"backup gerenciado ausente: {destination}"
+                )
+            if (
+                sha256_file(previous) != entry.get("previous_sha256")
+                or previous.stat().st_size != entry.get("previous_size")
+                or stat.S_IMODE(previous.stat().st_mode)
+                != entry.get("previous_mode")
+            ):
+                raise HostBootstrapError(
+                    f"backup gerenciado divergente: {destination}"
+                )
+    return snapshot
+
+
+def validate_runtime_rollback_for_bundle(
+    bundle_dir: Path, install_root: Path, backup_dir: Path
+) -> None:
+    _, index = verify_bundle(bundle_dir)
+    snapshot = _load_runtime_rollback(install_root, backup_dir)
+    by_destination = snapshot["entries"]
+    for source, destination in RUNTIME_MAP.items():
+        entry = by_destination[destination]
+        if (
+            entry["source"] != source
+            or entry["desired_sha256"]
+            != str(index[source].get("sha256", "")).lower()
+            or entry["desired_size"] != index[source].get("size")
+        ):
+            raise HostBootstrapError(
+                f"snapshot não pertence ao bundle: {destination}"
+            )
+
+
+def restore_runtime_rollback(
+    install_root: Path, backup_dir: Path
+) -> None:
+    """Restore exactly the prior managed state without touching unmanaged files."""
+    snapshot = _load_runtime_rollback(install_root, backup_dir)
+    backup = backup_dir.resolve()
+    for destination, entry in snapshot["entries"].items():
+        target = _managed_target(install_root, destination)
+        if entry["existed"]:
+            previous = backup / "files" / destination
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(
+                target.name + f".rollback-{uuid.uuid4().hex}"
+            )
+            shutil.copy2(previous, temporary)
+            os.replace(temporary, target)
+        elif target.exists():
+            if target.is_symlink() or not target.is_file():
+                raise HostBootstrapError(
+                    f"arquivo novo gerenciado não é removível com segurança: {destination}"
+                )
+            if (
+                sha256_file(target) != entry["desired_sha256"]
+                or target.stat().st_size != entry["desired_size"]
+            ):
+                raise HostBootstrapError(
+                    f"arquivo novo divergente não será removido: {destination}"
+                )
+            target.unlink()
+
+    for destination, entry in snapshot["entries"].items():
+        target = _managed_target(install_root, destination)
+        if entry["existed"]:
+            if target.is_symlink() or not target.is_file():
+                raise HostBootstrapError(
+                    f"rollback não restaurou arquivo: {destination}"
+                )
+            observed = target.stat()
+            if (
+                sha256_file(target) != entry["previous_sha256"]
+                or observed.st_size != entry["previous_size"]
+                or stat.S_IMODE(observed.st_mode) != entry["previous_mode"]
+            ):
+                raise HostBootstrapError(
+                    f"rollback pós-condição divergente: {destination}"
+                )
+        elif target.exists():
+            raise HostBootstrapError(
+                f"rollback não removeu arquivo novo: {destination}"
+            )
+
+
+def install_bundle(
+    bundle_dir: Path,
+    install_root: Path,
+    work_root: Path,
+    source_commit: str,
+    *,
+    rollback_dir: Path | None = None,
+) -> dict[str, Any]:
     source_commit = validate_commit(source_commit)
     manifest, index = verify_bundle(bundle_dir)
-    install_root.mkdir(parents=True, exist_ok=True)
-    existing = [install_root / dest for dest in RUNTIME_MAP.values() if (install_root / dest).exists()]
-    backup_dir: Path | None = None
-    if existing:
-        backup_dir = install_root / f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-        for current in existing:
-            relative = current.relative_to(install_root)
-            target = backup_dir / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(current, target)
-    installed: dict[str, dict[str, Any]] = {}
-    for source, dest in RUNTIME_MAP.items():
-        payload = (bundle_dir / source).read_bytes()
-        target = install_root / dest
-        atomic_write(target, payload)
-        installed[dest] = {"sha256": sha256_file(target), "size": target.stat().st_size}
-    work_root.mkdir(parents=True, exist_ok=True)
-    for source, dest in RUNTIME_MAP.items():
-        expected = index[source]
-        actual = installed[dest]
-        if actual["sha256"] != str(expected.get("sha256", "")).lower() or actual["size"] != expected.get("size"):
-            raise HostBootstrapError(f"verificação pós-instalação falhou: {dest}")
-    receipt = {
-        "result": "HOST_BOOTSTRAP_RUNTIME_INSTALLED",
-        "repository": REPOSITORY,
-        "source_commit": source_commit,
-        "rules_version": manifest["version"],
-        "installed_at": utc_now(),
-        "host": socket.gethostname(),
-        "install_root": str(install_root),
-        "work_root": str(work_root),
-        "backup_dir": str(backup_dir) if backup_dir else None,
-        "files": installed,
-    }
-    receipt_path = install_root / "install-receipt.json"
-    atomic_write(receipt_path, (json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"))
-    return receipt
+    backup_dir = rollback_dir or prepare_runtime_rollback(
+        bundle_dir, install_root
+    )
+    validate_runtime_rollback_for_bundle(
+        bundle_dir, install_root, backup_dir
+    )
+    try:
+        installed: dict[str, dict[str, Any]] = {}
+        for source, destination in RUNTIME_MAP.items():
+            payload = (bundle_dir / source).read_bytes()
+            target = _managed_target(install_root, destination)
+            atomic_write(target, payload)
+            installed[destination] = {
+                "sha256": sha256_file(target),
+                "size": target.stat().st_size,
+            }
+        work_root.mkdir(parents=True, exist_ok=True)
+        for source, destination in RUNTIME_MAP.items():
+            expected = index[source]
+            actual = installed[destination]
+            if (
+                actual["sha256"]
+                != str(expected.get("sha256", "")).lower()
+                or actual["size"] != expected.get("size")
+            ):
+                raise HostBootstrapError(
+                    f"verificação pós-instalação falhou: {destination}"
+                )
+        receipt = {
+            "result": "HOST_BOOTSTRAP_RUNTIME_INSTALLED",
+            "repository": REPOSITORY,
+            "source_commit": source_commit,
+            "rules_version": manifest["version"],
+            "installed_at": utc_now(),
+            "host": socket.gethostname(),
+            "install_root": str(install_root),
+            "work_root": str(work_root),
+            "backup_dir": str(backup_dir),
+            "files": installed,
+        }
+        receipt_path = install_root / "install-receipt.json"
+        atomic_write(
+            receipt_path,
+            (
+                json.dumps(
+                    receipt,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+            ).encode("utf-8"),
+        )
+        return receipt
+    except Exception as exc:
+        try:
+            restore_runtime_rollback(install_root, backup_dir)
+        except Exception as rollback_exc:
+            raise HostBootstrapError(
+                f"instalação falhou ({exc}); rollback falhou ({rollback_exc})"
+            ) from exc
+        raise
 
 
 def default_install_root() -> Path:
