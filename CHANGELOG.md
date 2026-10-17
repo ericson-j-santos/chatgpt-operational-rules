@@ -6,6 +6,7 @@
 - O instalador agora valida o fechamento transitivo dos imports locais de todos os entrypoints Python destinados a `bin/` e falha fechado quando um módulo local é omitido.
 - Adicionados smoke tests do launcher instalado fora da árvore fonte e sem `PYTHONPATH`, controles negativos para módulo removido e import transitivo ausente, e teste de upgrade de bundle legado com backup e recibo `HOST_UPDATE_OK`.
 - O CI bloqueante passa a executar também os testes do updater; a regra E2E formaliza reprodução, causa-raiz, regressões positiva/negativa, artefato instalado, migração e verificação operacional separada por SHA.
+- A atualização persistente passa a criar snapshot e manifesto antes da primeira mutação, restaurar exatamente arquivos gerenciados e metadados em falhas intermediárias e remover somente arquivos novos comprovadamente escritos pela tentativa.
 
 ## 1.6.10 - 2026-09-28
 
