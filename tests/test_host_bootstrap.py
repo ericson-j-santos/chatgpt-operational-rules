@@ -97,6 +97,124 @@ class HostBootstrapTests(unittest.TestCase):
             for dest in hb.RUNTIME_MAP.values():
                 self.assertTrue((install_root / dest).is_file())
 
+    def test_atomic_write_removes_only_its_own_temp_after_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+            with mock.patch.object(
+                hb.os,
+                "replace",
+                side_effect=PermissionError("injected-replace-failure"),
+            ):
+                with self.assertRaisesRegex(
+                    PermissionError, "injected-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            self.assertEqual(list(root.glob("managed.txt.tmp-*")), [])
+
+    def test_atomic_write_preserves_divergent_temp_after_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+
+            def diverge_then_fail(source, _destination):
+                Path(source).write_bytes(b"divergent")
+                raise PermissionError("injected-replace-failure")
+
+            with mock.patch.object(hb.os, "replace", side_effect=diverge_then_fail):
+                with self.assertRaisesRegex(
+                    PermissionError, "injected-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            leftovers = list(root.glob("managed.txt.tmp-*"))
+            self.assertEqual(len(leftovers), 1)
+            self.assertEqual(leftovers[0].read_bytes(), b"divergent")
+
+    def test_atomic_write_preserves_symlink_temp_after_replace_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+            symlink_target = root / "external.txt"
+            symlink_target.write_bytes(b"desired")
+
+            def replace_temp_with_symlink_then_fail(source, _destination):
+                temp = Path(source)
+                temp.unlink()
+                temp.symlink_to(symlink_target)
+                raise PermissionError("original-replace-failure")
+
+            with mock.patch.object(
+                hb.os,
+                "replace",
+                side_effect=replace_temp_with_symlink_then_fail,
+            ):
+                with self.assertRaisesRegex(
+                    PermissionError, "original-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            leftovers = list(root.glob("managed.txt.tmp-*"))
+            self.assertEqual(len(leftovers), 1)
+            self.assertTrue(leftovers[0].is_symlink())
+            self.assertEqual(leftovers[0].resolve(), symlink_target.resolve())
+
+    def test_atomic_write_preserves_unreadable_temp_and_original_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+            original_read_bytes = Path.read_bytes
+
+            def deny_temp_read(path):
+                if ".tmp-" in path.name:
+                    raise PermissionError("temp-read-denied")
+                return original_read_bytes(path)
+
+            with mock.patch.object(
+                hb.os,
+                "replace",
+                side_effect=PermissionError("original-replace-failure"),
+            ), mock.patch.object(Path, "read_bytes", deny_temp_read):
+                with self.assertRaisesRegex(
+                    PermissionError, "original-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            leftovers = list(root.glob("managed.txt.tmp-*"))
+            self.assertEqual(len(leftovers), 1)
+            self.assertEqual(leftovers[0].read_bytes(), b"desired")
+
+    def test_atomic_write_preserves_temp_when_cleanup_unlink_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.txt"
+            target.write_bytes(b"previous")
+            original_unlink = Path.unlink
+
+            def deny_temp_unlink(path, *args, **kwargs):
+                if ".tmp-" in path.name:
+                    raise PermissionError("temp-unlink-denied")
+                return original_unlink(path, *args, **kwargs)
+
+            with mock.patch.object(
+                hb.os,
+                "replace",
+                side_effect=PermissionError("original-replace-failure"),
+            ), mock.patch.object(Path, "unlink", deny_temp_unlink):
+                with self.assertRaisesRegex(
+                    PermissionError, "original-replace-failure"
+                ):
+                    hb.atomic_write(target, b"desired")
+            self.assertEqual(target.read_bytes(), b"previous")
+            leftovers = list(root.glob("managed.txt.tmp-*"))
+            self.assertEqual(len(leftovers), 1)
+            self.assertEqual(leftovers[0].read_bytes(), b"desired")
+
     def test_reinstall_creates_backup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

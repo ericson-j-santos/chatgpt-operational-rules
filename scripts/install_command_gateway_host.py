@@ -295,7 +295,19 @@ def atomic_write(path: Path, payload: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(path.name + f".tmp-{uuid.uuid4().hex}")
     temp.write_bytes(payload)
-    os.replace(temp, path)
+    try:
+        os.replace(temp, path)
+    except OSError:
+        try:
+            if (
+                temp.is_file()
+                and not temp.is_symlink()
+                and temp.read_bytes() == payload
+            ):
+                temp.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _managed_target(install_root: Path, destination: str) -> Path:
