@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import scripts.install_todo_gateway_debian_systemd as canonical_installer
+import scripts.todo_gateway_debian_installer_isolated_e2e as isolated_harness
 from scripts.todo_gateway_debian_installer_isolated_e2e import (
     HomologationError,
     PSQL_ARGS,
@@ -232,6 +234,30 @@ def test_replay_comparator_detects_current_or_sentinel_mutation():
     after["sentinel"] = "changed"
     with pytest.raises(HomologationError, match="replay_mutated"):
         assert_replay_unchanged(before, after)
+
+
+def test_activation_journal_contract_and_residuals_fail_closed(tmp_path, monkeypatch):
+    assert canonical_installer.ACTIVATION_JOURNAL_NAME == ".todo-activation.json"
+    assert (
+        isolated_harness.ACTIVATION_JOURNAL
+        == canonical_installer._activation_journal_path()
+    )
+
+    journal = tmp_path / canonical_installer.ACTIVATION_JOURNAL_NAME
+    monkeypatch.setattr(isolated_harness, "ACTIVATION_JOURNAL", journal)
+    isolated_harness.assert_activation_journal_absent("initial")
+
+    journal.write_text("residual", encoding="utf-8")
+    with pytest.raises(HomologationError, match=r"^activation_journal_after_replay$"):
+        isolated_harness.assert_activation_journal_absent("replay")
+    assert journal.read_text(encoding="utf-8") == "residual"
+
+    journal.unlink()
+    journal.symlink_to(tmp_path / "missing-journal-target")
+    with pytest.raises(HomologationError, match=r"^activation_journal_not_cleared$"):
+        isolated_harness.assert_activation_journal_absent("rollback")
+    assert journal.is_symlink()
+    assert not journal.exists()
 
 
 def test_isolated_homologation_is_manual_hosted_and_reuses_canonical_installer():

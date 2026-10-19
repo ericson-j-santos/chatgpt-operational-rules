@@ -38,7 +38,7 @@ UNIT_PATHS = (
     Path("/usr/lib/systemd/system") / UNIT_NAME,
 )
 ENV_FILE = CONFIG_DIR / "runtime.env"
-ACTIVATION_JOURNAL = BASE / ".activation-journal.json"
+ACTIVATION_JOURNAL = BASE / ".todo-activation.json"
 INSTALLER = Path("scripts/install_todo_gateway_debian_systemd.py")
 PSQL_ARGS = (
     "--no-psqlrc",
@@ -82,6 +82,19 @@ class HomologationError(RuntimeError):
 
 def _lexists(path: Path) -> bool:
     return os.path.lexists(path)
+
+
+def assert_activation_journal_absent(stage: str) -> None:
+    errors = {
+        "initial": "activation_journal_after_initial_install",
+        "replay": "activation_journal_after_replay",
+        "rollback": "activation_journal_not_cleared",
+    }
+    error = errors.get(stage)
+    if error is None:
+        raise HomologationError("activation_journal_stage_invalid")
+    if _lexists(ACTIVATION_JOURNAL):
+        raise HomologationError(error)
 
 
 def validate_execution_context(
@@ -666,6 +679,7 @@ def homologate(
         release = BASE / "releases" / expected_sha[:12]
         if not release.is_dir() or not service_ready():
             raise HomologationError("initial_install_not_ready")
+        assert_activation_journal_absent("initial")
         runtime = read_runtime_env()
         secrets = [
             runtime["POSTGRES_PASSWORD"],
@@ -694,6 +708,7 @@ def homologate(
         assert_replay_unchanged(before_replay, after_replay)
         if sentinel.read_text(encoding="utf-8") != "todo22-preserve-me\n":
             raise HomologationError("sentinel_mutated_on_replay")
+        assert_activation_journal_absent("replay")
 
         candidate, candidate_sha = make_failing_candidate(repo_root, temp_root)
         failure = _run_installer(candidate, traces[2], skip_packages=True, timeout=360)
@@ -713,8 +728,7 @@ def homologate(
             raise HomologationError("previous_current_not_restored")
         if sentinel.read_text(encoding="utf-8") != "todo22-preserve-me\n":
             raise HomologationError("sentinel_mutated_after_failure")
-        if _lexists(ACTIVATION_JOURNAL):
-            raise HomologationError("activation_journal_not_cleared")
+        assert_activation_journal_absent("rollback")
         staging = BASE / "releases" / ".staging"
         if not staging.is_dir() or any(staging.iterdir()):
             raise HomologationError("staging_not_clean")

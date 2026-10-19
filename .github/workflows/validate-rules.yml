@@ -107,7 +107,7 @@ jobs:
       - name: Run Session Preflight E2E
         run: python scripts/session_preflight_e2e.py
       - name: Run Session Launcher unit tests
-        run: python -m unittest -v tests/test_session_launcher.py
+        run: python -m unittest discover -v -s tests -p 'test_session_launcher*.py'
       - name: Run Session Launcher E2E
         run: python scripts/session_launcher_e2e.py
       - name: Run Dual Host Preflight unit tests
