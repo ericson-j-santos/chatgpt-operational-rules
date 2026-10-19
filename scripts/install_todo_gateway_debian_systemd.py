@@ -301,16 +301,41 @@ def _releases_dir() -> Path:
 
 
 def _ensure_real_directory(path: Path) -> None:
-    if _lexists(path):
-        if path.is_symlink() or not path.is_dir():
-            raise RuntimeError("release ownership verification failed")
-    else:
-        path.mkdir(parents=True, exist_ok=False)
-    metadata = path.stat(follow_symlinks=False)
+    created = False
+    try:
+        path.mkdir(mode=0o700, parents=False, exist_ok=False)
+        created = True
+    except FileExistsError:
+        pass
+    except OSError:
+        raise RuntimeError("release ownership verification failed") from None
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError:
+        raise RuntimeError("release ownership verification failed") from None
+    try:
+        try:
+            metadata = os.fstat(descriptor)
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or metadata.st_uid != os.geteuid()
+                or metadata.st_gid != os.getegid()
+                or stat.S_IMODE(metadata.st_mode) & 0o022
+            ):
+                raise RuntimeError("release ownership verification failed")
+            if created:
+                os.fchmod(descriptor, 0o755)
+                metadata = os.fstat(descriptor)
+        except OSError:
+            raise RuntimeError("release ownership verification failed") from None
+    finally:
+        os.close(descriptor)
     if (
-        metadata.st_uid != os.geteuid()
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
         or metadata.st_gid != os.getegid()
-        or stat.S_IMODE(metadata.st_mode) & 0o022
+        or stat.S_IMODE(metadata.st_mode) != 0o755
     ):
         raise RuntimeError("release ownership verification failed")
 

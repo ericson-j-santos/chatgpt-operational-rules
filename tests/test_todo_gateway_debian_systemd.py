@@ -58,6 +58,7 @@ def _manifest() -> dict:
 
 def _release_fixture(module, tmp_path, monkeypatch, revision="a" * 12):
     base = tmp_path / "opt" / "todo-global"
+    base.parent.mkdir()
     repo = tmp_path / "repo"
     (repo / "services" / "todo_gateway").mkdir(parents=True)
     (repo / "scripts").mkdir()
@@ -151,6 +152,101 @@ def test_installer_uses_native_systemd_and_local_postgres():
     assert '["systemctl", "enable", "todo-global-gateway.service"]' in text
     assert '["systemctl", "restart", "todo-global-gateway.service"]' in text
     assert "docker" not in text.lower()
+
+
+@pytest.mark.parametrize("installer_umask", [0, 0o002, 0o077])
+def test_installation_lock_creates_secure_directories_with_hostile_umask(
+    tmp_path, monkeypatch, installer_umask
+):
+    module = _module()
+    base = tmp_path / "todo-global"
+    monkeypatch.setattr(module, "BASE", base)
+
+    previous_umask = os.umask(installer_umask)
+    try:
+        with module._installation_lock():
+            assert stat.S_IMODE(base.stat().st_mode) == 0o755
+            assert stat.S_IMODE((base / "releases").stat().st_mode) == 0o755
+            assert stat.S_IMODE((base / ".install.lock").stat().st_mode) == 0o600
+    finally:
+        os.umask(previous_umask)
+
+
+def test_installation_lock_does_not_repair_preexisting_unsafe_directory(
+    tmp_path, monkeypatch
+):
+    module = _module()
+    base = tmp_path / "todo-global"
+    base.mkdir(mode=0o775)
+    base.chmod(0o775)
+    monkeypatch.setattr(module, "BASE", base)
+
+    with pytest.raises(RuntimeError, match="release ownership verification failed"):
+        with module._installation_lock():
+            pass
+    assert stat.S_IMODE(base.stat().st_mode) == 0o775
+
+
+def test_installation_lock_does_not_promote_preexisting_private_directory(
+    tmp_path, monkeypatch
+):
+    module = _module()
+    base = tmp_path / "todo-global"
+    base.mkdir(mode=0o700)
+    base.chmod(0o700)
+    monkeypatch.setattr(module, "BASE", base)
+
+    with pytest.raises(RuntimeError, match="release ownership verification failed"):
+        with module._installation_lock():
+            pass
+    assert stat.S_IMODE(base.stat().st_mode) == 0o700
+
+
+def test_secure_concurrent_directory_creation_is_revalidated(tmp_path, monkeypatch):
+    module = _module()
+    base = tmp_path / "todo-global"
+    original_mkdir = Path.mkdir
+    injected = False
+
+    def concurrent_mkdir(path, *args, **kwargs):
+        nonlocal injected
+        if path == base and not injected:
+            injected = True
+            original_mkdir(path, mode=0o755, parents=True, exist_ok=False)
+            path.chmod(0o755)
+            raise FileExistsError(path)
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", concurrent_mkdir)
+    module._ensure_real_directory(base)
+
+    assert injected is True
+    assert stat.S_IMODE(base.stat().st_mode) == 0o755
+
+
+def test_unsafe_concurrent_directory_creation_is_rejected_without_repair(
+    tmp_path, monkeypatch
+):
+    module = _module()
+    base = tmp_path / "todo-global"
+    original_mkdir = Path.mkdir
+    injected = False
+
+    def concurrent_mkdir(path, *args, **kwargs):
+        nonlocal injected
+        if path == base and not injected:
+            injected = True
+            original_mkdir(path, mode=0o775, parents=False, exist_ok=False)
+            path.chmod(0o775)
+            raise FileExistsError(path)
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", concurrent_mkdir)
+    with pytest.raises(RuntimeError, match="release ownership verification failed"):
+        module._ensure_real_directory(base)
+
+    assert injected is True
+    assert stat.S_IMODE(base.stat().st_mode) == 0o775
 
 
 def test_installer_keeps_secrets_local_and_reuses_existing_values():

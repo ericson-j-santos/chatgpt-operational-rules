@@ -56,6 +56,24 @@ EXECVE_RE = re.compile(
     r'execve\("(?P<path>(?:\\.|[^"\\])*)", '
     r'(?P<argv>\[(?:[^\]]|\\.)*\]), '
 )
+MAX_TRACE_BYTES = 8 * 1024 * 1024
+DIAGNOSTIC_EXECUTABLES = frozenset(
+    {
+        "apt-get",
+        "createdb",
+        "git",
+        "getent",
+        "groupadd",
+        "id",
+        "psql",
+        "python",
+        "python3",
+        "runuser",
+        "strace",
+        "systemctl",
+        "useradd",
+    }
+)
 
 
 class HomologationError(RuntimeError):
@@ -208,6 +226,67 @@ def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _open_validated_trace(path: Path, flags: int) -> int:
+    try:
+        descriptor = os.open(
+            path,
+            flags | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+        )
+    except OSError:
+        raise HomologationError("trace_path_invalid") from None
+    metadata = os.fstat(descriptor)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_gid != os.getegid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        os.close(descriptor)
+        raise HomologationError("trace_path_invalid")
+    return descriptor
+
+
+def _prepare_trace_path(path: Path) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    try:
+        descriptor = os.open(
+            path,
+            flags | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+    except OSError:
+        raise HomologationError("trace_path_invalid") from None
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or metadata.st_gid != os.getegid()
+            or metadata.st_nlink != 1
+        ):
+            raise HomologationError("trace_path_invalid")
+        os.fchmod(descriptor, 0o600)
+        if stat.S_IMODE(os.fstat(descriptor).st_mode) != 0o600:
+            raise HomologationError("trace_path_invalid")
+    except OSError:
+        raise HomologationError("trace_path_invalid") from None
+    finally:
+        os.close(descriptor)
+
+
+def _read_trace(path: Path) -> str:
+    descriptor = _open_validated_trace(path, os.O_RDONLY)
+    try:
+        with os.fdopen(descriptor, "r", encoding="utf-8", errors="replace") as trace:
+            value = trace.read(MAX_TRACE_BYTES + 1)
+    except OSError:
+        raise HomologationError("trace_read_failed") from None
+    if len(value.encode("utf-8")) > MAX_TRACE_BYTES:
+        raise HomologationError("trace_too_large")
+    return value
+
+
 def _run_installer(
     repo_root: Path,
     trace_path: Path,
@@ -217,6 +296,7 @@ def _run_installer(
 ) -> subprocess.CompletedProcess[str]:
     if shutil.which("strace") is None:
         raise HomologationError("strace_missing")
+    _prepare_trace_path(trace_path)
     args = [
         "strace",
         "-f",
@@ -236,6 +316,67 @@ def _run_installer(
     if skip_packages:
         args.append("--skip-packages")
     return _run(args, timeout=timeout)
+
+
+def _diagnostic_executable(value: str) -> str:
+    name = Path(value).name
+    return name if name in DIAGNOSTIC_EXECUTABLES else "other"
+
+
+def _last_exec_diagnostic(trace_path: Path) -> str:
+    try:
+        last = "none"
+        for line in _read_trace(trace_path).splitlines():
+            match = EXECVE_RE.search(line)
+            if match:
+                decoded = ast.literal_eval(f'"{match.group("path")}"')
+                last = _diagnostic_executable(decoded)
+        return last
+    except (HomologationError, SyntaxError, ValueError):
+        return "unavailable"
+
+
+def installer_failure_diagnostic(
+    result: subprocess.CompletedProcess[str],
+    trace_path: Path,
+    expected_stdout: str,
+) -> dict[str, object]:
+    stderr = result.stderr or ""
+    failure_kind = "unexpected_process_contract"
+    failed_command = "none"
+    command_returncode: int | None = None
+    command_failure = re.search(
+        r"RuntimeError: command failed rc=(\d+): ([A-Za-z0-9._+-]+)",
+        stderr,
+    )
+    if command_failure:
+        failure_kind = "installer_command_failed"
+        command_returncode = int(command_failure.group(1))
+        failed_command = _diagnostic_executable(command_failure.group(2))
+    elif "RuntimeError: command timed out:" in stderr:
+        failure_kind = "installer_command_timeout"
+    elif "RuntimeError: command could not start:" in stderr:
+        failure_kind = "installer_command_start_failed"
+    elif "release ownership verification failed" in stderr:
+        failure_kind = "release_directory_ownership_rejected"
+    elif "PTRACE_O_EXITKILL is not supported" in stderr:
+        failure_kind = "tracer_exitkill_unsupported"
+    elif "strace:" in stderr:
+        failure_kind = "tracer_failed"
+    elif result.returncode == 0 and (result.stdout or "").strip() != expected_stdout:
+        failure_kind = "stdout_contract_mismatch"
+    elif result.returncode == 0 and stderr.strip():
+        failure_kind = "unexpected_stderr"
+
+    return {
+        "returncode": int(result.returncode),
+        "stdout_contract_match": (result.stdout or "").strip() == expected_stdout,
+        "stderr_empty": not stderr.strip(),
+        "failure_kind": failure_kind,
+        "failed_command": failed_command,
+        "command_returncode": command_returncode,
+        "last_exec": _last_exec_diagnostic(trace_path),
+    }
 
 
 def parse_psql_exec_argv(trace_text: str) -> list[list[str]]:
@@ -488,11 +629,26 @@ def homologate(
         "ready": False,
     }
     temp_root = Path(env.get("RUNNER_TEMP", tempfile.gettempdir())).resolve()
-    traces = [temp_root / f"todo22-installer-{name}.strace" for name in ("initial", "replay", "failure")]
+    trace_root: Path | None = None
+    traces: list[Path] = []
     candidate: Path | None = None
     logs: list[str] = []
     try:
         preflight(repo_root, expected_sha, env)
+        trace_root = Path(tempfile.mkdtemp(prefix="todo22-installer-audit-", dir=temp_root))
+        os.chmod(trace_root, 0o700)
+        trace_metadata = trace_root.stat(follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(trace_metadata.st_mode)
+            or trace_metadata.st_uid != os.geteuid()
+            or trace_metadata.st_gid != os.getegid()
+            or stat.S_IMODE(trace_metadata.st_mode) != 0o700
+        ):
+            raise HomologationError("trace_directory_invalid")
+        traces = [
+            trace_root / f"todo22-installer-{name}.strace"
+            for name in ("initial", "replay", "failure")
+        ]
         initial = _run_installer(repo_root, traces[0], skip_packages=False, timeout=900)
         logs.extend([initial.stdout, initial.stderr])
         expected_ready = f"TODO_GLOBAL_DEBIAN_READY=true release={expected_sha[:12]}"
@@ -501,6 +657,11 @@ def homologate(
             or initial.stdout.strip() != expected_ready
             or initial.stderr.strip()
         ):
+            evidence["initial_process_diagnostic"] = installer_failure_diagnostic(
+                initial,
+                traces[0],
+                expected_ready,
+            )
             raise HomologationError("initial_install_failed")
         release = BASE / "releases" / expected_sha[:12]
         if not release.is_dir() or not service_ready():
@@ -561,7 +722,7 @@ def homologate(
         if not candidate_release.is_dir() or not service_ready():
             raise HomologationError("previous_service_not_restored")
 
-        trace_texts = [path.read_text(encoding="utf-8", errors="replace") for path in traces]
+        trace_texts = [_read_trace(path) for path in traces]
         psql_exec_count = audit_psql_execs(trace_texts, secrets)
         assert_sensitive_values_absent([*trace_texts, *logs], secrets)
         evidence.update(
@@ -598,6 +759,11 @@ def homologate(
             try:
                 trace.unlink()
             except FileNotFoundError:
+                pass
+        if trace_root is not None:
+            try:
+                trace_root.rmdir()
+            except OSError:
                 pass
         write_evidence(evidence_path, evidence)
         print(json.dumps(evidence, sort_keys=True))

@@ -1,5 +1,7 @@
-import subprocess
+import json
 import signal
+import stat
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +15,7 @@ from scripts.todo_gateway_debian_installer_isolated_e2e import (
     assert_local_database_url,
     assert_sensitive_values_absent,
     audit_psql_execs,
+    installer_failure_diagnostic,
     parse_psql_exec_argv,
     validate_execution_context,
     _run_installer,
@@ -101,6 +104,61 @@ def test_strace_uses_a_distinct_output_file_without_alignment_argument(tmp_path:
     assert "-a" not in args
     assert "--kill-on-exit" in args
     assert args[args.index("-o") + 1] == (tmp_path / "install.strace").as_posix()
+    assert stat.S_IMODE((tmp_path / "install.strace").stat().st_mode) == 0o600
+
+
+def test_trace_path_must_be_new_and_cannot_be_a_symlink(tmp_path: Path):
+    existing = tmp_path / "existing.strace"
+    existing.write_text("preserve", encoding="utf-8")
+    existing.chmod(0o600)
+    symlink = tmp_path / "linked.strace"
+    symlink.symlink_to(existing)
+
+    with patch(
+        "scripts.todo_gateway_debian_installer_isolated_e2e.shutil.which",
+        return_value="/usr/bin/strace",
+    ):
+        for trace in (existing, symlink):
+            with pytest.raises(HomologationError, match="trace_path_invalid"):
+                _run_installer(
+                    Path("/checkout"),
+                    trace,
+                    skip_packages=True,
+                    timeout=300,
+                )
+    assert existing.read_text(encoding="utf-8") == "preserve"
+
+
+def test_failed_installer_diagnostic_is_allowlisted_and_never_echoes_output(
+    tmp_path: Path,
+):
+    secret = "synthetic-password-must-not-escape"
+    trace = tmp_path / "install.strace"
+    trace.write_text(_trace(["psql", *PSQL_ARGS]), encoding="utf-8")
+    trace.chmod(0o600)
+    result = subprocess.CompletedProcess(
+        ["strace"],
+        1,
+        stdout=f"unexpected {secret}",
+        stderr=(
+            "Traceback (most recent call last):\n"
+            "RuntimeError: command failed rc=100: apt-get\n"
+            f"hidden {secret}\n"
+        ),
+    )
+
+    diagnostic = installer_failure_diagnostic(result, trace, "expected-ready")
+
+    assert diagnostic == {
+        "returncode": 1,
+        "stdout_contract_match": False,
+        "stderr_empty": False,
+        "failure_kind": "installer_command_failed",
+        "failed_command": "apt-get",
+        "command_returncode": 100,
+        "last_exec": "psql",
+    }
+    assert secret not in json.dumps(diagnostic, sort_keys=True)
 
 
 def test_command_timeout_terminates_the_entire_process_group():
