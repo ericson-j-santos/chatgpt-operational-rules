@@ -2,6 +2,7 @@ import json
 import signal
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -277,3 +278,125 @@ def test_isolated_homologation_is_manual_hosted_and_reuses_canonical_installer()
         encoding="utf-8"
     )
     assert 'INSTALLER = Path("scripts/install_todo_gateway_debian_systemd.py")' in harness
+
+
+@pytest.mark.parametrize("stage", ["initial", "replay", "rollback"])
+def test_real_installer_journal_blocks_cleanup_claim_until_removed(tmp_path, monkeypatch, stage):
+    harness_relative = isolated_harness.ACTIVATION_JOURNAL.relative_to(isolated_harness.BASE)
+    monkeypatch.setattr(isolated_harness, "ACTIVATION_JOURNAL", tmp_path / harness_relative)
+    monkeypatch.setattr(canonical_installer, "BASE", tmp_path)
+    nonce = "b" * 32
+    candidate = tmp_path / "releases" / ("a" * 12)
+    previous = canonical_installer.CurrentSnapshot(False, None, None, None, None)
+    canonical_installer._write_activation_journal(candidate, previous, nonce)
+    journal = canonical_installer._activation_journal_path()
+    before_bytes = journal.read_bytes()
+    before_inode = journal.stat().st_ino
+
+    def require_residual_journal_rejection():
+        with pytest.raises(HomologationError, match="activation_journal_"):
+            isolated_harness.assert_activation_journal_absent(stage)
+
+    require_residual_journal_rejection()
+    require_residual_journal_rejection()
+    assert journal.read_bytes() == before_bytes
+    assert journal.stat().st_ino == before_inode
+
+    # Prove the regression assertion rejects the historical wrong-path implementation.
+    with monkeypatch.context() as mutant:
+        mutant.setattr(isolated_harness, "ACTIVATION_JOURNAL", tmp_path / ".activation-journal.json")
+        with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"):
+            require_residual_journal_rejection()
+    require_residual_journal_rejection()
+
+    canonical_installer._clear_activation_journal(nonce)
+    isolated_harness.assert_activation_journal_absent(stage)
+    isolated_harness.assert_activation_journal_absent(stage)
+    assert not journal.exists()
+    assert not journal.is_symlink()
+
+
+@pytest.mark.parametrize("residual_kind", ["broken_symlink", "directory"])
+def test_residual_journal_is_rejected_without_mutation(
+    tmp_path, monkeypatch, residual_kind
+):
+    stage = "rollback"
+    harness_relative = isolated_harness.ACTIVATION_JOURNAL.relative_to(isolated_harness.BASE)
+    monkeypatch.setattr(isolated_harness, "ACTIVATION_JOURNAL", tmp_path / harness_relative)
+    monkeypatch.setattr(canonical_installer, "BASE", tmp_path)
+    journal = canonical_installer._activation_journal_path()
+    target = tmp_path / "missing-target"
+    if residual_kind == "broken_symlink":
+        journal.symlink_to(target)
+        assert not journal.exists()
+    else:
+        journal.mkdir()
+    before = journal.lstat()
+
+    with pytest.raises(HomologationError, match="activation_journal_"):
+        isolated_harness.assert_activation_journal_absent(stage)
+
+    after = journal.lstat()
+    assert (after.st_dev, after.st_ino, after.st_mode) == (
+        before.st_dev, before.st_ino, before.st_mode
+    )
+    if residual_kind == "broken_symlink":
+        assert journal.is_symlink()
+        assert journal.readlink() == target
+        assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout_match", "stderr_present"),
+    [(7, False, True), (0, False, False), (0, True, True)],
+)
+def test_failed_initial_process_persists_false_receipt_without_raw_output(
+    tmp_path, monkeypatch, capsys, returncode, stdout_match, stderr_present
+):
+    # Real child-process I/O and receipt filesystem; the installer and VM are simulated.
+    secret = "synthetic-receipt-secret-must-not-escape"
+    expected_sha = "a" * 40
+    expected_stdout = f"TODO_GLOBAL_DEBIAN_READY=true release={expected_sha[:12]}"
+    stdout = expected_stdout if stdout_match else secret
+    stderr = f"unclassified failure {secret}" if stderr_present else ""
+    command = (
+        f"import sys; sys.stdout.write({stdout!r}); "
+        f"sys.stderr.write({stderr!r}); sys.exit({returncode})"
+    )
+    result = _run([sys.executable, "-c", command], timeout=10)
+    assert result.returncode == returncode
+    assert result.stdout == stdout
+    assert result.stderr == stderr
+    calls = []
+
+    def simulated_installer(repo_root, trace_path, *, skip_packages, timeout):
+        calls.append((repo_root, skip_packages, timeout))
+        trace_path.write_text(_trace(["psql", *PSQL_ARGS]), encoding="utf-8")
+        trace_path.chmod(0o600)
+        return result
+
+    monkeypatch.setattr(isolated_harness, "preflight", lambda *args: None)
+    monkeypatch.setattr(isolated_harness, "_run_installer", simulated_installer)
+    evidence_path = tmp_path / "evidence.json"
+    exit_code = isolated_harness.homologate(
+        tmp_path,
+        expected_sha,
+        "synthetic-process-contract",
+        evidence_path,
+        {**_env(), "RUNNER_TEMP": str(tmp_path)},
+    )
+
+    receipt_text = evidence_path.read_text(encoding="utf-8")
+    receipt = json.loads(receipt_text)
+    assert exit_code == 1
+    assert calls == [(tmp_path, False, 900)]
+    assert receipt["ready"] is False
+    assert receipt["error"] == "initial_install_failed"
+    diagnostic = receipt["initial_process_diagnostic"]
+    assert diagnostic["returncode"] == returncode
+    assert diagnostic["stdout_contract_match"] is stdout_match
+    assert diagnostic["stderr_empty"] is (not stderr_present)
+    assert "activation_journal_cleared" not in receipt
+    assert secret not in receipt_text
+    assert secret not in capsys.readouterr().out
+    assert list(tmp_path.glob("todo22-installer-audit-*")) == []

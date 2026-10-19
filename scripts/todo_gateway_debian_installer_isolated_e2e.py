@@ -703,6 +703,11 @@ def homologate(
             or replay.stdout.strip() != expected_ready
             or replay.stderr.strip()
         ):
+            evidence["replay_process_diagnostic"] = installer_failure_diagnostic(
+                replay,
+                traces[1],
+                expected_ready,
+            )
             raise HomologationError("replay_failed")
         after_replay = release_state(release)
         assert_replay_unchanged(before_replay, after_replay)
@@ -721,6 +726,11 @@ def homologate(
             or failure.stdout.strip() != expected_failure
             or failure.stderr.strip()
         ):
+            evidence["readiness_control_process_diagnostic"] = installer_failure_diagnostic(
+                failure,
+                traces[2],
+                expected_failure,
+            )
             raise HomologationError("readiness_control_not_detected")
         if release_state(release)["release_fingerprint"] != before_replay["release_fingerprint"]:
             raise HomologationError("previous_release_mutated_after_failure")
