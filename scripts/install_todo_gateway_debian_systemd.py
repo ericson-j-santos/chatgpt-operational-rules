@@ -812,6 +812,54 @@ def recover_pending_activation(
 
 
 @contextmanager
+def _release_transaction_under_install_lock(
+    repo_root: Path,
+    *,
+    restore_hook: Callable[[bool], None] | None = None,
+) -> Iterator[ReleaseDeployment]:
+    revision = git_revision(repo_root)
+    if not RELEASE_ID.fullmatch(revision):
+        raise RuntimeError("release revision invalid")
+    initial_current = _current_snapshot()
+    _validate_active_release(initial_current)
+    _recover_owned_staging()
+    release = _prepare_release(repo_root, revision, initial_current)
+    _assert_current_unchanged(initial_current)
+    release_path = _absolute_lexical(release).as_posix()
+    should_activate = initial_current.normalized_target != release_path
+    journal_nonce: str | None = None
+    entered = False
+    try:
+        if should_activate:
+            _validate_ready_release(release, revision)
+            journal_nonce = secrets.token_hex(16)
+            _write_activation_journal(release, initial_current, journal_nonce)
+            _replace_current(release.as_posix(), initial_current)
+        entered = True
+        yield ReleaseDeployment(release, initial_current, should_activate)
+        if journal_nonce is not None:
+            _clear_activation_journal(journal_nonce)
+    except BaseException:
+        if should_activate:
+            try:
+                observed = _current_snapshot()
+                if observed != initial_current:
+                    if observed.normalized_target != release_path:
+                        raise RuntimeError("concurrent current update detected")
+                    _replace_current(
+                        initial_current.raw_target if initial_current.exists else None,
+                        observed,
+                    )
+                if entered and restore_hook is not None:
+                    restore_hook(initial_current.exists)
+                if journal_nonce is not None:
+                    _clear_activation_journal(journal_nonce)
+            except Exception as exc:
+                raise RuntimeError("release rollback failed") from exc
+        raise
+
+
+@contextmanager
 def release_transaction(
     repo_root: Path,
     *,
@@ -819,46 +867,11 @@ def release_transaction(
 ) -> Iterator[ReleaseDeployment]:
     with _installation_lock():
         _recover_pending_activation(restore_hook)
-        revision = git_revision(repo_root)
-        if not RELEASE_ID.fullmatch(revision):
-            raise RuntimeError("release revision invalid")
-        initial_current = _current_snapshot()
-        _validate_active_release(initial_current)
-        _recover_owned_staging()
-        release = _prepare_release(repo_root, revision, initial_current)
-        _assert_current_unchanged(initial_current)
-        release_path = _absolute_lexical(release).as_posix()
-        should_activate = initial_current.normalized_target != release_path
-        journal_nonce: str | None = None
-        entered = False
-        try:
-            if should_activate:
-                _validate_ready_release(release, revision)
-                journal_nonce = secrets.token_hex(16)
-                _write_activation_journal(release, initial_current, journal_nonce)
-                _replace_current(release.as_posix(), initial_current)
-            entered = True
-            yield ReleaseDeployment(release, initial_current, should_activate)
-            if journal_nonce is not None:
-                _clear_activation_journal(journal_nonce)
-        except BaseException:
-            if should_activate:
-                try:
-                    observed = _current_snapshot()
-                    if observed != initial_current:
-                        if observed.normalized_target != release_path:
-                            raise RuntimeError("concurrent current update detected")
-                        _replace_current(
-                            initial_current.raw_target if initial_current.exists else None,
-                            observed,
-                        )
-                    if entered and restore_hook is not None:
-                        restore_hook(initial_current.exists)
-                    if journal_nonce is not None:
-                        _clear_activation_journal(journal_nonce)
-                except Exception as exc:
-                    raise RuntimeError("release rollback failed") from exc
-            raise
+        with _release_transaction_under_install_lock(
+            repo_root,
+            restore_hook=restore_hook,
+        ) as deployment:
+            yield deployment
 
 
 def install_release(repo_root: Path) -> Path:
@@ -914,23 +927,24 @@ def main() -> int:
         run(["systemctl", command, "todo-global-gateway.service"])
 
     require_root()
-    recover_pending_activation(restore_previous_service)
-    if not args.skip_packages:
-        install_packages()
-    ensure_service_user()
-    password, _ = ensure_runtime_env()
-    ensure_postgres(password)
     deployment: ReleaseDeployment | None = None
 
     try:
-        with release_transaction(
-            repo_root,
-            restore_hook=restore_previous_service,
-        ) as deployment:
-            install_unit()
-            run(["systemctl", "restart", "todo-global-gateway.service"])
-            if not smoke():
-                raise _ReadinessFailed("gateway readiness check failed")
+        with _installation_lock():
+            _recover_pending_activation(restore_previous_service)
+            if not args.skip_packages:
+                install_packages()
+            ensure_service_user()
+            password, _ = ensure_runtime_env()
+            ensure_postgres(password)
+            with _release_transaction_under_install_lock(
+                repo_root,
+                restore_hook=restore_previous_service,
+            ) as deployment:
+                install_unit()
+                run(["systemctl", "restart", "todo-global-gateway.service"])
+                if not smoke():
+                    raise _ReadinessFailed("gateway readiness check failed")
     except BaseException as failure:
         if isinstance(failure, _ReadinessFailed):
             assert deployment is not None

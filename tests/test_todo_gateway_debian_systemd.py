@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -451,6 +452,41 @@ def test_active_release_replay_is_exact_noop(tmp_path, monkeypatch):
     assert len(calls) == call_count
 
 
+def test_main_replay_preserves_release_current_and_sentinel(
+    tmp_path, monkeypatch
+):
+    module = _module()
+    base, repo, _, calls, _ = _release_fixture(module, tmp_path, monkeypatch)
+    release = module.install_release(repo)
+    sentinel = release / "operator-sentinel.txt"
+    sentinel.write_text("preserve-me", encoding="utf-8")
+    before_tree = _tree_snapshot(release)
+    before_current = (base / "current").lstat()
+
+    monkeypatch.setattr(module, "require_root", lambda: None)
+    monkeypatch.setattr(module, "ensure_service_user", lambda: None)
+    monkeypatch.setattr(module, "ensure_runtime_env", lambda: ("unused", "unused"))
+    monkeypatch.setattr(module, "ensure_postgres", lambda _password: None)
+    monkeypatch.setattr(module, "install_unit", lambda: None)
+    monkeypatch.setattr(module, "smoke", lambda: True)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["installer", "--repo-root", str(repo), "--skip-packages"],
+    )
+
+    assert module.main() == 0
+    after_current = (base / "current").lstat()
+    assert _current_target(base) == release.absolute()
+    assert before_current.st_dev == after_current.st_dev
+    assert before_current.st_ino == after_current.st_ino
+    assert _tree_snapshot(release) == before_tree
+    assert sentinel.read_text(encoding="utf-8") == "preserve-me"
+    assert [args for args, _kwargs in calls if args[:2] == ["systemctl", "restart"]] == [
+        ["systemctl", "restart", "todo-global-gateway.service"]
+    ]
+
+
 def test_markerless_legacy_active_release_replay_is_noop(tmp_path, monkeypatch):
     module = _module()
     base, repo, _, calls, _ = _release_fixture(module, tmp_path, monkeypatch)
@@ -673,23 +709,28 @@ def test_post_replace_failure_rolls_back_current(tmp_path, monkeypatch):
     sentinel = previous / "operator-sentinel.txt"
     sentinel.write_text("preserve-me", encoding="utf-8")
     revision_ref["value"] = "6" * 12
+    candidate = base / "releases" / revision_ref["value"]
     durable_sync = module._fsync_directory
     base_syncs = 0
+    observed_at_failure = []
 
-    def fail_first_base_sync(path):
+    def fail_post_replace_base_sync(path):
         nonlocal base_syncs
         if path == base:
             base_syncs += 1
-            if base_syncs == 1:
+            if base_syncs == 2:
+                observed_at_failure.append(_current_target(base))
                 raise OSError("injected durable activation failure")
         durable_sync(path)
 
-    monkeypatch.setattr(module, "_fsync_directory", fail_first_base_sync)
+    monkeypatch.setattr(module, "_fsync_directory", fail_post_replace_base_sync)
     with pytest.raises(OSError, match="injected durable activation failure"):
         module.install_release(repo)
-    assert base_syncs == 2
+    assert observed_at_failure == [candidate.absolute()]
+    assert base_syncs == 4
     assert _current_target(base) == previous.absolute()
     assert sentinel.read_text(encoding="utf-8") == "preserve-me"
+    assert not (base / module.ACTIVATION_JOURNAL_NAME).exists()
 
 
 def test_pending_activation_journal_recovers_previous_after_crash(tmp_path, monkeypatch):
@@ -791,6 +832,69 @@ def test_concurrent_installer_lock_is_bounded_and_preserves_current(tmp_path, mo
     assert _current_target(base) == previous.absolute()
     assert sentinel.read_text(encoding="utf-8") == "preserve-me"
     assert not (base / "releases" / revision_ref["value"]).exists()
+
+
+def test_main_serializes_prerequisites_under_the_install_lock(tmp_path, monkeypatch):
+    module = _module()
+    base, repo, _, _, _ = _release_fixture(module, tmp_path, monkeypatch)
+    previous = module.install_release(repo)
+    sentinel = previous / "operator-sentinel.txt"
+    sentinel.write_text("preserve-me", encoding="utf-8")
+    monkeypatch.setattr(module, "INSTALL_LOCK_TIMEOUT_SECONDS", 0.15)
+    monkeypatch.setattr(module, "INSTALL_LOCK_POLL_SECONDS", 0.01)
+    monkeypatch.setattr(module, "require_root", lambda: None)
+    package_entered = threading.Event()
+    release_packages = threading.Event()
+    mutators = []
+
+    def install_packages():
+        mutators.append("packages")
+        if len([name for name in mutators if name == "packages"]) == 1:
+            package_entered.set()
+            assert release_packages.wait(timeout=5)
+
+    monkeypatch.setattr(module, "install_packages", install_packages)
+    monkeypatch.setattr(module, "ensure_service_user", lambda: mutators.append("user"))
+
+    def ensure_runtime_env():
+        mutators.append("env")
+        return "unused", "unused"
+
+    monkeypatch.setattr(module, "ensure_runtime_env", ensure_runtime_env)
+    monkeypatch.setattr(module, "ensure_postgres", lambda _password: mutators.append("postgres"))
+    monkeypatch.setattr(module, "install_unit", lambda: mutators.append("unit"))
+
+    def smoke():
+        mutators.append("smoke")
+        return True
+
+    monkeypatch.setattr(module, "smoke", smoke)
+    monkeypatch.setattr(sys, "argv", ["installer", "--repo-root", str(repo)])
+    first_result = []
+    first_error = []
+
+    def first_main():
+        try:
+            first_result.append(module.main())
+        except BaseException as exc:
+            first_error.append(exc)
+
+    first = threading.Thread(target=first_main, daemon=True)
+    first.start()
+    assert package_entered.wait(timeout=2)
+    try:
+        with pytest.raises(RuntimeError, match="concurrent release installation"):
+            module.main()
+    finally:
+        release_packages.set()
+        first.join(timeout=5)
+
+    assert not first.is_alive()
+    assert first_error == []
+    assert first_result == [0]
+    assert mutators == ["packages", "user", "env", "postgres", "unit", "smoke"]
+    assert _current_target(base) == previous.absolute()
+    assert sentinel.read_text(encoding="utf-8") == "preserve-me"
 
 
 def test_readiness_failure_rolls_back_current(tmp_path, monkeypatch):
