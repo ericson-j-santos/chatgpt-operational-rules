@@ -383,6 +383,16 @@ class SQLiteTodoSink:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS todo_sink_event_receipts (
+                    event_id TEXT PRIMARY KEY,
+                    idempotency_key TEXT NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    applied_at REAL NOT NULL
+                )
+                """
+            )
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=30, isolation_level=None)
@@ -390,12 +400,56 @@ class SQLiteTodoSink:
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
+    @staticmethod
+    def _record_receipt(
+        conn: sqlite3.Connection, event_id: str, key: str, digest: str, applied_at: float
+    ) -> bool:
+        """Called only inside the same write transaction as the logical TODO."""
+        previous = conn.execute(
+            "SELECT idempotency_key,payload_sha256 FROM todo_sink_event_receipts WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+        if previous is not None:
+            if previous["idempotency_key"] != key or previous["payload_sha256"] != digest:
+                raise ValueError("event_id conflict")
+            return False
+        conn.execute(
+            "INSERT INTO todo_sink_event_receipts VALUES(?,?,?,?)",
+            (event_id, key, digest, applied_at),
+        )
+        return True
+
     def upsert(self, event: TodoEvent) -> str:
         validate_event_dict(event.to_dict())
         todo = event.todo
         now = utc_now_ts()
         payload = json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        with self._connect() as conn:
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            # Recording the event and updating the TODO are atomic. A worker may
+            # die after this commit but before queue.ack; replay must be a no-op.
+            if not self._record_receipt(conn, event.event_id, event.idempotency_key, digest, now):
+                conn.commit()
+                return event.idempotency_key
+            legacy = conn.execute(
+                "SELECT last_event_id,payload_json,updated_at FROM todos WHERE idempotency_key=?",
+                (event.idempotency_key,),
+            ).fetchone()
+            if legacy is not None:
+                previous = TodoEvent.from_dict(json.loads(legacy["payload_json"]))
+                if previous.event_id != legacy["last_event_id"] or previous.idempotency_key != event.idempotency_key:
+                    raise ValueError("legacy TODO identity mismatch")
+                prior_payload = json.dumps(previous.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                prior_digest = hashlib.sha256(prior_payload.encode("utf-8")).hexdigest()
+                # Preserve the last observable pre-migration event; older events
+                # absent from legacy storage cannot be reconstructed or replayed.
+                self._record_receipt(conn, previous.event_id, previous.idempotency_key,
+                                     prior_digest, float(legacy["updated_at"]))
+                if previous.event_id == event.event_id:
+                    conn.commit()
+                    return event.idempotency_key
             conn.execute(
                 """
                 INSERT INTO todos(
@@ -430,6 +484,13 @@ class SQLiteTodoSink:
                     now,
                 ),
             )
+            conn.commit()
+        except BaseException:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        finally:
+            conn.close()
         return event.idempotency_key
 
     def get(self, idempotency_key: str) -> dict[str, Any] | None:
