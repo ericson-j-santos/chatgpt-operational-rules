@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -13,6 +14,10 @@ import socket
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
+
+# The launcher must not create import caches before a session is authorized.
+sys.dont_write_bytecode = True
 
 # Windows embeddable Python can run with pythonXY._pth isolation, which omits
 # the script directory from sys.path. Bootstrap sibling imports explicitly so
@@ -33,6 +38,10 @@ HEAD_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 SYNC_REF_RE = re.compile(
     r"^(?P<remote>[A-Za-z0-9][A-Za-z0-9._-]*)/(?P<branch>[A-Za-z0-9][A-Za-z0-9._/-]*)$"
 )
+
+PhaseCallback = Callable[[str], None]
+DIAGNOSTIC_ENV_KEYS = ("LOCALAPPDATA", "USERPROFILE")
+DIAGNOSTIC_IDENTIFIER_LIMIT = 256
 
 
 def parse_version(value: str) -> tuple[int, int, int]:
@@ -72,6 +81,183 @@ def enforce_runner_version_preflight() -> dict:
             EXIT_SESSION_LAUNCHER,
         )
     return evidence
+
+
+def _set_phase(callback: PhaseCallback | None, phase: str) -> None:
+    if callback is not None:
+        callback(phase)
+
+
+def _diagnostic_text(value: object) -> str:
+    return cg.redact(str(value))
+
+
+def _diagnostic_identifier(value: object, field: str) -> str:
+    raw = str(value or "")
+    if (
+        not raw
+        or len(raw) > DIAGNOSTIC_IDENTIFIER_LIMIT
+        or any(ord(character) < 32 or ord(character) == 127 for character in raw)
+    ):
+        raise cg.GatewayError(
+            f"{field} inválido para diagnóstico",
+            EXIT_SESSION_LAUNCHER,
+        )
+    return _diagnostic_text(raw)
+
+
+def _stable_file_bytes(path: Path, label: str) -> bytes:
+    before = path.stat()
+    content = path.read_bytes()
+    after = path.stat()
+    before_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+    after_identity = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+    if before_identity != after_identity or len(content) != after.st_size:
+        raise cg.GatewayError(
+            f"{label} mudou durante o diagnóstico",
+            EXIT_SESSION_LAUNCHER,
+        )
+    return content
+
+
+def _load_diagnostic_policy(path: Path) -> tuple[dict, str]:
+    raw = _stable_file_bytes(path, "policy")
+    try:
+        policy = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise cg.GatewayError(
+            "policy inválida para diagnóstico",
+            EXIT_SESSION_LAUNCHER,
+        ) from exc
+    if not isinstance(policy, dict):
+        raise cg.GatewayError(
+            "policy deve ser objeto para diagnóstico",
+            EXIT_SESSION_LAUNCHER,
+        )
+    version = policy.get("version")
+    if type(version) is not int or version != 1:
+        raise cg.GatewayError(
+            "versão de policy não suportada",
+            EXIT_SESSION_LAUNCHER,
+        )
+    for key in ("session_source_roots", "allowed_roots", "denied_roots"):
+        configured = policy.get(key)
+        if not isinstance(configured, list):
+            raise cg.GatewayError(
+                f"{key} deve ser lista para diagnóstico",
+                EXIT_SESSION_LAUNCHER,
+            )
+        for index, entry in enumerate(configured):
+            if not isinstance(entry, str) or not entry.strip():
+                raise cg.GatewayError(
+                    f"{key}[{index}] deve ser string não vazia para diagnóstico",
+                    EXIT_SESSION_LAUNCHER,
+                )
+    return policy, hashlib.sha256(raw).hexdigest()
+
+
+def _python_started_without_bytecode() -> bool:
+    return bool(sys.flags.dont_write_bytecode)
+
+
+def _file_identity(name: str, path: Path) -> dict[str, object]:
+    raw = _stable_file_bytes(path, f"módulo {name}")
+    return {
+        "name": name,
+        "path": _diagnostic_text(cg.norm(path)),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "hash_scope": "stable_on_disk_snapshot_after_import",
+        "loaded_bytes_attested": False,
+    }
+
+
+def diagnose(
+    repo: Path,
+    policy_path: Path,
+    *,
+    correlation_id: str = "diagnostic",
+    phase_callback: PhaseCallback | None = None,
+) -> dict:
+    """Report launcher identity and path comparisons without executing bootstrap."""
+    _set_phase(phase_callback, "diagnostic_load_policy")
+    policy, policy_sha256 = _load_diagnostic_policy(policy_path)
+    rules_version = ensure_min_version(policy)
+    _set_phase(phase_callback, "diagnostic_hash_inputs")
+    modules = [
+        _file_identity("session_launcher", Path(__file__)),
+        _file_identity("command_gateway", Path(cg.__file__)),
+        _file_identity("session_bootstrap", Path(sb.__file__)),
+        _file_identity("session_preflight", Path(sp.__file__)),
+        _file_identity("runner_version_preflight", Path(rvp.__file__)),
+    ]
+    repo_norm = cg.norm(repo)
+
+    _set_phase(phase_callback, "diagnostic_compare_paths")
+    comparisons: dict[str, list[dict[str, object]]] = {}
+    for key in ("session_source_roots", "allowed_roots", "denied_roots"):
+        configured = policy.get(key, [])
+        if not isinstance(configured, list):
+            raise cg.GatewayError(
+                f"{key} deve ser lista para diagnóstico",
+                EXIT_SESSION_LAUNCHER,
+            )
+        items: list[dict[str, object]] = []
+        for raw in configured:
+            value = str(raw or "")
+            normalized = cg.norm(value)
+            items.append(
+                {
+                    "configured": _diagnostic_text(value),
+                    "expanded": _diagnostic_text(cg.expand_path(value)),
+                    "normalized": _diagnostic_text(normalized),
+                    "exact_match": repo_norm == normalized,
+                    "pattern_match": cg.pattern_match(repo_norm, value),
+                }
+            )
+        comparisons[key] = items
+
+    environment = {
+        key: None if os.environ.get(key) is None else _diagnostic_text(os.environ[key])
+        for key in DIAGNOSTIC_ENV_KEYS
+    }
+    source_exact = any(
+        item["exact_match"] for item in comparisons["session_source_roots"]
+    )
+    _set_phase(phase_callback, "diagnostic_complete")
+    return {
+        "timestamp": cg.utc_now(),
+        "correlation_id": _diagnostic_identifier(correlation_id, "correlation_id"),
+        "action": "session_launcher_diagnose",
+        "result": "DIAGNOSTIC_OK",
+        "phase": "diagnostic_complete",
+        "execution_authorized": False,
+        "state_validated": False,
+        "launch_invoked": False,
+        "policy": {
+            "path": _diagnostic_text(policy_path),
+            "normalized": _diagnostic_text(cg.norm(policy_path)),
+            "sha256": policy_sha256,
+            "rules_version": _diagnostic_text(rules_version),
+            "hash_attests_parsed_bytes": True,
+        },
+        "modules": modules,
+        "module_hash_limit": (
+            "Hashes attest stable on-disk snapshots after import; "
+            "already loaded module bytes are not attested."
+        ),
+        "cwd": {
+            "value": _diagnostic_text(Path.cwd()),
+            "normalized": _diagnostic_text(cg.norm(Path.cwd())),
+        },
+        "repo": {
+            "value": _diagnostic_text(repo),
+            "normalized": _diagnostic_text(repo_norm),
+        },
+        "environment": environment,
+        "comparisons": comparisons,
+        "session_source_exact_match": source_exact,
+    }
+
 
 def slug(value: str, limit: int) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_-]+", "-", value).strip("-_").lower()
@@ -479,17 +665,24 @@ def launch(
     expected_head: str | None,
     sync_ref: str | None = None,
     require_runner_version_preflight: bool = False,
+    phase_callback: PhaseCallback | None = None,
 ) -> dict:
+    _set_phase(phase_callback, "load_policy")
     policy = cg.load_policy(policy_path)
+    _set_phase(phase_callback, "validate_rules_version")
     rules_version = ensure_min_version(policy)
+    _set_phase(phase_callback, "runner_version_preflight")
     runner_version_preflight = (
         enforce_runner_version_preflight()
         if require_runner_version_preflight
         else None
     )
+    _set_phase(phase_callback, "validate_session_source")
     source_only = validate_session_source(repo, policy)
+    _set_phase(phase_callback, "read_git_state")
     state = cg.git_state(repo, True, policy)
     assert state is not None
+    _set_phase(phase_callback, "validate_arguments")
     expected = validate_expected_head(expected_head)
     validated_sync_ref = validate_sync_ref(sync_ref)
     if validated_sync_ref and expected is None:
@@ -503,6 +696,7 @@ def launch(
             EXIT_SESSION_LAUNCHER,
         )
 
+    _set_phase(phase_callback, "resolve_session")
     resolved_session = (
         sb.validate_session_id(session_id)
         if session_id
@@ -512,6 +706,7 @@ def launch(
     session_repo = repo
     base_sync = "not_needed"
     if expected and sync_ref is not None:
+        _set_phase(phase_callback, "synchronize_base")
         state, session_repo, base_sync = sync_expected_head(
             repo=repo,
             policy=policy,
@@ -526,6 +721,7 @@ def launch(
             cg.EXIT_STATE_CHANGED,
         )
 
+    _set_phase(phase_callback, "session_preflight")
     sink = io.StringIO()
     with contextlib.redirect_stdout(sink):
         preflight = sp.preflight(
@@ -554,7 +750,9 @@ def launch(
         "sync_ref": sync_ref,
         "runner_version_preflight": runner_version_preflight,
     }
+    _set_phase(phase_callback, "append_event")
     cg.append_event(policy, result)
+    _set_phase(phase_callback, "completed")
     cg.emit_json(result)
     return result
 
@@ -568,6 +766,11 @@ def main() -> int:
     parser.add_argument("--correlation-id")
     parser.add_argument("--expected-head")
     parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Emite diagnóstico read-only e encerra antes do launch/preflight.",
+    )
+    parser.add_argument(
         "--require-runner-version-preflight",
         action="store_true",
         help="Valida a versão do self-hosted runner dentro do bootstrap governado.",
@@ -578,7 +781,48 @@ def main() -> int:
     )
     ns = parser.parse_args()
     correlation_id = ns.correlation_id or f"launcher-{os.getpid()}"
+    phase = {"value": "arguments_parsed"}
+
+    def set_phase(value: str) -> None:
+        phase["value"] = value
+
     try:
+        if ns.diagnose:
+            set_phase("diagnostic_validate_runtime")
+            if not _python_started_without_bytecode():
+                raise cg.GatewayError(
+                    "diagnose exige inicialização do Python com -B para impedir "
+                    "cache antes da execução do script",
+                    EXIT_SESSION_LAUNCHER,
+                )
+            set_phase("diagnostic_validate_arguments")
+            incompatible = [
+                option
+                for option, present in (
+                    ("--session-id", ns.session_id is not None),
+                    ("--session-prefix", ns.session_prefix is not None),
+                    ("--expected-head", ns.expected_head is not None),
+                    ("--sync-ref", ns.sync_ref is not None),
+                    (
+                        "--require-runner-version-preflight",
+                        ns.require_runner_version_preflight,
+                    ),
+                )
+                if present
+            ]
+            if incompatible:
+                raise cg.GatewayError(
+                    "diagnose não aceita argumentos de execução: " + ", ".join(incompatible),
+                    EXIT_SESSION_LAUNCHER,
+                )
+            payload = diagnose(
+                repo=ns.repo,
+                policy_path=ns.policy,
+                correlation_id=correlation_id,
+                phase_callback=set_phase,
+            )
+            cg.emit_json(payload)
+            return 0
         launch(
             repo=ns.repo,
             policy_path=ns.policy,
@@ -588,6 +832,7 @@ def main() -> int:
             expected_head=ns.expected_head,
             sync_ref=ns.sync_ref,
             require_runner_version_preflight=ns.require_runner_version_preflight,
+            phase_callback=set_phase,
         )
         return 0
     except (cg.GatewayError, json.JSONDecodeError, OSError) as exc:
@@ -595,11 +840,12 @@ def main() -> int:
         cg.emit_json(
             {
                 "timestamp": cg.utc_now(),
-                "correlation_id": correlation_id,
+                "correlation_id": _diagnostic_text(correlation_id),
                 "action": "session_launcher",
                 "result": "SESSION_LAUNCH_BLOCKED",
                 "gateway_exit_code": code,
                 "error": cg.redact(str(exc)),
+                "phase": phase["value"],
             },
             file=sys.stderr,
         )

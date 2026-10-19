@@ -92,6 +92,16 @@ Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O pref
 - Após `SESSION_LAUNCH_OK`, toda execução técnica continua passando pelo Command Gateway e usando o worktree retornado.
 - `SESSION_LAUNCH_BLOCKED` é fail-closed e não autoriza fallback para terminal direto.
 
+### Diagnóstico read-only do launcher
+
+- `session_launcher.py --diagnose` deve ser iniciado como `python -B ...`; `sys.dont_write_bytecode` definido dentro do script não cobre `sitecustomize` ou imports executados antes do script. Sem `-B`, o diagnóstico falha fechado antes de ler policy ou repositório.
+- Com `-B`, o diagnóstico encerra antes de `launch`, Git, preflight e persistência de eventos; não cria sessão, reserva, snapshot, worktree nem cache de bytecode pelo launcher.
+- A policy é lida uma vez: o mesmo buffer estável é analisado e hasheado. Alteração concorrente detectada durante a leitura falha fechado.
+- A saída `DIAGNOSTIC_OK` contém somente identidade e SHA-256 da policy e snapshots estáveis em disco dos módulos, `cwd`, `LOCALAPPDATA`, `USERPROFILE` e comparações de caminho normalizadas. Hash de módulo é coletado depois do import e não atesta os bytes já carregados; esse limite aparece explicitamente na saída.
+- `rules_version`, `correlation_id`, caminhos e ambiente são validados ou redigidos antes da emissão; marcadores sensíveis não podem aparecer em claro.
+- Diagnóstico sempre declara `execution_authorized=false`, `state_validated=false` e `launch_invoked=false`; nunca equivale a `SESSION_LAUNCH_OK` nem autoriza comandos subsequentes.
+- `--diagnose` não pode ser combinado com `--session-id`, `--session-prefix`, `--expected-head`, `--sync-ref` ou `--require-runner-version-preflight`; combinações ambíguas falham antes de qualquer leitura operacional do repositório alvo.
+
 ## Preflight de versão do self-hosted runner
 
 - Canários físicos que dependem de GitHub Actions self-hosted runner devem usar `session_launcher.py --require-runner-version-preflight` no bootstrap governado.
