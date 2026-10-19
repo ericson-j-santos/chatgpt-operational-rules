@@ -116,7 +116,7 @@ jobs:
       - name: Run native Debian installer contract tests
         run: |
           python -m pip install --disable-pip-version-check pytest==8.3.5
-          python -m pytest -q tests/test_todo_gateway_debian_systemd.py
+          python -m pytest -q tests/test_todo_gateway_debian_systemd.py tests/test_todo_sqlite_sink_replay.py
       - name: Run TODO Gateway service-main tests
         run: python -m unittest -v tests/test_todo_gateway_service_main.py
       - name: Run legacy Render contingency tests
