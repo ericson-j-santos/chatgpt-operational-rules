@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-17T21:09:12.085294+00:00",
+  "generated_at": "2026-10-19T17:06:46.188217+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "f6d837ddffe8d507086e016c935988f37186ca42e1751e2314f8b0ac470fd562",
-      "size": 6854
+      "sha256": "0893fe8a0b259abb9c43a3e3036bc463ceb87db1628ae8266104afd64a774278",
+      "size": 6892
     },
     {
       "path": ".gitignore",
@@ -549,8 +549,8 @@
     },
     {
       "path": "scripts/todo_event_bus.py",
-      "sha256": "f53d07d815dbfaa4cb10a92804c2dfeb3fc675c611df71bc3d8c9f72a0ed363b",
-      "size": 17603
+      "sha256": "ebc8a8a980f337d6ec7f28a07481b9ecae463e0990ccba451096cb91598d81da",
+      "size": 20573
     },
     {
       "path": "scripts/todo_event_bus_e2e.py",
@@ -951,6 +951,11 @@
       "path": "tests/test_todo_gateway_windows_s4u.py",
       "sha256": "a544a918395fae0b024a2480c40164a3b881b184d16a0043bf018f23adf9f9a1",
       "size": 3858
+    },
+    {
+      "path": "tests/test_todo_sqlite_sink_replay.py",
+      "sha256": "a57e89ff46abb071673687d0baadccf92693778cd7d08f525863fbe8fad906d5",
+      "size": 6783
     },
     {
       "path": "tests/test_tool_router.py",
