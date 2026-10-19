@@ -2,16 +2,26 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
+import fcntl
+import grp
 import hashlib
 import json
 import os
+import pwd
 import re
 import secrets
+import signal
 import shutil
+import stat
 import subprocess
 import sys
 import time
+from collections import namedtuple
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Callable, Iterator
 from urllib.parse import quote
 
 
@@ -116,12 +126,63 @@ BASE = Path("/opt/todo-global")
 CONFIG_DIR = Path("/etc/todo-global")
 ENV_FILE = CONFIG_DIR / "runtime.env"
 UNIT_FILE = Path("/etc/systemd/system/todo-global-gateway.service")
+COMMAND_TIMEOUT_SECONDS = 900
+PSQL_TIMEOUT_SECONDS = 30
+PROCESS_TERMINATE_GRACE_SECONDS = 5
+INSTALL_LOCK_TIMEOUT_SECONDS = 30.0
+INSTALL_LOCK_POLL_SECONDS = 0.05
+RELEASE_MARKER_NAME = ".todo-release.json"
+RELEASE_MARKER_OWNER = "todo-global-debian-systemd"
+ACTIVATION_JOURNAL_NAME = ".todo-activation.json"
+RELEASE_ID = re.compile(r"^(?:[0-9a-f]{12}|manual-[0-9]{14})$")
 
 
-def run(args: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, check=False)
+def run(
+    args: list[str],
+    *,
+    cwd: Path | None = None,
+    check: bool = True,
+    input_text: str | None = None,
+    timeout: float = COMMAND_TIMEOUT_SECONDS,
+) -> subprocess.CompletedProcess[str]:
+    command_name = Path(args[0]).name if args else "unknown"
+    try:
+        process = subprocess.Popen(
+            args,
+            cwd=cwd,
+            text=True,
+            stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+        stdout, stderr = process.communicate(input=input_text, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = process.communicate(timeout=PROCESS_TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = process.communicate()
+        else:
+            try:
+                os.killpg(process.pid, 0)
+            except ProcessLookupError:
+                pass
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+        raise RuntimeError(f"command timed out: {command_name}") from None
+    except OSError:
+        raise RuntimeError(f"command could not start: {command_name}") from None
+    result = subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
     if check and result.returncode != 0:
-        raise RuntimeError(f"command failed rc={result.returncode}: {args[0]}")
+        raise RuntimeError(f"command failed rc={result.returncode}: {command_name}")
     return result
 
 
@@ -184,7 +245,16 @@ def ensure_runtime_env() -> tuple[str, str]:
 
 
 def postgres_scalar(sql: str) -> str:
-    result = run(["runuser", "-u", "postgres", "--", "psql", "-Atqc", sql, "postgres"])
+    sql_input = sql if sql.endswith("\n") else sql + "\n"
+    result = run(
+        [
+            "runuser", "-u", "postgres", "--", "psql",
+            "--no-psqlrc", "--no-password", "--set=ON_ERROR_STOP=1",
+            "--tuples-only", "--no-align", "--quiet", "--dbname=postgres",
+        ],
+        input_text=sql_input,
+        timeout=PSQL_TIMEOUT_SECONDS,
+    )
     return result.stdout.strip()
 
 
@@ -208,29 +278,592 @@ def git_revision(repo_root: Path) -> str:
     return time.strftime("manual-%Y%m%d%H%M%S", time.gmtime())
 
 
-def install_release(repo_root: Path) -> Path:
-    release = BASE / "releases" / git_revision(repo_root)
-    if release.exists():
-        shutil.rmtree(release)
-    release.mkdir(parents=True, exist_ok=True)
-    for name in ("services", "scripts", "sql"):
-        shutil.copytree(repo_root / name, release / name)
-    shutil.copy2(repo_root / "services" / "todo_gateway" / "requirements.txt", release / "requirements.txt")
-    run(["python3", "-m", "venv", (release / ".venv").as_posix()])
-    run([(release / ".venv/bin/python").as_posix(), "-m", "pip", "install", "--no-cache-dir", "-r", (release / "requirements.txt").as_posix()])
-    shutil.chown(release, user=APP_USER, group=APP_GROUP)
-    for root, dirs, files in os.walk(release):
-        for name in dirs:
-            shutil.chown(Path(root) / name, user=APP_USER, group=APP_GROUP)
-        for name in files:
-            shutil.chown(Path(root) / name, user=APP_USER, group=APP_GROUP)
+CurrentSnapshot = namedtuple(
+    "CurrentSnapshot",
+    ("exists", "raw_target", "normalized_target", "device", "inode"),
+)
+ReleaseDeployment = namedtuple(
+    "ReleaseDeployment",
+    ("release", "previous", "activated"),
+)
+
+
+def _lexists(path: Path) -> bool:
+    return os.path.lexists(path)
+
+
+def _absolute_lexical(path: Path) -> Path:
+    return Path(os.path.abspath(os.path.normpath(path)))
+
+
+def _releases_dir() -> Path:
+    return BASE / "releases"
+
+
+def _ensure_real_directory(path: Path) -> None:
+    if _lexists(path):
+        if path.is_symlink() or not path.is_dir():
+            raise RuntimeError("release ownership verification failed")
+    else:
+        path.mkdir(parents=True, exist_ok=False)
+    metadata = path.stat(follow_symlinks=False)
+    if (
+        metadata.st_uid != os.geteuid()
+        or metadata.st_gid != os.getegid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise RuntimeError("release ownership verification failed")
+
+
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _current_snapshot() -> CurrentSnapshot:
     current = BASE / "current"
-    temp_link = BASE / ".current.new"
-    if temp_link.exists() or temp_link.is_symlink():
-        temp_link.unlink()
-    temp_link.symlink_to(release, target_is_directory=True)
-    temp_link.replace(current)
-    return release
+    if not _lexists(current):
+        return CurrentSnapshot(False, None, None, None, None)
+    if not current.is_symlink():
+        raise RuntimeError("current ownership verification failed")
+    raw_target = os.readlink(current)
+    target = Path(raw_target)
+    if not target.is_absolute():
+        raise RuntimeError("current ownership verification failed")
+    normalized = _absolute_lexical(target)
+    releases = _absolute_lexical(_releases_dir())
+    if raw_target != normalized.as_posix() or normalized.parent != releases:
+        raise RuntimeError("current ownership verification failed")
+    metadata = current.lstat()
+    if metadata.st_uid != os.geteuid() or metadata.st_gid != os.getegid():
+        raise RuntimeError("current ownership verification failed")
+    return CurrentSnapshot(
+        True,
+        raw_target,
+        normalized.as_posix(),
+        metadata.st_dev,
+        metadata.st_ino,
+    )
+
+
+def _assert_current_unchanged(expected: CurrentSnapshot) -> None:
+    if _current_snapshot() != expected:
+        raise RuntimeError("concurrent current update detected")
+
+
+def _release_marker_payload(revision: str, state: str, nonce: str) -> dict:
+    return {
+        "schema_version": 1,
+        "owner": RELEASE_MARKER_OWNER,
+        "release": revision,
+        "state": state,
+        "nonce": nonce,
+    }
+
+
+def _write_release_marker(release: Path, revision: str, state: str, nonce: str) -> None:
+    marker = release / RELEASE_MARKER_NAME
+    temporary = release / f".{RELEASE_MARKER_NAME}.{nonce}.tmp"
+    payload = _release_marker_payload(revision, state, nonce)
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        temporary.replace(marker)
+        _fsync_directory(release)
+    finally:
+        if _lexists(temporary):
+            temporary.unlink()
+
+
+def _activation_journal_path() -> Path:
+    return BASE / ACTIVATION_JOURNAL_NAME
+
+
+def _write_activation_journal(
+    candidate: Path,
+    previous: CurrentSnapshot,
+    nonce: str,
+) -> None:
+    journal = _activation_journal_path()
+    temporary = BASE / f".{ACTIVATION_JOURNAL_NAME}.{nonce}.tmp"
+    if _lexists(journal):
+        raise RuntimeError("pending activation recovery required")
+    payload = {
+        "schema_version": 1,
+        "owner": RELEASE_MARKER_OWNER,
+        "candidate": candidate.as_posix(),
+        "previous_raw_target": previous.raw_target if previous.exists else None,
+        "nonce": nonce,
+    }
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        temporary.replace(journal)
+        _fsync_directory(BASE)
+    finally:
+        if _lexists(temporary):
+            temporary.unlink()
+
+
+def _load_activation_journal() -> dict:
+    journal = _activation_journal_path()
+    try:
+        metadata = journal.lstat()
+    except OSError as exc:
+        raise RuntimeError("activation journal ownership verification failed") from exc
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_gid != os.getegid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise RuntimeError("activation journal ownership verification failed")
+    try:
+        data = json.loads(journal.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("activation journal verification failed") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("activation journal verification failed")
+    return data
+
+
+def _clear_activation_journal(nonce: str) -> None:
+    journal = _activation_journal_path()
+    if not _lexists(journal):
+        return
+    data = _load_activation_journal()
+    if data.get("nonce") != nonce:
+        raise RuntimeError("activation journal verification failed")
+    journal.unlink()
+    _fsync_directory(BASE)
+
+
+def _load_release_marker(release: Path) -> dict:
+    marker = release / RELEASE_MARKER_NAME
+    try:
+        metadata = marker.lstat()
+    except OSError as exc:
+        raise RuntimeError("release ownership verification failed") from exc
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_gid != os.getegid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise RuntimeError("release ownership verification failed")
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("release ownership verification failed") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("release ownership verification failed")
+    return data
+
+
+def _validate_release_layout(release: Path) -> None:
+    for relative in ("services", "scripts", "sql", ".venv", ".venv/bin"):
+        candidate = release / relative
+        if candidate.is_symlink() or not candidate.is_dir():
+            raise RuntimeError("release completeness verification failed")
+    requirements = release / "requirements.txt"
+    python = release / ".venv/bin/python"
+    if requirements.is_symlink() or not requirements.is_file():
+        raise RuntimeError("release completeness verification failed")
+    if not python.is_file() or not os.access(python, os.X_OK):
+        raise RuntimeError("release completeness verification failed")
+
+
+def _validate_release_root_owner(release: Path, uid: int, gid: int) -> None:
+    try:
+        metadata = release.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise RuntimeError("release ownership verification failed") from exc
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != uid
+        or metadata.st_gid != gid
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise RuntimeError("release ownership verification failed")
+
+
+def _app_identity() -> tuple[int, int]:
+    try:
+        return pwd.getpwnam(APP_USER).pw_uid, grp.getgrnam(APP_GROUP).gr_gid
+    except KeyError as exc:
+        raise RuntimeError("service account ownership unavailable") from exc
+
+
+def _validate_ready_release(release: Path, revision: str) -> None:
+    if (
+        release.parent != _releases_dir()
+        or release.name != revision
+        or release.is_symlink()
+        or not release.is_dir()
+    ):
+        raise RuntimeError("release ownership verification failed")
+    _validate_release_root_owner(release, os.geteuid(), os.getegid())
+    _validate_release_layout(release)
+    data = _load_release_marker(release)
+    if (
+        set(data) != {"schema_version", "owner", "release", "state", "nonce"}
+        or data.get("schema_version") != 1
+        or data.get("owner") != RELEASE_MARKER_OWNER
+        or data.get("release") != revision
+        or data.get("state") != "ready"
+        or not re.fullmatch(r"[0-9a-f]{32}", str(data.get("nonce", "")))
+    ):
+        raise RuntimeError("release ownership verification failed")
+
+
+def _validate_active_release(snapshot: CurrentSnapshot) -> None:
+    if not snapshot.exists:
+        return
+    assert snapshot.normalized_target is not None
+    active = Path(snapshot.normalized_target)
+    if active.is_symlink() or not active.is_dir() or not RELEASE_ID.fullmatch(active.name):
+        raise RuntimeError("current ownership verification failed")
+    marker = active / RELEASE_MARKER_NAME
+    if _lexists(marker):
+        _validate_ready_release(active, active.name)
+    else:
+        uid, gid = _app_identity()
+        _validate_release_root_owner(active, uid, gid)
+        _validate_release_layout(active)
+
+
+def _validate_existing_release(
+    release: Path,
+    revision: str,
+    current: CurrentSnapshot,
+) -> None:
+    release_path = _absolute_lexical(release).as_posix()
+    if current.normalized_target == release_path and not _lexists(release / RELEASE_MARKER_NAME):
+        uid, gid = _app_identity()
+        _validate_release_root_owner(release, uid, gid)
+        _validate_release_layout(release)
+        return
+    _validate_ready_release(release, revision)
+
+
+@contextmanager
+def _installation_lock() -> Iterator[None]:
+    _ensure_real_directory(BASE)
+    _ensure_real_directory(_releases_dir())
+    lock_path = BASE / ".install.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        raise RuntimeError("release installation lock unavailable") from exc
+    metadata = os.fstat(descriptor)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_gid != os.getegid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        os.close(descriptor)
+        raise RuntimeError("release installation lock ownership invalid")
+    deadline = time.monotonic() + INSTALL_LOCK_TIMEOUT_SECONDS
+    acquired = False
+    try:
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("concurrent release installation detected") from None
+                time.sleep(INSTALL_LOCK_POLL_SECONDS)
+        yield
+    finally:
+        if acquired:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _chown_release_tree(release: Path) -> None:
+    uid, gid = _app_identity()
+    for root, dirs, files in os.walk(release):
+        for name in [*dirs, *files]:
+            if name == RELEASE_MARKER_NAME:
+                continue
+            os.chown(Path(root) / name, uid, gid, follow_symlinks=False)
+
+
+def _rename_no_replace(source: Path, destination: Path) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise RuntimeError("atomic no-clobber release publication unavailable")
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    result = renameat2(
+        -100,
+        os.fsencode(source),
+        -100,
+        os.fsencode(destination),
+        1,
+    )
+    if result == 0:
+        return
+    error = ctypes.get_errno()
+    if error in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise RuntimeError("concurrent release publication detected") from None
+    raise RuntimeError("atomic release publication failed") from None
+
+
+def _cleanup_owned_staging(staging: Path, revision: str, nonce: str) -> None:
+    expected_parent = _releases_dir() / ".staging"
+    if staging.parent != expected_parent or staging.is_symlink() or not staging.is_dir():
+        raise RuntimeError("staging ownership verification failed")
+    _validate_release_root_owner(staging, os.geteuid(), os.getegid())
+    data = _load_release_marker(staging)
+    if (
+        set(data) != {"schema_version", "owner", "release", "state", "nonce"}
+        or data.get("schema_version") != 1
+        or data.get("owner") != RELEASE_MARKER_OWNER
+        or data.get("release") != revision
+        or data.get("state") not in {"staging", "ready"}
+        or data.get("nonce") != nonce
+    ):
+        raise RuntimeError("staging ownership verification failed")
+    current = _current_snapshot()
+    if current.normalized_target == _absolute_lexical(staging).as_posix():
+        raise RuntimeError("staging is active and cannot be removed")
+    shutil.rmtree(staging)
+
+
+def _recover_owned_staging() -> None:
+    staging_root = _releases_dir() / ".staging"
+    _ensure_real_directory(staging_root)
+    removed = False
+    for staging in sorted(staging_root.iterdir()):
+        try:
+            revision, nonce = staging.name.rsplit("-", 1)
+        except ValueError:
+            raise RuntimeError("staging ownership verification failed") from None
+        if not RELEASE_ID.fullmatch(revision) or not re.fullmatch(r"[0-9a-f]{32}", nonce):
+            raise RuntimeError("staging ownership verification failed")
+        _cleanup_owned_staging(staging, revision, nonce)
+        removed = True
+    if removed:
+        _fsync_directory(staging_root)
+
+
+def _prepare_release(
+    repo_root: Path,
+    revision: str,
+    initial_current: CurrentSnapshot,
+) -> Path:
+    release = _releases_dir() / revision
+    if _lexists(release):
+        _validate_existing_release(release, revision, initial_current)
+        return release
+
+    staging_root = _releases_dir() / ".staging"
+    _ensure_real_directory(staging_root)
+    nonce = secrets.token_hex(16)
+    staging = staging_root / f"{revision}-{nonce}"
+    staging.mkdir(mode=0o700, exist_ok=False)
+    try:
+        _write_release_marker(staging, revision, "staging", nonce)
+    except BaseException:
+        staging.rmdir()
+        raise
+
+    try:
+        for name in ("services", "scripts", "sql"):
+            shutil.copytree(repo_root / name, staging / name)
+        shutil.copy2(
+            repo_root / "services" / "todo_gateway" / "requirements.txt",
+            staging / "requirements.txt",
+        )
+        run(["python3", "-m", "venv", (staging / ".venv").as_posix()])
+        run([
+            (staging / ".venv/bin/python").as_posix(),
+            "-m", "pip", "install", "--no-cache-dir", "-r",
+            (staging / "requirements.txt").as_posix(),
+        ])
+        _chown_release_tree(staging)
+        _write_release_marker(staging, revision, "ready", nonce)
+        os.chmod(staging, 0o755)
+        _assert_current_unchanged(initial_current)
+        _rename_no_replace(staging, release)
+        _fsync_directory(_releases_dir())
+        return release
+    except BaseException:
+        if _lexists(staging):
+            _cleanup_owned_staging(staging, revision, nonce)
+        raise
+
+
+def _replace_current(raw_target: str | None, expected: CurrentSnapshot) -> CurrentSnapshot:
+    _assert_current_unchanged(expected)
+    current = BASE / "current"
+    if raw_target is None:
+        if expected.exists:
+            current.unlink()
+            _fsync_directory(BASE)
+        return _current_snapshot()
+
+    temporary = BASE / f".current-{os.getpid()}-{secrets.token_hex(8)}.tmp"
+    temporary.symlink_to(raw_target, target_is_directory=True)
+    try:
+        _assert_current_unchanged(expected)
+        os.replace(temporary, current)
+        _fsync_directory(BASE)
+    finally:
+        if _lexists(temporary):
+            temporary.unlink()
+    updated = _current_snapshot()
+    target = Path(raw_target)
+    if not target.is_absolute():
+        target = current.parent / target
+    if updated.normalized_target != _absolute_lexical(target).as_posix():
+        raise RuntimeError("current activation verification failed")
+    return updated
+
+
+def _validated_journal_target(raw_target: str, *, candidate: bool) -> Path:
+    target = Path(raw_target)
+    normalized = _absolute_lexical(target)
+    if (
+        not target.is_absolute()
+        or raw_target != normalized.as_posix()
+        or normalized.parent != _absolute_lexical(_releases_dir())
+        or not RELEASE_ID.fullmatch(normalized.name)
+    ):
+        raise RuntimeError("activation journal target verification failed")
+    if not candidate:
+        marker = normalized / RELEASE_MARKER_NAME
+        if _lexists(marker):
+            _validate_ready_release(normalized, normalized.name)
+        else:
+            uid, gid = _app_identity()
+            _validate_release_root_owner(normalized, uid, gid)
+            _validate_release_layout(normalized)
+    return normalized
+
+
+def _recover_pending_activation(
+    restore_hook: Callable[[bool], None] | None,
+) -> None:
+    if not _lexists(_activation_journal_path()):
+        return
+    data = _load_activation_journal()
+    if (
+        set(data)
+        != {"schema_version", "owner", "candidate", "previous_raw_target", "nonce"}
+        or data.get("schema_version") != 1
+        or data.get("owner") != RELEASE_MARKER_OWNER
+        or not isinstance(data.get("candidate"), str)
+        or data.get("previous_raw_target") is not None
+        and not isinstance(data.get("previous_raw_target"), str)
+        or not re.fullmatch(r"[0-9a-f]{32}", str(data.get("nonce", "")))
+    ):
+        raise RuntimeError("activation journal verification failed")
+    candidate = _validated_journal_target(data["candidate"], candidate=True)
+    previous_raw = data["previous_raw_target"]
+    previous = (
+        _validated_journal_target(previous_raw, candidate=False)
+        if previous_raw is not None
+        else None
+    )
+    current = _current_snapshot()
+    previous_path = previous.as_posix() if previous is not None else None
+    if current.normalized_target == candidate.as_posix():
+        current = _replace_current(previous_raw, current)
+    if current.normalized_target != previous_path:
+        raise RuntimeError("activation recovery current mismatch")
+    if restore_hook is not None:
+        restore_hook(previous is not None)
+    _clear_activation_journal(data["nonce"])
+
+
+def recover_pending_activation(
+    restore_hook: Callable[[bool], None] | None = None,
+) -> None:
+    with _installation_lock():
+        _recover_pending_activation(restore_hook)
+
+
+@contextmanager
+def release_transaction(
+    repo_root: Path,
+    *,
+    restore_hook: Callable[[bool], None] | None = None,
+) -> Iterator[ReleaseDeployment]:
+    with _installation_lock():
+        _recover_pending_activation(restore_hook)
+        revision = git_revision(repo_root)
+        if not RELEASE_ID.fullmatch(revision):
+            raise RuntimeError("release revision invalid")
+        initial_current = _current_snapshot()
+        _validate_active_release(initial_current)
+        _recover_owned_staging()
+        release = _prepare_release(repo_root, revision, initial_current)
+        _assert_current_unchanged(initial_current)
+        release_path = _absolute_lexical(release).as_posix()
+        should_activate = initial_current.normalized_target != release_path
+        journal_nonce: str | None = None
+        entered = False
+        try:
+            if should_activate:
+                _validate_ready_release(release, revision)
+                journal_nonce = secrets.token_hex(16)
+                _write_activation_journal(release, initial_current, journal_nonce)
+                _replace_current(release.as_posix(), initial_current)
+            entered = True
+            yield ReleaseDeployment(release, initial_current, should_activate)
+            if journal_nonce is not None:
+                _clear_activation_journal(journal_nonce)
+        except BaseException:
+            if should_activate:
+                try:
+                    observed = _current_snapshot()
+                    if observed != initial_current:
+                        if observed.normalized_target != release_path:
+                            raise RuntimeError("concurrent current update detected")
+                        _replace_current(
+                            initial_current.raw_target if initial_current.exists else None,
+                            observed,
+                        )
+                    if entered and restore_hook is not None:
+                        restore_hook(initial_current.exists)
+                    if journal_nonce is not None:
+                        _clear_activation_journal(journal_nonce)
+                except Exception as exc:
+                    raise RuntimeError("release rollback failed") from exc
+            raise
+
+
+def install_release(repo_root: Path) -> Path:
+    with release_transaction(repo_root) as deployment:
+        return deployment.release
 
 
 def install_unit() -> None:
@@ -239,7 +872,7 @@ def install_unit() -> None:
         encoding="utf-8",
     )
     run(["systemctl", "daemon-reload"])
-    run(["systemctl", "enable", "--now", "todo-global-gateway.service"])
+    run(["systemctl", "enable", "todo-global-gateway.service"])
 
 
 def smoke() -> bool:
@@ -253,6 +886,10 @@ def smoke() -> bool:
             pass
         time.sleep(2)
     return False
+
+
+class _ReadinessFailed(RuntimeError):
+    pass
 
 
 def main() -> int:
@@ -270,18 +907,39 @@ def main() -> int:
         return 0
     if args.dry_run:
         raise RuntimeError("dry_run_requires_pilot_manifest")
-    require_root()
     repo_root = Path(args.repo_root).resolve()
+
+    def restore_previous_service(previous_exists: bool) -> None:
+        command = "restart" if previous_exists else "stop"
+        run(["systemctl", command, "todo-global-gateway.service"])
+
+    require_root()
+    recover_pending_activation(restore_previous_service)
     if not args.skip_packages:
         install_packages()
     ensure_service_user()
     password, _ = ensure_runtime_env()
     ensure_postgres(password)
-    release = install_release(repo_root)
-    install_unit()
-    ready = smoke()
-    print(f"TODO_GLOBAL_DEBIAN_READY={str(ready).lower()} release={release.name}")
-    return 0 if ready else 1
+    deployment: ReleaseDeployment | None = None
+
+    try:
+        with release_transaction(
+            repo_root,
+            restore_hook=restore_previous_service,
+        ) as deployment:
+            install_unit()
+            run(["systemctl", "restart", "todo-global-gateway.service"])
+            if not smoke():
+                raise _ReadinessFailed("gateway readiness check failed")
+    except BaseException as failure:
+        if isinstance(failure, _ReadinessFailed):
+            assert deployment is not None
+            print(f"TODO_GLOBAL_DEBIAN_READY=false release={deployment.release.name}")
+            return 1
+        raise
+    assert deployment is not None
+    print(f"TODO_GLOBAL_DEBIAN_READY=true release={deployment.release.name}")
+    return 0
 
 
 if __name__ == "__main__":
