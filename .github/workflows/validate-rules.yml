@@ -1,4 +1,5 @@
 name: Validate Operational Rules
+run-name: Operational Rules / ${{ inputs.correlation_id || github.ref_name }}
 
 on:
   pull_request:
@@ -6,6 +7,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact 40-character commit SHA authorized for this run
+        required: true
+        type: string
+      correlation_id:
+        description: Unique governed-dispatch correlation identifier
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -34,6 +44,25 @@ jobs:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EXPECTED_REF: ${{ github.head_ref || github.ref_name }}
     steps:
+      - name: Bind manual dispatch to its authorized revision
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DISPATCH_CORRELATION_ID: ${{ inputs.correlation_id }}
+          DISPATCH_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RESOLVED_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$DISPATCH_CORRELATION_ID" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]; then
+            echo "Invalid correlation identifier" >&2
+            exit 1
+          fi
+          if [[ ! "$DISPATCH_EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid expected SHA" >&2
+            exit 1
+          fi
+          if [[ "$RESOLVED_SHA" != "$DISPATCH_EXPECTED_SHA" ]]; then
+            echo "Dispatched revision does not match the authorized SHA" >&2
+            exit 1
+          fi
       - name: Checkout exact revision
         uses: actions/checkout@v4
         with:
@@ -116,7 +145,7 @@ jobs:
       - name: Run native Debian installer contract tests
         run: |
           python -m pip install --disable-pip-version-check pytest==8.3.5
-          python -m pytest -q tests/test_todo_gateway_debian_systemd.py tests/test_todo_sqlite_sink_replay.py
+          python -m pytest -q tests/test_todo_gateway_debian_systemd.py tests/test_todo_gateway_debian_installer_isolated_e2e.py tests/test_todo_sqlite_sink_replay.py
       - name: Run TODO Gateway service-main tests
         run: python -m unittest -v tests/test_todo_gateway_service_main.py
       - name: Run legacy Render contingency tests
@@ -133,5 +162,77 @@ jobs:
         with:
           name: triage-reservation-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/triage-reservation-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
+  debian-installer-isolated:
+    name: Debian installer isolated systemd homologation
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_SHA: ${{ github.sha }}
+      CORRELATION_ID: ${{ inputs.correlation_id }}
+    steps:
+      - name: Checkout exact revision without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+
+      - name: Fail closed unless the target is a clean disposable systemd VM
+        env:
+          TODO22_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          sudo env -i \
+            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            HOME=/root \
+            LANG=C.UTF-8 \
+            DEBIAN_FRONTEND=noninteractive \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
+            /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --expected-sha "$EXPECTED_SHA" \
+              --correlation-id "$CORRELATION_ID" \
+              --preflight-only
+
+      - name: Install argv audit dependency on the disposable runner
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends strace
+          sudo git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install, replay and inject readiness failure
+        env:
+          TODO22_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          EVIDENCE_PATH: ${{ runner.temp }}/todo22-debian-installer-evidence.json
+        run: |
+          sudo env -i \
+            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            HOME=/root \
+            LANG=C.UTF-8 \
+            DEBIAN_FRONTEND=noninteractive \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
+            /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --expected-sha "$EXPECTED_SHA" \
+              --correlation-id "$CORRELATION_ID" \
+              --evidence-path "$EVIDENCE_PATH"
+
+      - name: Preserve isolated installer evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: todo22-debian-installer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/todo22-debian-installer-evidence.json
           if-no-files-found: error
           retention-days: 7

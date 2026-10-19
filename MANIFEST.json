@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-19T22:42:29+00:00",
+  "generated_at": "2026-10-19T23:08:04Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "dfbcfcbc2a7895a8162af07462ef2d218d382023f5e48c10f907bf8b58dca753",
-      "size": 6910
+      "sha256": "dbc64f73fa533b00e06b3b5129cf032bc34ced2179a58df6fbc5dea302676471",
+      "size": 11129
     },
     {
       "path": ".gitignore",
@@ -304,8 +304,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "06b8eeaf292b6c1cd77bfbd6ac83125bbb58e0f73473d868bfe647f4178e19da",
-      "size": 3830
+      "sha256": "fc5a8b482b5e611713e04fd95447a0c7de1db86512c56a51b06a1d2dd3d7793c",
+      "size": 8510
     },
     {
       "path": "scripts/dual_host_preflight.py",
@@ -384,8 +384,8 @@
     },
     {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
-      "sha256": "3da7dd20dec95b1bdafe5ba1a8ec2f46896c00af21720da703f956c73eed220c",
-      "size": 35112
+      "sha256": "a2bc87f7a34503ab5ac2cacae8386532f9ea191901394b8fee4e0ec4f9b67031",
+      "size": 36372
     },
     {
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
@@ -561,6 +561,11 @@
       "path": "scripts/todo_gateway_debian_e2e.py",
       "sha256": "42007468d7358ecb08dae94502f57601a61612feefb10f7af2568bef308235ef",
       "size": 6539
+    },
+    {
+      "path": "scripts/todo_gateway_debian_installer_isolated_e2e.py",
+      "sha256": "06d5762160f78a1760bd8f44a4a290b2421d183e005a8708e1f489b4b9249c4a",
+      "size": 28656
     },
     {
       "path": "scripts/todo_gateway_debian_resilience.py",
@@ -744,8 +749,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "5e5294a1def10bff3f3b9de5de49c8e86215c0bd1cc15ea204f11f0dbf398c68",
-      "size": 4132
+      "sha256": "53bd42895999d91e6e02e1cdda42741e67fd5906d2da1c95ac1db5b0a539fedf",
+      "size": 10195
     },
     {
       "path": "tests/test_dual_host_preflight.py",
@@ -938,9 +943,14 @@
       "size": 6428
     },
     {
+      "path": "tests/test_todo_gateway_debian_installer_isolated_e2e.py",
+      "sha256": "7bddc264f06e0f4f3d4eeb51efcf792de32b5e59221d30d221c6a10accdaeb6f",
+      "size": 15773
+    },
+    {
       "path": "tests/test_todo_gateway_debian_systemd.py",
-      "sha256": "91b634effb1b37a340a6b382c03aee4824c949114db49b0183fb2f6252495e9a",
-      "size": 33720
+      "sha256": "62c9b73ac4109e0b2343ec81e389df80d51fa8cab5140da20c6740f445786cad",
+      "size": 41039
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
