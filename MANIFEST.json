@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-19T21:17:31.023382+00:00",
+  "generated_at": "2026-10-19T22:42:29+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "0893fe8a0b259abb9c43a3e3036bc463ceb87db1628ae8266104afd64a774278",
-      "size": 6892
+      "sha256": "dfbcfcbc2a7895a8162af07462ef2d218d382023f5e48c10f907bf8b58dca753",
+      "size": 6910
     },
     {
       "path": ".gitignore",
@@ -239,8 +239,8 @@
     },
     {
       "path": "rules/session-bootstrap.md",
-      "sha256": "e232c52855f4f61050dba3cc9b8694096b1f52a9d8e93f61efdb0c299f0b13d6",
-      "size": 9129
+      "sha256": "febf026bfd9edbee732f41289577e214b163098cb105d365578879608da403c6",
+      "size": 10673
     },
     {
       "path": "rules/terminal-execution.md",
@@ -519,8 +519,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "189ab1479415fe2226a8833d13da9f1ad273b22872c69d9c8c456d6834bce82d",
-      "size": 22312
+      "sha256": "b5390cdcc0b37ecef6df187e145999be089b190df383ca29ac83cb47067c48db",
+      "size": 31527
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -911,6 +911,16 @@
       "path": "tests/test_session_launcher.py",
       "sha256": "6de56398370bcfd17dc7a771f2658436f4d058db3243b000ba4fede6b1a87fc2",
       "size": 12448
+    },
+    {
+      "path": "tests/test_session_launcher_diagnostic.py",
+      "sha256": "3b6f658e96a9188f77375adc7b46d0172d963898fd3f2fea6bfc39a8fc06ed0a",
+      "size": 13299
+    },
+    {
+      "path": "tests/test_session_launcher_diagnostic_cli.py",
+      "sha256": "e15e78d3a12e5c82306c2e26296ce04782330e47b5a462f751de97b00b5c1ae3",
+      "size": 12961
     },
     {
       "path": "tests/test_session_preflight.py",
