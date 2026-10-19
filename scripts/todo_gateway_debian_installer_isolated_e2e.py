@@ -25,7 +25,7 @@ from urllib.request import urlopen
 
 REPOSITORY = "ericson-j-santos/chatgpt-operational-rules"
 APP_USER = "todo-global"
-TARGET_REF = "fix/todo22-debian-installer-safety-20261019"
+TARGET_REF = "fix/todo22-installer-isolated-gate-20261019"
 DB_USER = "todo_global_bus_dev_user"
 DB_NAME = "todo_global_bus_dev"
 BASE = Path("/opt/todo-global")

@@ -27,7 +27,7 @@ def _env() -> dict[str, str]:
         "GITHUB_ACTIONS": "true",
         "TODO22_RUNNER_ENVIRONMENT": "github-hosted",
         "GITHUB_REPOSITORY": "ericson-j-santos/chatgpt-operational-rules",
-        "GITHUB_REF_NAME": "fix/todo22-debian-installer-safety-20261019",
+        "GITHUB_REF_NAME": "fix/todo22-installer-isolated-gate-20261019",
     }
 
 

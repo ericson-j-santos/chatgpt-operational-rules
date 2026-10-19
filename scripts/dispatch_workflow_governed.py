@@ -30,7 +30,7 @@ REQSYS_REFS = {
 TODO22_TARGET = (
     "ericson-j-santos/chatgpt-operational-rules",
     "validate-rules.yml",
-    "fix/todo22-debian-installer-safety-20261019",
+    "fix/todo22-installer-isolated-gate-20261019",
 )
 ALLOWED_TARGETS = frozenset(
     (REQSYS_REPO, workflow, ref)
