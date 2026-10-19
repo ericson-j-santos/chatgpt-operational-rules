@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-19T20:55:20.504709+00:00",
+  "generated_at": "2026-10-19T22:42:29+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "0893fe8a0b259abb9c43a3e3036bc463ceb87db1628ae8266104afd64a774278",
-      "size": 6892
+      "sha256": "dfbcfcbc2a7895a8162af07462ef2d218d382023f5e48c10f907bf8b58dca753",
+      "size": 6910
     },
     {
       "path": ".gitignore",
@@ -384,8 +384,8 @@
     },
     {
       "path": "scripts/install_todo_gateway_debian_systemd.py",
-      "sha256": "4d36508ee5f65138ff716e83a756a2b241c7ca3c70e4cd1c06206806da52bc04",
-      "size": 11746
+      "sha256": "3da7dd20dec95b1bdafe5ba1a8ec2f46896c00af21720da703f956c73eed220c",
+      "size": 35112
     },
     {
       "path": "scripts/install_todo_gateway_windows_s4u.ps1",
@@ -939,8 +939,8 @@
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
-      "sha256": "d2da9d35a99424b14776e270ce95f87383f07cdee90260413dcd45fde14f939a",
-      "size": 6484
+      "sha256": "91b634effb1b37a340a6b382c03aee4824c949114db49b0183fb2f6252495e9a",
+      "size": 33720
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
