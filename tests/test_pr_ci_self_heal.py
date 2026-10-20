@@ -173,6 +173,9 @@ class WorkflowApprovalTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", self.workflow)
         self.assertIn("github.event.repository.default_branch", self.workflow)
         self.assertEqual(self.workflow.count("gh workflow run validate-rules.yml"), 1)
+        self.assertIn('-f expected_sha="$NEW_SHA"', self.workflow)
+        self.assertIn('-f correlation_id="$CORRELATION_ID"', self.workflow)
+        self.assertIn('CORRELATION_ID="pr-ci-self-heal-${PR_NUMBER}-${NEW_SHA:0:12}"', self.workflow)
         self.assertIn("Um run separado não resolve essa aprovação", self.workflow)
 
 

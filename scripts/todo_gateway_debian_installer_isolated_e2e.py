@@ -126,7 +126,7 @@ def validate_execution_context(
         if source_ref != "main":
             raise HomologationError("ref_mismatch")
     elif event_name == "workflow_dispatch":
-        if source_ref not in {"main", TARGET_REF}:
+        if source_ref != "main" and env.get("TODO22_MANUAL_PR_VERIFIED") != "true":
             raise HomologationError("ref_mismatch")
     else:
         raise HomologationError("github_event_not_allowed")

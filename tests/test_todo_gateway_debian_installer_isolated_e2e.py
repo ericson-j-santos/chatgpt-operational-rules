@@ -87,12 +87,13 @@ def test_context_fails_closed_outside_disposable_vm(
         )
 
 
-def test_context_accepts_main_push_and_allowlisted_manual_dispatch():
-    for event_name, source_ref in (
-        ("push", "main"),
-        ("workflow_dispatch", "main"),
-        ("workflow_dispatch", isolated_harness.TARGET_REF),
-    ):
+def test_context_accepts_main_push_and_verified_manual_pr_dispatch():
+    cases = (
+        ("push", "main", "false"),
+        ("workflow_dispatch", "main", "false"),
+        ("workflow_dispatch", "fix/verified-owner-pr", "true"),
+    )
+    for event_name, source_ref, manual_pr_verified in cases:
         env = _env()
         env.update(
             {
@@ -100,6 +101,7 @@ def test_context_accepts_main_push_and_allowlisted_manual_dispatch():
                 "TODO22_SOURCE_REF": source_ref,
                 "TODO22_PR_HEAD_REPOSITORY": "",
                 "TODO22_PR_AUTHOR": "",
+                "TODO22_MANUAL_PR_VERIFIED": manual_pr_verified,
             }
         )
         validate_execution_context(
@@ -324,6 +326,10 @@ def test_isolated_homologation_is_automatic_same_repo_and_reuses_canonical_insta
     assert "run-name: Operational Rules / ${{ inputs.correlation_id || github.ref_name }}" in workflow
     assert "inputs:\n      expected_sha:" in workflow
     assert "      correlation_id:" in workflow
+    assert "pull-requests: read" in workflow
+    assert "id: bind" in workflow
+    assert "manual_pr_verified=true" in workflow
+    assert "Manual non-main dispatch requires one exact owner draft PR" in workflow
     assert "github.event_name == 'workflow_dispatch'" in job
     assert "github.event_name == 'push'" in job
     assert "github.event_name == 'pull_request'" in job
@@ -336,6 +342,7 @@ def test_isolated_homologation_is_automatic_same_repo_and_reuses_canonical_insta
     assert 'TODO22_SOURCE_REF="$SOURCE_REF"' in job
     assert 'TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY"' in job
     assert 'TODO22_PR_AUTHOR="$PR_AUTHOR"' in job
+    assert 'TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED"' in job
     assert "scripts/todo_gateway_debian_installer_isolated_e2e.py" in job
     assert "--preflight-only" in job
     harness = (ROOT / "scripts" / "todo_gateway_debian_installer_isolated_e2e.py").read_text(
