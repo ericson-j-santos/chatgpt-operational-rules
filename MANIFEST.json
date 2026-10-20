@@ -1,6 +1,6 @@
 {
-  "version": "1.6.13",
-  "generated_at": "2026-10-20T16:09:32.790642+00:00",
+  "version": "1.6.14",
+  "generated_at": "2026-10-20T21:32:13+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,22 +54,22 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "7b06d4894df3a37fc7bc4dffb2fb31d7341163431d7b21d1c34744a653320ebf",
-      "size": 17786
+      "sha256": "ad7d0c085dd9dcc59f7c5b3d5efea0ad629c0c8f71708005d9de6440b350d479",
+      "size": 18626
     },
     {
       "path": "README.md",
-      "sha256": "f5bdb0384901dcbcab97aae5bb8838e7c76a06fd5f2c1e64227acc95f5a9c307",
-      "size": 8632
+      "sha256": "47703c0e7cd5edb9c1d91ad5fe3d6bd20ab89a3e82dbd0086882fb0e13db0284",
+      "size": 9003
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "d3156aa197a73ad8d5eaaf794b775bf20978e3184f34072bee3038d835179429",
+      "sha256": "16cee8a95a2475f1dcf86a5641060e775c43ecba96fd805eb7ce135f43556dda",
       "size": 2342
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "0d320fcdf43c8bc3fcb0b00a0eb1113b28545fefc7b3b4dcc5e5aecc53df4853",
+      "sha256": "f4ea1ee79299df7055c2ffe6315b13f4b361d5501d3db8566abf446bd05c6918",
       "size": 2058
     },
     {
@@ -196,6 +196,11 @@
       "path": "rules/control-plane-recovery.md",
       "sha256": "56c9577ff4da5ff84b7b89f5bd0a20581735a373d386ada4dc8ae964e026da5c",
       "size": 3992
+    },
+    {
+      "path": "rules/cost-governance.md",
+      "sha256": "77144c766bfb031e668d987ed3ea61bc95f522349239ca1530413c91b21d4b8a",
+      "size": 4123
     },
     {
       "path": "rules/dual-host-routing.md",
@@ -634,8 +639,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "fe0387a53e63198de385a60d6198743d240be24cce4f83c044c89260ae955ee7",
-      "size": 14287
+      "sha256": "b68b456435adee880353a7f9200cb8a96a008f7cae9f4d86fa65fbf5d4ca08ad",
+      "size": 14315
     },
     {
       "path": "services/__init__.py",

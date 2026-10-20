@@ -31,7 +31,7 @@ REQUIRED_PATHS = {
     "scripts/runner_version_preflight.py", "tests/test_runner_version_preflight.py",
     "scripts/session_launcher_e2e.py", "scripts/dual_host_preflight.py", "scripts/host_operating_profile.py", "scripts/validate_rules.py",
     "scripts/rdc_host_fix.py", "scripts/rdc_task_resilience.py", "scripts/rdc_owner_arbitration.py", "scripts/rdc_semantic_result.py",
-    "rules/dual-host-routing.md", "rules/tool-routing.md", "rules/control-plane-recovery.md", "scripts/tool_router.py",
+    "rules/dual-host-routing.md", "rules/tool-routing.md", "rules/control-plane-recovery.md", "rules/cost-governance.md", "scripts/tool_router.py",
     "tests/test_command_gateway.py", "tests/test_command_gateway_posix_policy.py",
     "tests/test_validate_rules_policy_profiles.py",
     "tests/test_host_bootstrap.py", "tests/test_update_command_gateway_host.py",
