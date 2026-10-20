@@ -28,6 +28,28 @@ O agente deve receber o repositório e o identificador do computador. Depois:
 Este documento explica a arquitetura; as decisões operacionais atuais devem
 ser consultadas nas regras canônicas e não inferidas de um texto histórico.
 
+### Executor POSIX já governado
+
+Quando o executor POSIX já possuir o código aprovado do Gateway e um canal de
+bootstrap governado, usar `config/command-gateway.policy.posix.json` com:
+
+- `REQSYS_WORKSPACE_ROOT=/workspace`: raiz absoluta que contém os repositórios
+  enumerados;
+- `REQSYS_GATEWAY_STATE_DIR=/workspace/.reqsys-command-gateway-posix`:
+  diretório absoluto, protegido e persistente para reservas, snapshots, locks e
+  eventos.
+
+O perfil não libera a raiz inteira: somente os repositórios nomeados na política
+e `${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers/*` são elegíveis. Definir as
+variáveis não substitui `SESSION_LAUNCH_OK`, `BOOTSTRAP_OK`, snapshot íntegro ou
+homologação E2E. Esse caminho também não autoriza instalar o Gateway em um host
+novo; a instalação inicial continua sujeita ao processo governado aplicável.
+Os dois valores são vinculados por `required_path_environment`: o chamador não
+pode redirecioná-los para ampliar a autoridade. Outro layout de host exige um
+perfil versionado, revisado e homologado para aquele executor.
+As raízes, o namespace de worktrees e o diretório de estado devem ser diretórios
+físicos; symlinks e junctions em seus componentes existentes são recusados.
+
 ## Arquitetura compartilhada
 
 ```text

@@ -17,7 +17,9 @@ from scripts import session_launcher
 def main() -> int:
     expected = os.environ.get("EXPECTED_SHA", "")
     ref = os.environ.get("EXPECTED_REF", "")
-    if os.environ.get("GITHUB_ACTIONS") != "true" or not re.fullmatch(r"[0-9a-f]{40}", expected) or not ref:
+    policy_profile = os.environ.get("TRIAGE_GATEWAY_POLICY_PROFILE", "")
+    if (os.environ.get("GITHUB_ACTIONS") != "true" or not re.fullmatch(r"[0-9a-f]{40}", expected)
+            or not ref or policy_profile != "posix" or os.name != "posix"):
         raise RuntimeError("governed E2E requires immutable GitHub Actions context")
     run_id = os.environ["GITHUB_RUN_ID"]
     attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "1")
@@ -32,8 +34,10 @@ def main() -> int:
             temp = Path(directory)
             work = temp / "work"
             work.mkdir()
-            policy = json.loads((ROOT / "config/command-gateway.policy.json").read_text())
-            policy.update(allowed_roots=[str(work / "*")], worktree_root=str(work),
+            policy = json.loads((ROOT / "config/command-gateway.policy.posix.json").read_text())
+            if policy.get("platform") != policy_profile:
+                raise RuntimeError("governed E2E policy profile mismatch")
+            policy.update(required_path_environment={}, allowed_roots=[str(work / "*")], worktree_root=str(work),
                           state_dir=str(temp / "state"), session_source_roots=[str(ROOT)],
                           allowed_executables=["python", "python3", "git"], max_timeout_seconds=180)
             policy_path = temp / "policy.json"

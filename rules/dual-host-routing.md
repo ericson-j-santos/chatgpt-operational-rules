@@ -72,6 +72,16 @@ Cada tarefa deve ter `session_id`, `correlation_id`, branch/SHA e worktree próp
 Não permitir duas sessões gravarem no mesmo working tree do mesmo host.
 Hosts distintos podem usar caminhos textualmente iguais porque os sistemas de arquivos são independentes, desde que cada host mantenha reserva exclusiva local.
 
+## Handoff de execução entre hosts
+
+A seleção de outro host não transfere, por si só, uma etapa em andamento. Para
+retomar trabalho já produzido, aplicar o contrato de artefatos de continuidade
+de `rules/artifact-storage.md`: checkpoint canônico cercado, conteúdo CAS
+imutável fora dos executores, publicação com readback e materialização validada
+em workspace isolado. Sem essas provas, liberar o host antigo e registrar
+bloqueio preciso; não reconstruir o estado a partir de cache local nem executar
+os dois hosts sobre a mesma posse.
+
 ## Evidência
 Persistir ou registrar o JSON de entrada e o JSON de saída do preflight.
 O resultado deve identificar `selected_host`, `secondary_host`, hosts bloqueados e respectivos motivos.

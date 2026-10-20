@@ -101,7 +101,15 @@ class SessionLauncherDiagnosticTests(unittest.TestCase):
             policy_path = self.diagnostic_policy(root, str(root / "source"))
             with mock.patch.dict(sl.os.environ, {"SECRET_VALUE": "must-not-appear"}, clear=True):
                 payload = sl.diagnose(root / "source", policy_path)
-            self.assertEqual(payload["environment"], {"LOCALAPPDATA": None, "USERPROFILE": None})
+            self.assertEqual(
+                payload["environment"],
+                {
+                    "LOCALAPPDATA": None,
+                    "USERPROFILE": None,
+                    "REQSYS_WORKSPACE_ROOT": None,
+                    "REQSYS_GATEWAY_STATE_DIR": None,
+                },
+            )
             self.assertNotIn("must-not-appear", json.dumps(payload))
             self.assertTrue(payload["policy"]["hash_attests_parsed_bytes"])
             self.assertTrue(all(not item["loaded_bytes_attested"] for item in payload["modules"]))
@@ -193,6 +201,26 @@ class SessionLauncherDiagnosticTests(unittest.TestCase):
                 path.write_text(json.dumps(policy), encoding="utf-8")
                 with self.assertRaises(cg.GatewayError):
                     sl._load_diagnostic_policy(path)
+
+    def test_invalid_platform_uses_launcher_error_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "policy.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "platform": "unsupported",
+                        "rules_version": "1.6.12",
+                        "session_source_roots": [],
+                        "allowed_roots": [],
+                        "denied_roots": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaises(cg.GatewayError) as context:
+                sl._load_diagnostic_policy(path)
+            self.assertEqual(context.exception.exit_code, sl.EXIT_SESSION_LAUNCHER)
 
     def test_policy_hash_and_parse_use_the_same_buffer(self) -> None:
         original = json.dumps(

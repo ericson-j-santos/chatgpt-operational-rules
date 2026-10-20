@@ -69,7 +69,7 @@ class SessionPreflightTests(unittest.TestCase):
             self.assertEqual(result["result"], "BOOTSTRAP_OK")
             self.assertTrue(result["state_validated"])
             path = sp.snapshot_path(policy, "chat-001")
-            persisted = sp.read_valid_snapshot(path)
+            persisted = sp.read_valid_snapshot(policy, path)
             self.assertEqual(persisted["snapshot_sha256"], result["snapshot_sha256"])
             reservation = cg.enforce_session(policy, "chat-001", repo, 1)
             self.assertEqual(reservation["session_id"], "chat-001")

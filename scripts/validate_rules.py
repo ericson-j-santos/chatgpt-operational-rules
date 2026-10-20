@@ -10,15 +10,18 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "MANIFEST.json"
+sys.path.insert(0, str(ROOT / "scripts"))
+import command_gateway as cg
 
 REQUIRED_PATHS = {
     ".github/workflows/validate-rules.yml",
     "AGENTS.md", "CHANGELOG.md", "README.md", "config/command-gateway.policy.json",
+    "config/command-gateway.policy.posix.json",
     "rules/command-gateway.md", "rules/e2e-validation.md", "rules/evidence-validation.md",
     "rules/session-bootstrap.md", "rules/terminal-execution.md", "scripts/command_gateway.py",
     "scripts/command_gateway_e2e.py", "scripts/generate_manifest.py", "scripts/host_bootstrap_e2e.py",
@@ -29,7 +32,9 @@ REQUIRED_PATHS = {
     "scripts/session_launcher_e2e.py", "scripts/dual_host_preflight.py", "scripts/host_operating_profile.py", "scripts/validate_rules.py",
     "scripts/rdc_host_fix.py", "scripts/rdc_task_resilience.py", "scripts/rdc_owner_arbitration.py", "scripts/rdc_semantic_result.py",
     "rules/dual-host-routing.md", "rules/tool-routing.md", "rules/control-plane-recovery.md", "scripts/tool_router.py",
-    "tests/test_command_gateway.py", "tests/test_host_bootstrap.py", "tests/test_update_command_gateway_host.py",
+    "tests/test_command_gateway.py", "tests/test_command_gateway_posix_policy.py",
+    "tests/test_validate_rules_policy_profiles.py",
+    "tests/test_host_bootstrap.py", "tests/test_update_command_gateway_host.py",
     "tests/test_session_bootstrap.py",
     "tests/test_session_preflight.py", "tests/test_session_launcher.py", "tests/test_dual_host_preflight.py",
     "tests/test_host_operating_profile.py", "tests/test_tool_router.py", "tests/test_rdc_semantic_result.py",
@@ -88,7 +93,10 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         if missing_tracked: errors.append("arquivos rastreados ausentes do manifesto: " + ", ".join(missing_tracked))
     readme_path, agents_path = root / "README.md", root / "AGENTS.md"
     changelog_path = root / "CHANGELOG.md"
-    policy_path = root / "config" / "command-gateway.policy.json"
+    policy_paths = {
+        "windows": root / "config" / "command-gateway.policy.json",
+        "posix": root / "config" / "command-gateway.policy.posix.json",
+    }
     if readme_path.is_file():
         readme = readme_path.read_text(encoding="utf-8")
         match = re.search(r"^Versão:\s*(\S+)\s*$", readme, re.MULTILINE)
@@ -112,28 +120,104 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
     if changelog_path.is_file() and isinstance(version, str):
         if f"## {version} -" not in changelog_path.read_text(encoding="utf-8"):
             errors.append("CHANGELOG não contém a versão do manifesto.")
-    if policy_path.is_file():
+    for expected_platform, policy_path in policy_paths.items():
+        if not policy_path.is_file():
+            errors.append(f"política do Command Gateway ausente: {policy_path.name}.")
+            continue
         try:
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
-            errors.append("política do Command Gateway não é JSON válido.")
+            errors.append(f"política do Command Gateway não é JSON válido: {policy_path.name}.")
         else:
-            if policy.get("version") != 1:
-                errors.append("versão da política do Command Gateway inválida.")
+            if not isinstance(policy, dict):
+                errors.append(f"política do Command Gateway não é objeto: {policy_path.name}.")
+                continue
+            try:
+                cg.validate_policy(policy, enforce_platform=False)
+            except cg.GatewayError as exc:
+                errors.append(f"política do Command Gateway inválida ({policy_path.name}): {exc}")
+                continue
+            if policy.get("platform") != expected_platform:
+                errors.append(f"plataforma da política divergente: {policy_path.name}.")
             if not policy.get("allowed_roots"):
-                errors.append("Command Gateway sem allowlist.")
-            if not policy.get("denied_roots"):
-                errors.append("Command Gateway sem denied_roots.")
-            if int(policy.get("max_timeout_seconds", 0)) <= 0:
-                errors.append("Command Gateway sem timeout máximo válido.")
+                errors.append(f"Command Gateway sem allowlist: {policy_path.name}.")
+            if expected_platform == "windows" and not policy.get("denied_roots"):
+                errors.append("Command Gateway Windows sem denied_roots.")
+            timeout = policy.get("max_timeout_seconds")
+            if type(timeout) is not int or timeout <= 0:
+                errors.append(f"Command Gateway sem timeout máximo válido: {policy_path.name}.")
             if policy.get("require_session_bootstrap") is not True:
-                errors.append("Command Gateway deve exigir bootstrap de sessão.")
+                errors.append(f"Command Gateway deve exigir bootstrap de sessão: {policy_path.name}.")
             if policy.get("require_preflight_snapshot") is not True:
-                errors.append("Command Gateway deve exigir snapshot de preflight.")
+                errors.append(f"Command Gateway deve exigir snapshot de preflight: {policy_path.name}.")
             if policy.get("rules_version") != version:
-                errors.append("rules_version da política diverge do manifesto.")
+                errors.append(f"rules_version da política diverge do manifesto: {policy_path.name}.")
             if not policy.get("worktree_root") or not policy.get("worktree_prefix"):
-                errors.append("Command Gateway sem configuração de worktree por sessão.")
+                errors.append(f"Command Gateway sem configuração de worktree por sessão: {policy_path.name}.")
+            if expected_platform == "posix":
+                allowed = policy.get("allowed_roots", [])
+                broad_roots = {"${REQSYS_WORKSPACE_ROOT}", "${REQSYS_WORKSPACE_ROOT}/*"}
+                if any(item in broad_roots for item in allowed):
+                    errors.append("Command Gateway POSIX autoriza o workspace inteiro.")
+                expected_environment = {
+                    "REQSYS_WORKSPACE_ROOT": "/workspace",
+                    "REQSYS_GATEWAY_STATE_DIR": "/workspace/.reqsys-command-gateway-posix",
+                }
+                if policy.get("required_path_environment") != expected_environment:
+                    errors.append(
+                        "Command Gateway POSIX não vincula o ambiente aos caminhos confiáveis."
+                    )
+                if policy.get("state_dir") != "${REQSYS_GATEWAY_STATE_DIR}":
+                    errors.append("Command Gateway POSIX não usa state_dir dedicado.")
+                if policy.get("worktree_root") != "${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers":
+                    errors.append("Command Gateway POSIX não usa namespace dedicado de worktrees.")
+                substitutions = {
+                    "${" + name + "}": value
+                    for name, value in expected_environment.items()
+                }
+
+                def resolve_posix(value: str) -> str:
+                    for source, target in substitutions.items():
+                        value = value.replace(source, target)
+                    return value
+
+                invalid_path: str | None = None
+                for field in ("allowed_roots", "denied_roots", "session_source_roots"):
+                    for value in policy.get(field, []):
+                        resolved = resolve_posix(value)
+                        if (
+                            cg.path_variable_names(resolved)
+                            or "$" in resolved
+                            or "%" in resolved
+                            or not PurePosixPath(resolved).is_absolute()
+                        ):
+                            invalid_path = f"{field} deve conter somente caminhos POSIX absolutos"
+                            break
+                    if invalid_path:
+                        break
+                if not invalid_path:
+                    for field in ("state_dir", "worktree_root"):
+                        value = policy.get(field)
+                        if isinstance(value, str):
+                            resolved = resolve_posix(value)
+                            if (
+                                cg.path_variable_names(resolved)
+                                or "$" in resolved
+                                or "%" in resolved
+                                or not PurePosixPath(resolved).is_absolute()
+                            ):
+                                invalid_path = f"{field} deve ser caminho POSIX absoluto"
+                                break
+                if invalid_path:
+                    errors.append(f"caminhos da política POSIX inválidos: {invalid_path}")
+                expected_worktree_pattern = (
+                    str(policy.get("worktree_root", "")).rstrip("/") + "/*"
+                )
+                if expected_worktree_pattern not in allowed:
+                    errors.append(
+                        "caminhos da política POSIX inválidos: "
+                        "worktree_root não está coberto por allowed_roots"
+                    )
     return errors
 
 

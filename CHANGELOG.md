@@ -6,6 +6,19 @@
 - Adicionado autorizador de ação Risk 3 específica, sem reativar modo amplo, com expiração curta e vínculo obrigatório a repositório limpo, worktree exato, HEAD exato e script versionado.
 - A execução Risk 3 explícita passa a validar cwd/HEAD limpos quando a ação local contém esse vínculo, impedindo reaproveitamento da allowlist em outro checkout.
 - CI passa a bloquear regressões do novo contrato e seus controles negativos.
+- Definido o contrato compartilhado de artefatos duráveis S3/CAS, com criação condicional, integridade, readback, escopo por prefixo e retomada segura entre executores.
+- Adiciona perfil explícito do Command Gateway para executores POSIX, limitado
+  aos repositórios compartilhados declarados e ao namespace de worktrees.
+- Valida plataforma, caminhos absolutos e variáveis obrigatórias antes da
+  execução, vincula o ambiente POSIX a caminhos confiáveis versionados e
+  congela caminhos físicos, recusa symlinks/junctions em raízes críticas e ancora
+  o `cwd` do subprocesso por descritor no POSIX para impedir escape ou
+  redirecionamento tardio da allowlist, da execução e do estado.
+- Mantém diagnóstico read-only para caminhos não resolvidos sem transformar o
+  diagnóstico em autorização e inclui controles positivos e negativos do perfil.
+- Ancora o estado operacional POSIX com `dir_fd` e `O_NOFOLLOW`, rejeita folhas
+  não regulares ou com hardlinks e grava reservas/snapshots por substituição
+  atômica; documenta o limite do fallback Windows e a ACL exclusiva exigida.
 
 ## 1.6.11 - 2026-10-17
 

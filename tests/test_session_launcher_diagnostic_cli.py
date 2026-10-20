@@ -112,7 +112,12 @@ class SessionLauncherDiagnosticCliTests(unittest.TestCase):
             self.assertNotIn("snapshot_sha256", payload)
             self.assertEqual(
                 set(payload["environment"]),
-                {"LOCALAPPDATA", "USERPROFILE"},
+                {
+                    "LOCALAPPDATA",
+                    "USERPROFILE",
+                    "REQSYS_WORKSPACE_ROOT",
+                    "REQSYS_GATEWAY_STATE_DIR",
+                },
             )
             serialized = json.dumps(payload)
             self.assertNotIn("ghp_must_not_appear", serialized)

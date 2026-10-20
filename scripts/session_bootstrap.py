@@ -28,9 +28,12 @@ def validate_session_id(session_id: str) -> str:
 
 
 def session_file(policy: dict, session_id: str) -> Path:
-    directory = cg.state_dir(policy) / "sessions"
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory / f"{validate_session_id(session_id)}.json"
+    return cg.secure_state_path(
+        policy,
+        "sessions",
+        f"{validate_session_id(session_id)}.json",
+        create_parent=True,
+    )
 
 
 def worktree_path(policy: dict, session_id: str) -> Path:
@@ -43,15 +46,19 @@ def worktree_path(policy: dict, session_id: str) -> Path:
     return target
 
 
-def read_reservation(path: Path) -> dict:
+def read_reservation(policy: dict, path: Path) -> dict:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(cg.read_state_text(policy, path))
     except (OSError, json.JSONDecodeError) as exc:
         raise cg.GatewayError("reserva de sessão inválida", EXIT_SESSION_REQUIRED) from exc
 
 
-def write_reservation(path: Path, payload: dict) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True), encoding="utf-8", newline="\n")
+def write_reservation(policy: dict, path: Path, payload: dict) -> None:
+    cg.atomic_write_state_text(
+        policy,
+        path,
+        json.dumps(payload, ensure_ascii=False, sort_keys=True),
+    )
 
 
 def tracked_tree_clean(repo: Path, policy: dict) -> bool:
@@ -87,14 +94,17 @@ def reserve(repo: Path, policy: dict, session_id: str, correlation_id: str) -> t
         "correlation_id": correlation_id,
     }
     try:
-        fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        cg.write_state_text(
+            policy,
+            path,
+            json.dumps(payload, ensure_ascii=False, sort_keys=True),
+            exclusive=True,
+        )
     except FileExistsError:
-        existing = read_reservation(path)
+        existing = read_reservation(policy, path)
         if existing.get("repo_root") != payload["repo_root"]:
             raise cg.GatewayError("session_id já reservado para outro repositório", EXIT_SESSION_CONFLICT)
         return existing, "already_reserved"
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, sort_keys=True)
     return payload, "reserved"
 
 
@@ -169,7 +179,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
         reservation["status"] = "materialized"
         reservation["materialized_at"] = cg.utc_now()
         reservation["worktree_head"] = current.head
-        write_reservation(session_file(policy, reservation["session_id"]), reservation)
+        write_reservation(policy, session_file(policy, reservation["session_id"]), reservation)
         return reservation, "reconciled_materialized"
     collisions = cg.tracked_case_collisions(repo)
     if collisions:
@@ -198,7 +208,7 @@ def materialize(reservation: dict, policy: dict, correlation_id: str) -> tuple[d
     reservation["status"] = "materialized"
     reservation["materialized_at"] = cg.utc_now()
     reservation["worktree_head"] = created.head
-    write_reservation(session_file(policy, reservation["session_id"]), reservation)
+    write_reservation(policy, session_file(policy, reservation["session_id"]), reservation)
     return reservation, "materialized"
 
 
