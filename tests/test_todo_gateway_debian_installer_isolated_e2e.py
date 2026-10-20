@@ -33,10 +33,16 @@ def _env() -> dict[str, str]:
         "GITHUB_ACTIONS": "true",
         "TODO22_RUNNER_ENVIRONMENT": "github-hosted",
         "GITHUB_REPOSITORY": "ericson-j-santos/chatgpt-operational-rules",
+        "TODO22_ACTOR": "ericson-j-santos",
+        "TODO22_TRIGGERING_ACTOR": "ericson-j-santos",
         "GITHUB_EVENT_NAME": "pull_request",
         "TODO22_SOURCE_REF": "fix/post-merge-homologation-gate-20261019",
+        "TODO22_FULL_REF": "refs/pull/159/merge",
+        "TODO22_REF_TYPE": "branch",
         "TODO22_PR_HEAD_REPOSITORY": "ericson-j-santos/chatgpt-operational-rules",
         "TODO22_PR_AUTHOR": "ericson-j-santos",
+        "TODO22_PR_BASE_REF": "main",
+        "TODO22_PR_DRAFT": "true",
     }
 
 
@@ -99,11 +105,156 @@ def test_context_accepts_main_push_and_verified_manual_pr_dispatch():
             {
                 "GITHUB_EVENT_NAME": event_name,
                 "TODO22_SOURCE_REF": source_ref,
+                "TODO22_FULL_REF": f"refs/heads/{source_ref}",
+                "TODO22_REF_TYPE": "branch",
                 "TODO22_PR_HEAD_REPOSITORY": "",
                 "TODO22_PR_AUTHOR": "",
+                "TODO22_PR_BASE_REF": "",
+                "TODO22_PR_DRAFT": "false",
                 "TODO22_MANUAL_PR_VERIFIED": manual_pr_verified,
             }
         )
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+@pytest.mark.parametrize(
+    ("event_name", "source_ref", "manual_pr_verified"),
+    [
+        ("pull_request", "fix/owner-draft", "false"),
+        ("push", "main", "false"),
+        ("workflow_dispatch", "main", "false"),
+        ("workflow_dispatch", "fix/verified-owner-pr", "true"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("identity_field", "identity_value", "error"),
+    [
+        ("TODO22_ACTOR", "other-user", "github_actor_mismatch"),
+        ("TODO22_ACTOR", "", "github_actor_mismatch"),
+        ("TODO22_TRIGGERING_ACTOR", "other-user", "github_triggering_actor_mismatch"),
+        ("TODO22_TRIGGERING_ACTOR", "", "github_triggering_actor_mismatch"),
+    ],
+)
+def test_context_rejects_non_owner_identity_for_every_allowed_route(
+    event_name,
+    source_ref,
+    manual_pr_verified,
+    identity_field,
+    identity_value,
+    error,
+):
+    env = _env()
+    env.update(
+        {
+            "GITHUB_EVENT_NAME": event_name,
+            "TODO22_SOURCE_REF": source_ref,
+            "TODO22_MANUAL_PR_VERIFIED": manual_pr_verified,
+        }
+    )
+    if event_name != "pull_request":
+        env.update(
+            {
+                "TODO22_PR_HEAD_REPOSITORY": "",
+                "TODO22_PR_AUTHOR": "",
+                "TODO22_PR_BASE_REF": "",
+                "TODO22_PR_DRAFT": "false",
+            }
+        )
+        env["TODO22_FULL_REF"] = f"refs/heads/{source_ref}"
+    env[identity_field] = identity_value
+    with pytest.raises(HomologationError, match=rf"^{error}$"):
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error"),
+    [
+        ("TODO22_PR_BASE_REF", "release", "pull_request_base_mismatch"),
+        ("TODO22_PR_BASE_REF", "", "pull_request_base_mismatch"),
+        ("TODO22_PR_DRAFT", "false", "pull_request_draft_required"),
+        ("TODO22_PR_DRAFT", "", "pull_request_draft_required"),
+    ],
+)
+def test_context_rejects_pr_outside_owner_draft_main_contract(field, value, error):
+    env = _env()
+    env[field] = value
+    with pytest.raises(HomologationError, match=rf"^{error}$"):
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+def test_context_rejects_manual_dispatch_from_tag_named_main():
+    env = _env()
+    env.update(
+        {
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "TODO22_SOURCE_REF": "main",
+            "TODO22_FULL_REF": "refs/tags/main",
+            "TODO22_REF_TYPE": "tag",
+            "TODO22_PR_HEAD_REPOSITORY": "",
+            "TODO22_PR_AUTHOR": "",
+            "TODO22_PR_BASE_REF": "",
+            "TODO22_PR_DRAFT": "false",
+            "TODO22_MANUAL_PR_VERIFIED": "false",
+        }
+    )
+    with pytest.raises(HomologationError, match=r"^ref_mismatch$"):
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("TODO22_FULL_REF", None),
+        ("TODO22_FULL_REF", "refs/tags/main"),
+        ("TODO22_REF_TYPE", None),
+        ("TODO22_REF_TYPE", "tag"),
+    ],
+)
+def test_context_rejects_push_with_missing_or_forged_ref_binding(field, value):
+    env = _env()
+    env.update(
+        {
+            "GITHUB_EVENT_NAME": "push",
+            "TODO22_SOURCE_REF": "main",
+            "TODO22_FULL_REF": "refs/heads/main",
+            "TODO22_REF_TYPE": "branch",
+            "TODO22_PR_HEAD_REPOSITORY": "",
+            "TODO22_PR_AUTHOR": "",
+            "TODO22_PR_BASE_REF": "",
+            "TODO22_PR_DRAFT": "false",
+            "TODO22_MANUAL_PR_VERIFIED": "false",
+        }
+    )
+    if value is None:
+        env.pop(field)
+    else:
+        env[field] = value
+
+    with pytest.raises(HomologationError, match=r"^ref_mismatch$"):
         validate_execution_context(
             env,
             euid=0,
@@ -126,6 +277,8 @@ def test_context_rejects_untrusted_non_pr_refs(event_name, source_ref):
         {
             "GITHUB_EVENT_NAME": event_name,
             "TODO22_SOURCE_REF": source_ref,
+            "TODO22_FULL_REF": f"refs/heads/{source_ref}",
+            "TODO22_REF_TYPE": "branch",
             "TODO22_PR_HEAD_REPOSITORY": "",
             "TODO22_PR_AUTHOR": "",
         }
@@ -330,18 +483,71 @@ def test_isolated_homologation_is_automatic_same_repo_and_reuses_canonical_insta
     assert "id: bind" in workflow
     assert "manual_pr_verified=true" in workflow
     assert "Manual non-main dispatch requires one exact owner draft PR" in workflow
+    assert 'DISPATCH_ACTOR: ${{ github.actor }}' in workflow
+    assert 'DISPATCH_TRIGGERING_ACTOR: ${{ github.triggering_actor }}' in workflow
+    assert 'REPOSITORY_OWNER: ${{ github.repository_owner }}' in workflow
+    assert 'DISPATCH_FULL_REF: ${{ github.ref }}' in workflow
+    assert 'DISPATCH_REF_TYPE: ${{ github.ref_type }}' in workflow
+    assert (
+        '[[ "$DISPATCH_ACTOR" != "$REPOSITORY_OWNER" || '
+        '"$DISPATCH_TRIGGERING_ACTOR" != "$REPOSITORY_OWNER" ]]' in workflow
+    )
+    assert "Manual dispatch requires repository owner identity" in workflow
+    assert (
+        '[[ "$DISPATCH_REF_TYPE" != "branch" || '
+        '"$DISPATCH_FULL_REF" != "refs/heads/$DISPATCH_REF" ]]' in workflow
+    )
+    assert "Manual dispatch requires a branch ref" in workflow
+    expected_gate = """    if: >-
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      (
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            github.ref == 'refs/heads/main' ||
+            needs.validate.outputs.manual_pr_verified == 'true'
+          )
+        ) ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        ) ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.user.login == github.repository_owner &&
+          github.event.pull_request.base.ref == 'main' &&
+          github.event.pull_request.draft == true
+        )
+      )
+"""
+    assert expected_gate in job
     assert "github.event_name == 'workflow_dispatch'" in job
     assert "github.event_name == 'push'" in job
     assert "github.event_name == 'pull_request'" in job
-    assert "github.event.pull_request.head.repo.full_name == github.repository" in job
-    assert "github.event.pull_request.user.login == 'ericson-j-santos'" in job
+    assert job.count("github.actor == github.repository_owner") == 1
+    assert job.count("github.triggering_actor == github.repository_owner") == 1
+    assert "github.ref_name == 'main'" not in job
+    assert job.count("github.ref == 'refs/heads/main'") == 2
+    assert job.count("needs.validate.outputs.manual_pr_verified == 'true'") == 1
+    assert job.count("github.event.pull_request.head.repo.full_name == github.repository") == 1
+    assert job.count("github.event.pull_request.user.login == github.repository_owner") == 1
+    assert job.count("github.event.pull_request.base.ref == 'main'") == 1
+    assert job.count("github.event.pull_request.draft == true") == 1
     assert "needs: validate" in job
     assert "runs-on: ubuntu-24.04" in job
     assert "persist-credentials: false" in job
     assert "TODO22_RUNNER_ENVIRONMENT: ${{ runner.environment }}" in job
+    assert job.count('TODO22_ACTOR="$ACTOR"') == 2
+    assert job.count('TODO22_TRIGGERING_ACTOR="$TRIGGERING_ACTOR"') == 2
     assert 'TODO22_SOURCE_REF="$SOURCE_REF"' in job
+    assert job.count('TODO22_FULL_REF="$FULL_REF"') == 2
+    assert job.count('TODO22_REF_TYPE="$REF_TYPE"') == 2
     assert 'TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY"' in job
     assert 'TODO22_PR_AUTHOR="$PR_AUTHOR"' in job
+    assert job.count('TODO22_PR_BASE_REF="$PR_BASE_REF"') == 2
+    assert job.count('TODO22_PR_DRAFT="$PR_DRAFT"') == 2
     assert 'TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED"' in job
     assert "scripts/todo_gateway_debian_installer_isolated_e2e.py" in job
     assert "--preflight-only" in job

@@ -55,9 +55,22 @@ jobs:
           DISPATCH_CORRELATION_ID: ${{ inputs.correlation_id }}
           DISPATCH_EXPECTED_SHA: ${{ inputs.expected_sha }}
           DISPATCH_REF: ${{ github.ref_name }}
+          DISPATCH_FULL_REF: ${{ github.ref }}
+          DISPATCH_REF_TYPE: ${{ github.ref_type }}
+          DISPATCH_ACTOR: ${{ github.actor }}
+          DISPATCH_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
           RESOLVED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          if [[ "$DISPATCH_ACTOR" != "$REPOSITORY_OWNER" || "$DISPATCH_TRIGGERING_ACTOR" != "$REPOSITORY_OWNER" ]]; then
+            echo "Manual dispatch requires repository owner identity" >&2
+            exit 1
+          fi
+          if [[ "$DISPATCH_REF_TYPE" != "branch" || "$DISPATCH_FULL_REF" != "refs/heads/$DISPATCH_REF" ]]; then
+            echo "Manual dispatch requires a branch ref" >&2
+            exit 1
+          fi
           if [[ ! "$DISPATCH_CORRELATION_ID" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]; then
             echo "Invalid correlation identifier" >&2
             exit 1
@@ -187,12 +200,27 @@ jobs:
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
       (
-        github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.user.login == 'ericson-j-santos'
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            github.ref == 'refs/heads/main' ||
+            needs.validate.outputs.manual_pr_verified == 'true'
+          )
+        ) ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        ) ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.user.login == github.repository_owner &&
+          github.event.pull_request.base.ref == 'main' &&
+          github.event.pull_request.draft == true
+        )
       )
     needs: validate
     runs-on: ubuntu-24.04
@@ -202,8 +230,14 @@ jobs:
       CORRELATION_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.correlation_id || format('gha-{0}-{1}', github.run_id, github.run_attempt) }}
       EVENT_NAME: ${{ github.event_name }}
       SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+      FULL_REF: ${{ github.ref }}
+      REF_TYPE: ${{ github.ref_type }}
+      ACTOR: ${{ github.actor }}
+      TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
       PR_AUTHOR: ${{ github.event.pull_request.user.login || '' }}
+      PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+      PR_DRAFT: ${{ github.event.pull_request.draft && 'true' || 'false' }}
       MANUAL_PR_VERIFIED: ${{ needs.validate.outputs.manual_pr_verified || 'false' }}
     steps:
       - name: Checkout exact revision without credentials
@@ -225,8 +259,14 @@ jobs:
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
             GITHUB_EVENT_NAME="$EVENT_NAME" \
             TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_FULL_REF="$FULL_REF" \
+            TODO22_REF_TYPE="$REF_TYPE" \
+            TODO22_ACTOR="$ACTOR" \
+            TODO22_TRIGGERING_ACTOR="$TRIGGERING_ACTOR" \
             TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
             TODO22_PR_AUTHOR="$PR_AUTHOR" \
+            TODO22_PR_BASE_REF="$PR_BASE_REF" \
+            TODO22_PR_DRAFT="$PR_DRAFT" \
             TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
@@ -256,8 +296,14 @@ jobs:
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
             GITHUB_EVENT_NAME="$EVENT_NAME" \
             TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_FULL_REF="$FULL_REF" \
+            TODO22_REF_TYPE="$REF_TYPE" \
+            TODO22_ACTOR="$ACTOR" \
+            TODO22_TRIGGERING_ACTOR="$TRIGGERING_ACTOR" \
             TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
             TODO22_PR_AUTHOR="$PR_AUTHOR" \
+            TODO22_PR_BASE_REF="$PR_BASE_REF" \
+            TODO22_PR_DRAFT="$PR_DRAFT" \
             TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
