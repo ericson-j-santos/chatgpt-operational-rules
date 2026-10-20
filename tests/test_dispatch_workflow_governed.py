@@ -7,6 +7,7 @@ from scripts.dispatch_workflow_governed import (
     REQSYS_REFS,
     REQSYS_REPO,
     REQSYS_WORKFLOWS,
+    TODO22_MAIN_TARGET,
     TODO22_TARGET,
     dispatch,
     run,
@@ -73,15 +74,14 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
                         (REQSYS_REPO, workflow, ref, SHA),
                     )
 
-    def test_accepts_only_exact_todo22_target(self):
-        self.assertEqual(
-            validate(*TODO22_TARGET, SHA),
-            (*TODO22_TARGET, SHA),
-        )
+    def test_accepts_only_exact_todo22_targets(self):
+        for target in (TODO22_TARGET, TODO22_MAIN_TARGET):
+            with self.subTest(target=target):
+                self.assertEqual(validate(*target, SHA), (*target, SHA))
         rejected = [
             (TODO22_TARGET[0], WF, TODO22_TARGET[2]),
             (REQSYS_REPO, TODO22_TARGET[1], "main"),
-            (TODO22_TARGET[0], TODO22_TARGET[1], "main"),
+            (TODO22_TARGET[0], TODO22_TARGET[1], "feature/not-allowlisted"),
             (TODO22_TARGET[0], TODO22_TARGET[1], next(iter(REQSYS_REFS - {"main"}))),
         ]
         for target in rejected:
@@ -147,6 +147,43 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
         self.assertEqual(result["run_id"], 21)
         self.assertEqual(result["head_sha"], SHA)
         self.assertEqual(result["pull_request"], 999)
+
+    def test_todo22_main_dispatch_is_bound_to_exact_remote_head(self):
+        title = "Operational Rules / todo22-main-corr"
+        before = _runs(_run_item(30))
+        after = _runs(
+            _run_item(31, display_title=title),
+            _run_item(30),
+        )
+        outputs = iter([_remote_ref(), before, "", after])
+        calls = []
+
+        def fake_run(*args):
+            calls.append(args)
+            return next(outputs)
+
+        with patch("scripts.dispatch_workflow_governed.run", side_effect=fake_run):
+            result = dispatch(*TODO22_MAIN_TARGET, "todo22-main-corr", SHA)
+
+        self.assertIn(
+            "repos/ericson-j-santos/chatgpt-operational-rules/git/ref/heads%2Fmain",
+            calls[0][-1],
+        )
+        post = next(args for args in calls if "--method" in args and "POST" in args)
+        self.assertIn(f"inputs[expected_sha]={SHA}", post)
+        self.assertIn("inputs[correlation_id]=todo22-main-corr", post)
+        self.assertEqual(result["run_id"], 31)
+        self.assertEqual(result["head_sha"], SHA)
+        self.assertNotIn("pull_request", result)
+
+    def test_todo22_main_wrong_head_blocks_before_post(self):
+        with patch(
+            "scripts.dispatch_workflow_governed.run",
+            return_value=_remote_ref(OTHER_SHA),
+        ) as mocked:
+            with self.assertRaisesRegex(RuntimeError, "remote HEAD"):
+                dispatch(*TODO22_MAIN_TARGET, "todo22-main-corr", SHA)
+        self.assertEqual(mocked.call_count, 1)
 
     def test_todo22_pr_mismatch_blocks_before_post(self):
         with patch(
