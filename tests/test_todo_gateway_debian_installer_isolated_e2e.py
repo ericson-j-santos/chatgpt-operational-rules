@@ -226,6 +226,45 @@ def test_context_rejects_manual_dispatch_from_tag_named_main():
 
 
 @pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("TODO22_FULL_REF", None),
+        ("TODO22_FULL_REF", "refs/tags/main"),
+        ("TODO22_REF_TYPE", None),
+        ("TODO22_REF_TYPE", "tag"),
+    ],
+)
+def test_context_rejects_push_with_missing_or_forged_ref_binding(field, value):
+    env = _env()
+    env.update(
+        {
+            "GITHUB_EVENT_NAME": "push",
+            "TODO22_SOURCE_REF": "main",
+            "TODO22_FULL_REF": "refs/heads/main",
+            "TODO22_REF_TYPE": "branch",
+            "TODO22_PR_HEAD_REPOSITORY": "",
+            "TODO22_PR_AUTHOR": "",
+            "TODO22_PR_BASE_REF": "",
+            "TODO22_PR_DRAFT": "false",
+            "TODO22_MANUAL_PR_VERIFIED": "false",
+        }
+    )
+    if value is None:
+        env.pop(field)
+    else:
+        env[field] = value
+
+    with pytest.raises(HomologationError, match=r"^ref_mismatch$"):
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+@pytest.mark.parametrize(
     ("event_name", "source_ref"),
     [
         ("push", "feature/not-main"),

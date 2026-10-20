@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.12 - 2026-10-20
+
+- Formalizado contrato obrigatório de requisição para capabilities mutantes: alvo/ambiente, SHA/digest, correlação, idempotência, parâmetros fechados, confirmação, timeout, rollback e readback independente.
+- Adicionado autorizador de ação Risk 3 específica, sem reativar modo amplo, com expiração curta e vínculo obrigatório a repositório limpo, worktree exato, HEAD exato e script versionado.
+- A execução Risk 3 explícita passa a validar cwd/HEAD limpos quando a ação local contém esse vínculo, impedindo reaproveitamento da allowlist em outro checkout.
+- CI passa a bloquear regressões do novo contrato e seus controles negativos.
+
 ## 1.6.11 - 2026-10-17
 
 - Corrigido o bundle persistente do Command Gateway para instalar `runner_version_preflight.py`, dependência direta do Session Launcher.
