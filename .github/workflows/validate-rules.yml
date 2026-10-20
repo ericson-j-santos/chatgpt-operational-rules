@@ -19,10 +19,13 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   validate:
     name: Rules, Gateway, Session Bootstrap and E2E gate
+    outputs:
+      manual_pr_verified: ${{ steps.bind.outputs.manual_pr_verified }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -45,12 +48,16 @@ jobs:
       EXPECTED_REF: ${{ github.head_ref || github.ref_name }}
     steps:
       - name: Bind manual dispatch to its authorized revision
+        id: bind
         if: github.event_name == 'workflow_dispatch'
         env:
+          GH_TOKEN: ${{ github.token }}
           DISPATCH_CORRELATION_ID: ${{ inputs.correlation_id }}
           DISPATCH_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DISPATCH_REF: ${{ github.ref_name }}
           RESOLVED_SHA: ${{ github.sha }}
         run: |
+          set -euo pipefail
           if [[ ! "$DISPATCH_CORRELATION_ID" =~ ^[A-Za-z0-9._:-]{1,128}$ ]]; then
             echo "Invalid correlation identifier" >&2
             exit 1
@@ -62,6 +69,16 @@ jobs:
           if [[ "$RESOLVED_SHA" != "$DISPATCH_EXPECTED_SHA" ]]; then
             echo "Dispatched revision does not match the authorized SHA" >&2
             exit 1
+          fi
+          echo "manual_pr_verified=false" >> "$GITHUB_OUTPUT"
+          if [[ "$DISPATCH_REF" != "main" ]]; then
+            gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100" > "$RUNNER_TEMP/manual-prs.json"
+            MATCH_COUNT="$(jq --arg ref "$DISPATCH_REF" --arg sha "$DISPATCH_EXPECTED_SHA" --arg repo "$GITHUB_REPOSITORY" --arg owner "$GITHUB_REPOSITORY_OWNER" '[.[] | select(.state == "open" and .draft == true and .base.ref == "main" and .head.ref == $ref and .head.sha == $sha and .head.repo.full_name == $repo and .user.login == $owner)] | length' "$RUNNER_TEMP/manual-prs.json")"
+            if [[ "$MATCH_COUNT" != "1" ]]; then
+              echo "Manual non-main dispatch requires one exact owner draft PR" >&2
+              exit 1
+            fi
+            echo "manual_pr_verified=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Checkout exact revision
         uses: actions/checkout@v4
@@ -167,13 +184,25 @@ jobs:
 
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login == 'ericson-j-santos'
+      )
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      EXPECTED_SHA: ${{ github.sha }}
-      CORRELATION_ID: ${{ inputs.correlation_id }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CORRELATION_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.correlation_id || format('gha-{0}-{1}', github.run_id, github.run_attempt) }}
+      EVENT_NAME: ${{ github.event_name }}
+      SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+      PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login || '' }}
+      MANUAL_PR_VERIFIED: ${{ needs.validate.outputs.manual_pr_verified || 'false' }}
     steps:
       - name: Checkout exact revision without credentials
         uses: actions/checkout@v4
@@ -192,7 +221,11 @@ jobs:
             DEBIAN_FRONTEND=noninteractive \
             GITHUB_ACTIONS="$GITHUB_ACTIONS" \
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            GITHUB_EVENT_NAME="$EVENT_NAME" \
+            TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
+            TODO22_PR_AUTHOR="$PR_AUTHOR" \
+            TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
             /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \
@@ -219,7 +252,11 @@ jobs:
             DEBIAN_FRONTEND=noninteractive \
             GITHUB_ACTIONS="$GITHUB_ACTIONS" \
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            GITHUB_EVENT_NAME="$EVENT_NAME" \
+            TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
+            TODO22_PR_AUTHOR="$PR_AUTHOR" \
+            TODO22_MANUAL_PR_VERIFIED="$MANUAL_PR_VERIFIED" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
             /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \

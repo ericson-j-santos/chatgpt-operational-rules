@@ -210,7 +210,12 @@ jobs:
           git -C target commit -m "fix(ci): regenerate manifest after validation failure"
           git -C target push origin "HEAD:${HEAD_REF}"
           NEW_SHA="$(git -C target rev-parse HEAD)"
-          gh workflow run validate-rules.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_REF"
+          CORRELATION_ID="pr-ci-self-heal-${PR_NUMBER}-${NEW_SHA:0:12}"
+          gh workflow run validate-rules.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$HEAD_REF" \
+            -f expected_sha="$NEW_SHA" \
+            -f correlation_id="$CORRELATION_ID"
           echo "action=manifest_regenerated_and_validation_dispatched" >> "$GITHUB_OUTPUT"
           echo "result_sha=$NEW_SHA" >> "$GITHUB_OUTPUT"
 

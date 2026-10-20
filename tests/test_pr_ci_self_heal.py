@@ -74,6 +74,26 @@ class WorkflowApprovalTests(unittest.TestCase):
     def setUp(self):
         self.workflow = (ROOT / ".github/workflows/pr-ci-self-heal.yml").read_text(encoding="utf-8")
 
+    def assert_manifest_dispatch_contract(self, workflow=None):
+        raw = workflow if workflow is not None else self.workflow
+        required = (
+            'CORRELATION_ID="pr-ci-self-heal-${PR_NUMBER}-${NEW_SHA:0:12}"',
+            '-f expected_sha="$NEW_SHA"',
+            '-f correlation_id="$CORRELATION_ID"',
+        )
+        self.assertEqual(raw.count("gh workflow run validate-rules.yml"), 1)
+        for token in required:
+            self.assertIn(token, raw)
+
+    def test_manifest_revalidation_dispatch_fails_regression_without_required_inputs(self):
+        self.assert_manifest_dispatch_contract()
+        for token in ('-f expected_sha="$NEW_SHA"', '-f correlation_id="$CORRELATION_ID"'):
+            with self.subTest(token=token):
+                mutated = self.workflow.replace(token, "", 1)
+                self.assertNotEqual(mutated, self.workflow)
+                with self.assertRaises(AssertionError):
+                    self.assert_manifest_dispatch_contract(mutated)
+
     def approval_step(self, workflow=None):
         raw = workflow if workflow is not None else self.workflow
         marker = "      - name: Preserve workflow approval requirement\n"
@@ -173,6 +193,9 @@ class WorkflowApprovalTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", self.workflow)
         self.assertIn("github.event.repository.default_branch", self.workflow)
         self.assertEqual(self.workflow.count("gh workflow run validate-rules.yml"), 1)
+        self.assertIn('-f expected_sha="$NEW_SHA"', self.workflow)
+        self.assertIn('-f correlation_id="$CORRELATION_ID"', self.workflow)
+        self.assertIn('CORRELATION_ID="pr-ci-self-heal-${PR_NUMBER}-${NEW_SHA:0:12}"', self.workflow)
         self.assertIn("Um run separado não resolve essa aprovação", self.workflow)
 
 

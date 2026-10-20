@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-19T23:08:04Z",
+  "generated_at": "2026-10-20T01:13:39.134Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/pr-ci-self-heal.yml",
-      "sha256": "5d43b24ecd9ffc568fb5b25c96a8da0b0afbc517200c531c4c3f09b89d444869",
-      "size": 11126
+      "sha256": "7248d0cebd847d2ecfa5f68c45955c5780d9cb5aef24b41833018222f50ce43f",
+      "size": 11317
     },
     {
       "path": ".github/workflows/render-todo-gateway-bootstrap.yml",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "dbc64f73fa533b00e06b3b5129cf032bc34ced2179a58df6fbc5dea302676471",
-      "size": 11129
+      "sha256": "dcb9a8ed1bde939c3fc01646966073990094597c50cafcb6eb13d96b47115dc9",
+      "size": 13394
     },
     {
       "path": ".gitignore",
@@ -304,8 +304,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "fc5a8b482b5e611713e04fd95447a0c7de1db86512c56a51b06a1d2dd3d7793c",
-      "size": 8510
+      "sha256": "0518cdd4a3d41f4a7a7e7a1a5d2c1c41bc3319f9e2e5406a459eb5d881ee439d",
+      "size": 8688
     },
     {
       "path": "scripts/dual_host_preflight.py",
@@ -564,8 +564,8 @@
     },
     {
       "path": "scripts/todo_gateway_debian_installer_isolated_e2e.py",
-      "sha256": "06d5762160f78a1760bd8f44a4a290b2421d183e005a8708e1f489b4b9249c4a",
-      "size": 28656
+      "sha256": "9d596e9640dcea5ff6ef096426937d260fee4d77c45abc30b5073ae931653127",
+      "size": 29470
     },
     {
       "path": "scripts/todo_gateway_debian_resilience.py",
@@ -749,8 +749,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "53bd42895999d91e6e02e1cdda42741e67fd5906d2da1c95ac1db5b0a539fedf",
-      "size": 10195
+      "sha256": "759b56c2e1e2eb1f49bb8f272108a302b22d9cd4fbce75a037b816238068c710",
+      "size": 11810
     },
     {
       "path": "tests/test_dual_host_preflight.py",
@@ -849,8 +849,8 @@
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
-      "sha256": "2643e60718244d96dcf5c5cc0018d0fb2630eb2a3667191c7171ddbc970662b6",
-      "size": 9323
+      "sha256": "92e081d1b9a29a66bd12e4ca4b53dadefa63a4b1286337f2977d39a2f7a4f96d",
+      "size": 10570
     },
     {
       "path": "tests/test_progress_watchdog.py",
@@ -944,8 +944,8 @@
     },
     {
       "path": "tests/test_todo_gateway_debian_installer_isolated_e2e.py",
-      "sha256": "7bddc264f06e0f4f3d4eeb51efcf792de32b5e59221d30d221c6a10accdaeb6f",
-      "size": 15773
+      "sha256": "4e921b8901d60834ebc6335e9d64551ffc22fdad578307da99252c4d52b507a5",
+      "size": 18551
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
