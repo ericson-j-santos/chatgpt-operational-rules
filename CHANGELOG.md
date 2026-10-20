@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.13 - 2026-10-20
+
+- A atualização persistente do Command Gateway passa a testar a substituição de cada arquivo gerenciado antes de escrever o novo bundle, bloqueando explicitamente alvo read-only e preservando o erro do sistema quando sharing mode, ACL, antivírus ou outra interferência não puderem ser distinguidos; no Windows, a ativação usa um clone irmão preparado por `CopyFileExW` e `MoveFileExW`, preservando e relendo OWNER, GROUP, DACL, atributos e streams alternativos sem expor o merge de ACL do `ReplaceFileW`.
+- O updater serializa cada raiz de instalação, grava journal atômico e sincronizado antes da primeira mutação, assume sozinho a transação de upgrade, evita rollback duplicado, mantém um clone de recuperação verificado e imutável e só declara restauração após reconciliar conteúdo e metadados. A garantia cobre interrupção do processo; não declara recuperação transacional após perda abrupta de energia, pois os payloads e snapshots preexistentes ainda não possuem uma barreira de persistência completa no Windows.
+- Replays reconciliam tentativas interrompidas e o mesmo commit já instalado é validado por readback sem reinstalação; testes cobrem falha transitória e permanente, N-ésimo arquivo, rollback falho e handle Windows sem `FILE_SHARE_DELETE`.
+
 ## 1.6.12 - 2026-10-20
 
 - Formalizado contrato obrigatório de requisição para capabilities mutantes: alvo/ambiente, SHA/digest, correlação, idempotência, parâmetros fechados, confirmação, timeout, rollback e readback independente.

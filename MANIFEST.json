@@ -1,6 +1,6 @@
 {
-  "version": "1.6.12",
-  "generated_at": "2026-10-20T13:36:34.178074+00:00",
+  "version": "1.6.13",
+  "generated_at": "2026-10-20T16:09:32.790642+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "4698560c616778fffe3f794960ed7fca03ed3f1ac794b88dd32863cfe18e5460",
-      "size": 16368
+      "sha256": "6cbb12ce155834deb96cfca4b503d1995637b94843180e32cc672d4b2fdc059c",
+      "size": 16524
     },
     {
       "path": ".gitignore",
@@ -54,22 +54,22 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "68d5518a2b2333907d569286ce631c2449c5c8ea657c145f6990cad95086c4d0",
-      "size": 16463
+      "sha256": "7b06d4894df3a37fc7bc4dffb2fb31d7341163431d7b21d1c34744a653320ebf",
+      "size": 17786
     },
     {
       "path": "README.md",
-      "sha256": "41362e6f2ad5e842e91c8386cf2af15c6fe5e63585830b19ff613b6e651aa96b",
+      "sha256": "f5bdb0384901dcbcab97aae5bb8838e7c76a06fd5f2c1e64227acc95f5a9c307",
       "size": 8632
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "5320d3a87e1bcdfdc1508db80fa4f48337c4e4717a59b662829c577b97753100",
+      "sha256": "d3156aa197a73ad8d5eaaf794b775bf20978e3184f34072bee3038d835179429",
       "size": 2342
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "50e2da27bcca6c82ae57cabbb5d8f490108fb363265c5f30fd0dcf78d6828bc5",
+      "sha256": "0d320fcdf43c8bc3fcb0b00a0eb1113b28545fefc7b3b4dcc5e5aecc53df4853",
       "size": 2058
     },
     {
@@ -379,8 +379,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "5c31508b431a2a3bb9ea649e25e18fb0c6fd8c47afbe138aa2654f6bc92e262f",
-      "size": 32184
+      "sha256": "73ef3c091a16a261dfe71fa0ac7bb2e2c6a7f07bdfa3bc592c44855751c92329",
+      "size": 78149
     },
     {
       "path": "scripts/install_gitlab_relay_registrar_windows.py",
@@ -629,8 +629,8 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "fbed2c036415a4f97637c453c37e3060a580d549f68a519785d0a02926589103",
-      "size": 4835
+      "sha256": "98eca3305acf0d0537521bc2e12f17a0bef5be9903683516b6102e5bd8838f37",
+      "size": 33223
     },
     {
       "path": "scripts/validate_rules.py",
@@ -1019,8 +1019,8 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "be3cb6e56583213944bb13e7b97877c2a6c416cca73fd2b80af169f28249bd57",
-      "size": 13878
+      "sha256": "f0c21542e0293d9d22cd391e0fef5b87afe7eb82cd5357e640b61a64d2a936ee",
+      "size": 74892
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
