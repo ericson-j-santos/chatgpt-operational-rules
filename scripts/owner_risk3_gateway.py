@@ -197,6 +197,35 @@ def validate_action(action_id: str, requested_scope: str, action: dict[str, Any]
     return command
 
 
+def validate_explicit_binding(action: dict[str, Any], cwd: Path) -> dict[str, str]:
+    configured_cwd = action.get("cwd")
+    configured_head = action.get("git_head")
+    if configured_cwd is None and configured_head is None:
+        return {}
+    if not isinstance(configured_cwd, str) or not configured_cwd:
+        raise Risk3Error("ação allowlisted sem cwd vinculada")
+    if not isinstance(configured_head, str) or not re.fullmatch(r"[0-9a-f]{40}", configured_head):
+        raise Risk3Error("ação allowlisted sem git_head válido")
+    resolved = cwd.resolve()
+    if normalize_path(resolved) != normalize_path(configured_cwd):
+        raise Risk3Error("cwd não corresponde à allowlist local")
+    root_result = _git(resolved, ["rev-parse", "--show-toplevel"])
+    if root_result.returncode != 0 or root_result.stderr.strip():
+        raise Risk3Error("ação allowlisted exige repositório Git válido")
+    repo_root = Path(root_result.stdout.strip()).resolve()
+    if normalize_path(repo_root) != normalize_path(resolved):
+        raise Risk3Error("ação allowlisted exige cwd na raiz do repositório")
+    head = _git(repo_root, ["rev-parse", "HEAD"])
+    if head.returncode != 0 or head.stderr.strip() or head.stdout.strip() != configured_head:
+        raise Risk3Error("git_head não corresponde à allowlist local")
+    status = _git(repo_root, ["status", "--porcelain", "--untracked-files=all"])
+    if status.returncode != 0 or status.stderr.strip() or status.stdout.strip():
+        raise Risk3Error("ação allowlisted exige worktree Git limpo")
+    return {"git_head": configured_head, "cwd_sha256": hashlib.sha256(
+        normalize_path(resolved).encode("utf-8")
+    ).hexdigest()}
+
+
 def _git(cwd: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(cwd), *args],
@@ -307,9 +336,11 @@ def execute_action(
         if command_override:
             raise Risk3Error("ação allowlisted não aceita comando ad-hoc")
         command = validate_action(action_id, scope, action)
+        binding = validate_explicit_binding(action, cwd)
         audit_mode = {
             "execution_mode": "explicit_allowlist",
             "environment": str(action.get("environment", "")).casefold(),
+            **binding,
         }
     else:
         command, audit_mode = validate_development_mode(
