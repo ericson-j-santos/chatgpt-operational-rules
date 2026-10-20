@@ -221,16 +221,35 @@ def _remove_transaction_journal(path: Path) -> None:
             os.close(descriptor)
 
 
-def _same_file_state(target: Path, sha256: str, size: int, mode: int | None = None) -> bool:
+def _same_file_state(
+    target: Path,
+    sha256: str,
+    size: int,
+    mode: int | None = None,
+    *,
+    windows_state: dict[str, Any] | None = None,
+    require_no_windows_streams: bool = False,
+) -> bool:
     if target.is_symlink() or not target.is_file():
         return False
     try:
         observed = target.stat()
-        return (
+        content_matches = (
             observed.st_size == size
             and sha256_file(target) == sha256
             and (mode is None or stat.S_IMODE(observed.st_mode) == mode)
         )
+        if not content_matches or not bootstrap._windows_metadata_required():
+            return content_matches
+        actual_windows_state = bootstrap._windows_persisted_file_state(target)
+        if windows_state is not None:
+            bootstrap._validate_windows_persisted_state(
+                windows_state, str(target)
+            )
+            return bootstrap._windows_persisted_state_equivalent(
+                windows_state, actual_windows_state
+            )
+        return not require_no_windows_streams or not actual_windows_state["streams"]
     except OSError:
         return False
 
@@ -243,12 +262,16 @@ def reconcile_runtime(install_root: Path, backup_dir: Path) -> dict[str, Any]:
     all_desired = True
     for destination, entry in snapshot["entries"].items():
         target = bootstrap._managed_target(install_root, destination)
+        expected_windows_state = (
+            entry.get("previous_windows_state") if entry["existed"] else None
+        )
         previous = (
             _same_file_state(
                 target,
                 entry["previous_sha256"],
                 entry["previous_size"],
                 entry["previous_mode"],
+                windows_state=expected_windows_state,
             )
             if entry["existed"]
             else not target.exists() and not target.is_symlink()
@@ -257,6 +280,8 @@ def reconcile_runtime(install_root: Path, backup_dir: Path) -> dict[str, Any]:
             target,
             entry["desired_sha256"],
             entry["desired_size"],
+            windows_state=expected_windows_state,
+            require_no_windows_streams=not entry["existed"],
         )
         all_previous = all_previous and previous
         all_desired = all_desired and desired
@@ -295,7 +320,11 @@ def reconcile_runtime(install_root: Path, backup_dir: Path) -> dict[str, Any]:
     }
 
 
-def desired_runtime_state(bundle_dir: Path, install_root: Path) -> dict[str, Any]:
+def desired_runtime_state(
+    bundle_dir: Path,
+    install_root: Path,
+    expected_files: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Comprova o bundle instalado sem confiar em recibo anterior."""
     _, index = bootstrap.verify_bundle(bundle_dir)
     files: dict[str, dict[str, Any]] = {}
@@ -303,17 +332,38 @@ def desired_runtime_state(bundle_dir: Path, install_root: Path) -> dict[str, Any
     for source, destination in bootstrap.RUNTIME_MAP.items():
         target = bootstrap._managed_target(install_root, destination)
         expected = index[source]
+        expected_windows_state = None
+        if bootstrap._windows_metadata_required():
+            if not isinstance(expected_files, dict):
+                raise bootstrap.HostBootstrapError(
+                    "recibo Windows não possui metadados reconciliáveis"
+                )
+            expected_file = expected_files.get(destination)
+            if not isinstance(expected_file, dict):
+                raise bootstrap.HostBootstrapError(
+                    f"recibo Windows não descreve {destination}"
+                )
+            expected_windows_state = expected_file.get("windows_state")
+            bootstrap._validate_windows_persisted_state(
+                expected_windows_state, destination
+            )
         current = _same_file_state(
             target,
             str(expected["sha256"]).lower(),
             int(expected["size"]),
+            windows_state=expected_windows_state,
         )
         matched = matched and current
-        files[destination] = {
+        observed_file: dict[str, Any] = {
             "matched": current,
             "sha256": sha256_file(target) if current else None,
             "size": target.stat().st_size if current else None,
         }
+        if current and expected_windows_state is not None:
+            observed_file["windows_state"] = (
+                bootstrap._windows_persisted_file_state(target)
+            )
+        files[destination] = observed_file
     return {"matched": matched, "files": files}
 
 
@@ -679,7 +729,11 @@ def main() -> int:
                 and previous_receipt.get("source_commit") == commit
             ):
                 phase = "idempotent_readback"
-                desired = desired_runtime_state(bundle, install_root)
+                desired = desired_runtime_state(
+                    bundle,
+                    install_root,
+                    previous_receipt.get("files"),
+                )
                 if not desired["matched"]:
                     raise bootstrap.HostBootstrapError(
                         "recibo de sucesso existe, mas o runtime instalado diverge"

@@ -421,7 +421,191 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             finally:
                 self.assertTrue(close_handle(handle))
 
-    @unittest.skipUnless(os.name == "nt", "requer ReplaceFileW do Windows")
+    def test_windows_staged_replace_clone_failure_keeps_target_and_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_get_security_descriptor",
+                return_value=b"descriptor",
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_fingerprint",
+                return_value={"same": True},
+            ), mock.patch.multiple(
+                updater.bootstrap,
+                _windows_get_file_attributes=mock.Mock(return_value=0x20),
+                _windows_set_file_attributes=mock.Mock(),
+                _windows_file_identity=mock.Mock(return_value=(1, 1)),
+                _windows_stream_fingerprint=mock.Mock(return_value=()),
+                _windows_owner_group_equivalent=mock.Mock(return_value=True),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_copy_file",
+                side_effect=PermissionError("injected clone failure"),
+            ), mock.patch.object(
+                updater.bootstrap, "_windows_move_file"
+            ) as move_file, mock.patch.object(
+                updater.bootstrap, "_cleanup_owned_stage"
+            ) as cleanup:
+                with self.assertRaisesRegex(PermissionError, "clone failure"):
+                    updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(target.read_bytes(), b"previous\n")
+            self.assertEqual(source.read_bytes(), b"desired\n")
+            move_file.assert_not_called()
+            cleanup.assert_not_called()
+
+    def test_windows_staged_replace_security_failure_cleans_owned_stage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+
+            def clone(observed: Path, stage: Path) -> None:
+                shutil.copyfile(observed, stage)
+
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_get_security_descriptor",
+                return_value=b"descriptor",
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_fingerprint",
+                return_value={"same": True},
+            ), mock.patch.multiple(
+                updater.bootstrap,
+                _windows_get_file_attributes=mock.Mock(return_value=0x20),
+                _windows_set_file_attributes=mock.Mock(),
+                _windows_file_identity=mock.Mock(return_value=(1, 1)),
+                _windows_stream_fingerprint=mock.Mock(return_value=()),
+                _windows_owner_group_equivalent=mock.Mock(return_value=True),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_equivalent",
+                return_value=False,
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_copy_file",
+                side_effect=clone,
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_set_dacl",
+                side_effect=PermissionError("injected security failure"),
+            ), mock.patch.object(
+                updater.bootstrap, "_windows_move_file"
+            ) as move_file:
+                with self.assertRaisesRegex(PermissionError, "security failure"):
+                    updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(target.read_bytes(), b"previous\n")
+            self.assertEqual(source.read_bytes(), b"desired\n")
+            self.assertEqual(list(root.glob("managed.py.replace-stage-*")), [])
+            move_file.assert_not_called()
+
+    def test_windows_staged_replace_move_failure_is_pre_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+
+            def clone(observed: Path, stage: Path) -> None:
+                shutil.copyfile(observed, stage)
+
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_get_security_descriptor",
+                return_value=b"descriptor",
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_fingerprint",
+                return_value={"same": True},
+            ), mock.patch.multiple(
+                updater.bootstrap,
+                _windows_get_file_attributes=mock.Mock(return_value=0x20),
+                _windows_set_file_attributes=mock.Mock(),
+                _windows_file_identity=mock.Mock(return_value=(1, 1)),
+                _windows_stream_fingerprint=mock.Mock(return_value=()),
+                _windows_owner_group_equivalent=mock.Mock(return_value=True),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_equivalent",
+                return_value=True,
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_copy_file",
+                side_effect=clone,
+            ), mock.patch.object(
+                updater.bootstrap, "_windows_set_dacl"
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_move_file",
+                side_effect=PermissionError("injected sharing violation"),
+            ):
+                with self.assertRaisesRegex(PermissionError, "sharing violation"):
+                    updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(target.read_bytes(), b"previous\n")
+            self.assertFalse(source.exists())
+            self.assertEqual(list(root.glob("managed.py.replace-stage-*")), [])
+
+    def test_windows_staged_replace_reports_cleanup_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+
+            def clone(observed: Path, stage: Path) -> None:
+                shutil.copyfile(observed, stage)
+
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_get_security_descriptor",
+                return_value=b"descriptor",
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_fingerprint",
+                return_value={"same": True},
+            ), mock.patch.multiple(
+                updater.bootstrap,
+                _windows_get_file_attributes=mock.Mock(return_value=0x20),
+                _windows_set_file_attributes=mock.Mock(),
+                _windows_file_identity=mock.Mock(return_value=(1, 1)),
+                _windows_stream_fingerprint=mock.Mock(return_value=()),
+                _windows_owner_group_equivalent=mock.Mock(return_value=True),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_security_equivalent",
+                return_value=False,
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_copy_file",
+                side_effect=clone,
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_set_dacl",
+                side_effect=PermissionError("injected security failure"),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_cleanup_owned_stage",
+                side_effect=PermissionError("injected cleanup failure"),
+            ):
+                with self.assertRaisesRegex(
+                    OSError, "security failure.*limpeza.*cleanup failure"
+                ):
+                    updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(target.read_bytes(), b"previous\n")
+            self.assertEqual(source.read_bytes(), b"desired\n")
+            self.assertEqual(len(list(root.glob("managed.py.replace-stage-*"))), 1)
+
+    @unittest.skipUnless(os.name == "nt", "requer APIs de arquivo do Windows")
     def test_windows_replace_preserves_security_descriptor_and_ads(self):
         import ctypes
         from ctypes import wintypes
@@ -492,6 +676,68 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             ctypes.POINTER(wintypes.LPVOID),
         ]
         get_ace.restype = wintypes.BOOL
+        convert_sddl = security.ConvertStringSecurityDescriptorToSecurityDescriptorW
+        convert_sddl.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.LPVOID),
+            ctypes.POINTER(wintypes.DWORD),
+        ]
+        convert_sddl.restype = wintypes.BOOL
+        set_named_security = security.SetNamedSecurityInfoW
+        set_named_security.argtypes = [
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.LPVOID,
+            wintypes.LPVOID,
+            wintypes.LPVOID,
+        ]
+        set_named_security.restype = wintypes.DWORD
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        local_free = kernel32.LocalFree
+        local_free.argtypes = [wintypes.LPVOID]
+        local_free.restype = wintypes.LPVOID
+
+        def apply_protected_deny_allow_dacl(path: Path) -> None:
+            descriptor = wintypes.LPVOID()
+            descriptor_size = wintypes.DWORD()
+            self.assertTrue(
+                convert_sddl(
+                    "D:P(D;;FR;;;AN)(A;;FA;;;WD)",
+                    1,
+                    ctypes.byref(descriptor),
+                    ctypes.byref(descriptor_size),
+                )
+            )
+            try:
+                present = wintypes.BOOL()
+                dacl = wintypes.LPVOID()
+                defaulted = wintypes.BOOL()
+                self.assertTrue(
+                    get_dacl(
+                        descriptor,
+                        ctypes.byref(present),
+                        ctypes.byref(dacl),
+                        ctypes.byref(defaulted),
+                    )
+                )
+                self.assertTrue(present.value)
+                self.assertTrue(dacl.value)
+                result = set_named_security(
+                    str(path),
+                    1,
+                    0x00000004 | 0x80000000,
+                    None,
+                    None,
+                    dacl,
+                    None,
+                )
+                if result:
+                    raise ctypes.WinError(result)
+            finally:
+                self.assertFalse(local_free(descriptor))
 
         def sid_bytes(pointer: wintypes.LPVOID) -> bytes | None:
             if not pointer.value:
@@ -677,12 +923,23 @@ class HostRuntimeUpdateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "managed.py"
             target.write_bytes(b"previous\n")
+            apply_protected_deny_allow_dacl(target)
             stream = Path(str(target) + ":reqsys-test-stream")
             stream.write_bytes(b"preserve-stream\n")
+            unicode_stream = Path(str(target) + ":continuidade-ç-漢字")
+            unicode_stream.write_bytes(b"preserve-unicode-stream\n")
             before = security_state(target)
+            self.assertTrue(before["dacl_protected"])
+            self.assertEqual(before["dacl"]["ace_count"], 2)
+            self.assertEqual(
+                tuple(ace["type"] for ace in before["dacl"]["aces"]), (1, 0)
+            )
             updater.bootstrap.atomic_write(target, b"desired\n")
             self.assertEqual(target.read_bytes(), b"desired\n")
             self.assertEqual(stream.read_bytes(), b"preserve-stream\n")
+            self.assertEqual(
+                unicode_stream.read_bytes(), b"preserve-unicode-stream\n"
+            )
             after = security_state(target)
             assert_security_preserved(before, after)
 
@@ -1192,6 +1449,285 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 msg=f"stdout={result.stdout}\nstderr={result.stderr}",
             )
             self.assertNotIn("ModuleNotFoundError", result.stderr)
+
+
+    def _sample_windows_state(
+        self,
+        *,
+        ace_mask: int = 0x001F01FF,
+        control: int = 0x8004,
+        streams: list[dict[str, object]] | None = None,
+    ) -> dict[str, object]:
+        sid = "010100000000000512000000"
+        return {
+            "version": 1,
+            "attributes": 0x20,
+            "security": {
+                "owner_sid": sid,
+                "owner_defaulted": False,
+                "group_sid": sid,
+                "group_defaulted": False,
+                "dacl_present": True,
+                "dacl_null": False,
+                "dacl_defaulted": False,
+                "dacl_protected": False,
+                "dacl": [
+                    2,
+                    1,
+                    [[0, 0, 20, ace_mask, "", sid, ""]],
+                ],
+                "control": control,
+                "revision": 1,
+            },
+            "streams": streams or [],
+        }
+
+    def test_windows_metadata_comparison_is_structural_and_ads_sensitive(self):
+        expected = self._sample_windows_state()
+        normalized = self._sample_windows_state(control=0x8404)
+        updater.bootstrap._validate_windows_persisted_state(expected, "managed.py")
+        self.assertTrue(
+            updater.bootstrap._windows_persisted_state_equivalent(
+                expected, normalized
+            )
+        )
+
+        changed_ace = self._sample_windows_state(ace_mask=0x00120089)
+        self.assertFalse(
+            updater.bootstrap._windows_persisted_state_equivalent(
+                expected, changed_ace
+            )
+        )
+        changed_ads = self._sample_windows_state(
+            streams=[
+                {
+                    "name": ":evidência:$DATA",
+                    "size": 1,
+                    "sha256": hashlib.sha256(b"x").hexdigest(),
+                }
+            ]
+        )
+        self.assertFalse(
+            updater.bootstrap._windows_persisted_state_equivalent(
+                expected, changed_ads
+            )
+        )
+
+    def test_windows_dacl_security_information_preserves_protection(self):
+        self.assertEqual(
+            updater.bootstrap._windows_dacl_security_information(
+                {"dacl_protected": True}
+            ),
+            0x80000004,
+        )
+        self.assertEqual(
+            updater.bootstrap._windows_dacl_security_information(
+                {"dacl_protected": False}
+            ),
+            0x20000004,
+        )
+        with self.assertRaisesRegex(OSError, "proteção da DACL Windows inválido"):
+            updater.bootstrap._windows_dacl_security_information(
+                {"dacl_protected": 1}
+            )
+
+    def test_windows_rejects_v1_rollback_while_posix_remains_compatible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_current_bundle(root)
+            install = root / "install"
+            for destination in updater.bootstrap.RUNTIME_MAP.values():
+                target = install / destination
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(f"legacy:{destination}".encode("utf-8"))
+            backup = updater.bootstrap.prepare_runtime_rollback(bundle, install)
+            manifest_path = backup / "rollback-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["version"] = 1
+            manifest.pop("metadata_contract")
+            manifest_path.write_text(
+                json.dumps(manifest, sort_keys=True), encoding="utf-8"
+            )
+
+            loaded = updater.bootstrap._load_runtime_rollback(install, backup)
+            self.assertEqual(loaded["version"], 1)
+            with mock.patch.object(
+                updater.bootstrap, "_windows_metadata_required", return_value=True
+            ):
+                with self.assertRaisesRegex(
+                    updater.bootstrap.HostBootstrapError,
+                    "v1 não comprova ACL/ADS",
+                ):
+                    updater.bootstrap._load_runtime_rollback(install, backup)
+
+    def test_reconcile_rejects_desired_bytes_with_windows_metadata_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            install = Path(tmp) / "install"
+            target = install / "bin" / "managed.py"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"desired")
+            expected_state = self._sample_windows_state()
+            changed_state = self._sample_windows_state(ace_mask=0x00120089)
+            snapshot = {
+                "entries": {
+                    "bin/managed.py": {
+                        "source": "scripts/managed.py",
+                        "existed": True,
+                        "previous_sha256": hashlib.sha256(b"previous").hexdigest(),
+                        "previous_size": len(b"previous"),
+                        "previous_mode": stat.S_IMODE(target.stat().st_mode),
+                        "desired_sha256": hashlib.sha256(b"desired").hexdigest(),
+                        "desired_size": len(b"desired"),
+                        "previous_windows_state": expected_state,
+                    }
+                }
+            }
+            with (
+                mock.patch.object(
+                    updater.bootstrap,
+                    "RUNTIME_MAP",
+                    {"scripts/managed.py": "bin/managed.py"},
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_load_runtime_rollback",
+                    return_value=snapshot,
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_metadata_required",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_persisted_file_state",
+                    return_value=changed_state,
+                ),
+            ):
+                result = updater.reconcile_runtime(install, install / "backup")
+            self.assertFalse(result["desired_state"])
+            self.assertEqual(
+                result["entries"]["bin/managed.py"]["state"], "divergent"
+            )
+
+    def test_windows_idempotent_readback_requires_receipt_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            bundle.mkdir()
+            install = root / "install"
+            target = install / "bin" / "managed.py"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"desired")
+            digest = hashlib.sha256(b"desired").hexdigest()
+            expected_state = self._sample_windows_state()
+            changed_state = self._sample_windows_state(
+                streams=[
+                    {"name": ":extra:$DATA", "size": 0, "sha256": hashlib.sha256(b"").hexdigest()}
+                ]
+            )
+            with (
+                mock.patch.object(
+                    updater.bootstrap,
+                    "RUNTIME_MAP",
+                    {"scripts/managed.py": "bin/managed.py"},
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "verify_bundle",
+                    return_value=({}, {"scripts/managed.py": {"sha256": digest, "size": 7}}),
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_metadata_required",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_persisted_file_state",
+                    return_value=changed_state,
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    updater.bootstrap.HostBootstrapError, "metadados reconciliáveis"
+                ):
+                    updater.desired_runtime_state(bundle, install)
+                result = updater.desired_runtime_state(
+                    bundle,
+                    install,
+                    {"bin/managed.py": {"windows_state": expected_state}},
+                )
+            self.assertFalse(result["matched"])
+
+    def test_windows_rollback_clones_backup_without_consuming_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install = root / "install"
+            target = install / "bin" / "managed.py"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"desired")
+            backup = install / "backup-test"
+            previous = backup / "files" / "bin" / "managed.py"
+            previous.parent.mkdir(parents=True)
+            previous.write_bytes(b"previous")
+            expected_state = self._sample_windows_state()
+            entry = {
+                "source": "scripts/managed.py",
+                "existed": True,
+                "previous_sha256": hashlib.sha256(b"previous").hexdigest(),
+                "previous_size": len(b"previous"),
+                "previous_mode": stat.S_IMODE(previous.stat().st_mode),
+                "desired_sha256": hashlib.sha256(b"desired").hexdigest(),
+                "desired_size": len(b"desired"),
+                "previous_windows_state": expected_state,
+            }
+            snapshot = {"entries": {"bin/managed.py": entry}}
+
+            def clone(source: Path, destination: Path, **kwargs):
+                self.assertEqual(source, previous.resolve())
+                self.assertEqual(kwargs["expected_metadata"], expected_state)
+                shutil.copy2(source, destination)
+                return expected_state
+
+            def move(source: Path, destination: Path):
+                self.assertNotEqual(source, previous.resolve())
+                os.replace(source, destination)
+
+            def identity(path: Path):
+                observed = path.stat()
+                return observed.st_dev, observed.st_ino
+
+            with (
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_load_runtime_rollback",
+                    return_value=snapshot,
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_metadata_required",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    updater.bootstrap,
+                    "_windows_path_matches_persisted_state",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    updater.bootstrap, "_windows_clone_verified", side_effect=clone
+                ) as clone_mock,
+                mock.patch.object(
+                    updater.bootstrap, "_windows_move_file", side_effect=move
+                ) as move_mock,
+                mock.patch.object(
+                    updater.bootstrap, "_windows_file_identity", side_effect=identity
+                ),
+            ):
+                updater.bootstrap.restore_runtime_rollback(install, backup)
+            self.assertEqual(target.read_bytes(), b"previous")
+            self.assertEqual(previous.read_bytes(), b"previous")
+            self.assertEqual(clone_mock.call_count, 1)
+            self.assertEqual(move_mock.call_count, 1)
 
 
 if __name__ == "__main__":

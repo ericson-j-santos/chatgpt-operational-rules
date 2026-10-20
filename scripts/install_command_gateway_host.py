@@ -48,6 +48,11 @@ MINGIT_SIZE = 38_989_688
 MAX_MINGIT_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_MINGIT_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_MINGIT_MEMBERS = 10_000
+ROLLBACK_MANIFEST_VERSION = 2
+WINDOWS_ROLLBACK_METADATA_CONTRACT = "windows-owner-group-dacl-ads-v1"
+POSIX_ROLLBACK_METADATA_CONTRACT = "posix-mode-v1"
+MAX_WINDOWS_ROLLBACK_STREAMS = 128
+MAX_WINDOWS_ROLLBACK_ACES = 2_048
 
 
 class HostBootstrapError(RuntimeError):
@@ -291,32 +296,988 @@ def verify_bundle(bundle_dir: Path) -> tuple[dict[str, Any], dict[str, dict[str,
     return manifest, index
 
 
-def replace_file(source: Path, destination: Path) -> None:
-    """Substitui uma folha, preservando metadados do destino no Windows."""
-    if os.name == "nt" and destination.exists():
-        import ctypes
-        from ctypes import wintypes
+_WINDOWS_SECURITY_INFORMATION = 0x00000001 | 0x00000002 | 0x00000004
+_WINDOWS_DACL_AUTO_INHERITED = 0x0400
 
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        replace = kernel32.ReplaceFileW
-        replace.argtypes = [
-            wintypes.LPCWSTR,
-            wintypes.LPCWSTR,
-            wintypes.LPCWSTR,
-            wintypes.DWORD,
-            wintypes.LPVOID,
-            wintypes.LPVOID,
+
+def _windows_copy_file(source: Path, destination: Path) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    copy_file = kernel32.CopyFileExW
+    copy_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.BOOL),
+        wintypes.DWORD,
+    ]
+    copy_file.restype = wintypes.BOOL
+    cancelled = wintypes.BOOL(False)
+    copy_file_fail_if_exists = 0x00000001
+    if not copy_file(
+        str(source),
+        str(destination),
+        None,
+        None,
+        ctypes.byref(cancelled),
+        copy_file_fail_if_exists,
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_move_file(source: Path, destination: Path) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    move_file = kernel32.MoveFileExW
+    move_file.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+    move_file.restype = wintypes.BOOL
+    move_file_replace_existing = 0x00000001
+    move_file_write_through = 0x00000008
+    if not move_file(
+        str(source),
+        str(destination),
+        move_file_replace_existing | move_file_write_through,
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_get_security_descriptor(path: Path) -> bytes:
+    import ctypes
+    from ctypes import wintypes
+
+    security = ctypes.WinDLL("advapi32", use_last_error=True)
+    get_security = security.GetFileSecurityW
+    get_security.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    get_security.restype = wintypes.BOOL
+    needed = wintypes.DWORD()
+    ctypes.set_last_error(0)
+    get_security(
+        str(path),
+        _WINDOWS_SECURITY_INFORMATION,
+        None,
+        0,
+        ctypes.byref(needed),
+    )
+    error = ctypes.get_last_error()
+    if error != 122 or not needed.value:
+        raise ctypes.WinError(error)
+    buffer = ctypes.create_string_buffer(needed.value)
+    if not get_security(
+        str(path),
+        _WINDOWS_SECURITY_INFORMATION,
+        buffer,
+        needed.value,
+        ctypes.byref(needed),
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return bytes(buffer.raw[: needed.value])
+
+
+def _windows_dacl_security_information(security: dict[str, Any]) -> int:
+    protected = security.get("dacl_protected")
+    if type(protected) is not bool:
+        raise OSError("estado de proteção da DACL Windows inválido")
+    dacl_security_information = 0x00000004
+    protected_dacl_security_information = 0x80000000
+    unprotected_dacl_security_information = 0x20000000
+    return dacl_security_information | (
+        protected_dacl_security_information
+        if protected
+        else unprotected_dacl_security_information
+    )
+
+
+def _windows_set_dacl(path: Path, descriptor: bytes) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    security = ctypes.WinDLL("advapi32", use_last_error=True)
+    set_security = security.SetFileSecurityW
+    set_security.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+    ]
+    set_security.restype = wintypes.BOOL
+    buffer = ctypes.create_string_buffer(descriptor, len(descriptor))
+    security_information = _windows_dacl_security_information(
+        _windows_security_fingerprint(descriptor)
+    )
+    if not set_security(str(path), security_information, buffer):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_get_file_attributes(path: Path) -> int:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_attributes = kernel32.GetFileAttributesW
+    get_attributes.argtypes = [wintypes.LPCWSTR]
+    get_attributes.restype = wintypes.DWORD
+    attributes = get_attributes(str(path))
+    if attributes == 0xFFFFFFFF:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return int(attributes)
+
+
+def _windows_set_file_attributes(path: Path, attributes: int) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    set_attributes = kernel32.SetFileAttributesW
+    set_attributes.argtypes = [wintypes.LPCWSTR, wintypes.DWORD]
+    set_attributes.restype = wintypes.BOOL
+    if not set_attributes(str(path), attributes):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_file_identity(path: Path) -> tuple[int, int]:
+    import ctypes
+    from ctypes import wintypes
+
+    class ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("file_attributes", wintypes.DWORD),
+            ("creation_time", wintypes.FILETIME),
+            ("last_access_time", wintypes.FILETIME),
+            ("last_write_time", wintypes.FILETIME),
+            ("volume_serial_number", wintypes.DWORD),
+            ("file_size_high", wintypes.DWORD),
+            ("file_size_low", wintypes.DWORD),
+            ("number_of_links", wintypes.DWORD),
+            ("file_index_high", wintypes.DWORD),
+            ("file_index_low", wintypes.DWORD),
         ]
-        replace.restype = wintypes.BOOL
-        if not replace(
-            str(destination),
-            str(source),
-            None,
-            0,
-            None,
-            None,
-        ):
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    create_file.restype = wintypes.HANDLE
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(ByHandleFileInformation),
+    ]
+    get_information.restype = wintypes.BOOL
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = [wintypes.HANDLE]
+    close_handle.restype = wintypes.BOOL
+    file_read_attributes = 0x00000080
+    share_read_write_delete = 0x00000001 | 0x00000002 | 0x00000004
+    open_existing = 3
+    handle = create_file(
+        str(path),
+        file_read_attributes,
+        share_read_write_delete,
+        None,
+        open_existing,
+        0,
+        None,
+    )
+    if handle == wintypes.HANDLE(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    information = ByHandleFileInformation()
+    try:
+        if not get_information(handle, ctypes.byref(information)):
             raise ctypes.WinError(ctypes.get_last_error())
+    finally:
+        if not close_handle(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+    file_index = (
+        int(information.file_index_high) << 32
+    ) | int(information.file_index_low)
+    return int(information.volume_serial_number), file_index
+
+
+def _windows_stream_fingerprint(path: Path) -> tuple[tuple[str, int, str], ...]:
+    """Inventaria ADS nomeados; o stream default muda por definição."""
+    import ctypes
+    from ctypes import wintypes
+
+    class FindStreamData(ctypes.Structure):
+        _fields_ = [
+            ("stream_size", ctypes.c_longlong),
+            ("stream_name", wintypes.WCHAR * (260 + 36)),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    find_first = kernel32.FindFirstStreamW
+    find_first.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(FindStreamData),
+        wintypes.DWORD,
+    ]
+    find_first.restype = wintypes.HANDLE
+    find_next = kernel32.FindNextStreamW
+    find_next.argtypes = [wintypes.HANDLE, ctypes.POINTER(FindStreamData)]
+    find_next.restype = wintypes.BOOL
+    find_close = kernel32.FindClose
+    find_close.argtypes = [wintypes.HANDLE]
+    find_close.restype = wintypes.BOOL
+
+    data = FindStreamData()
+    handle = find_first(str(path), 0, ctypes.byref(data), 0)
+    invalid_handle = wintypes.HANDLE(-1).value
+    if handle == invalid_handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    streams: list[tuple[str, int, str]] = []
+    try:
+        while True:
+            name = data.stream_name
+            if name != "::$DATA":
+                stream_path = Path(str(path) + name)
+                payload = stream_path.read_bytes()
+                if len(payload) != data.stream_size:
+                    raise OSError(f"tamanho do ADS mudou durante inventário: {name}")
+                streams.append((name, len(payload), sha256_bytes(payload)))
+            if find_next(handle, ctypes.byref(data)):
+                continue
+            error = ctypes.get_last_error()
+            if error != 38:
+                raise ctypes.WinError(error)
+            break
+    finally:
+        if not find_close(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+    return tuple(sorted(streams))
+
+
+def _windows_file_state(path: Path) -> dict[str, Any]:
+    identity = _windows_file_identity(path)
+    content = (path.stat().st_size, sha256_file(path))
+    descriptor = _windows_get_security_descriptor(path)
+    security = _windows_security_fingerprint(descriptor)
+    attributes = _windows_get_file_attributes(path)
+    streams = _windows_stream_fingerprint(path)
+    final_identity = _windows_file_identity(path)
+    final_content = (path.stat().st_size, sha256_file(path))
+    final_descriptor = _windows_get_security_descriptor(path)
+    final_security = _windows_security_fingerprint(final_descriptor)
+    final_attributes = _windows_get_file_attributes(path)
+    final_streams = _windows_stream_fingerprint(path)
+    if (
+        final_identity != identity
+        or final_content != content
+        or final_attributes != attributes
+        or final_streams != streams
+        or final_descriptor != descriptor
+    ):
+        raise OSError(f"arquivo Windows mudou durante o snapshot: {path}")
+    return {
+        "identity": final_identity,
+        "content": final_content,
+        "security_descriptor": final_descriptor,
+        "security": final_security,
+        "attributes": final_attributes,
+        "streams": final_streams,
+    }
+
+
+def _windows_security_fingerprint(descriptor: bytes) -> dict[str, Any]:
+    """Extrai owner/group/DACL e ACEs sem comparar bytes de bookkeeping."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Acl(ctypes.Structure):
+        _fields_ = [
+            ("revision", wintypes.BYTE),
+            ("reserved_1", wintypes.BYTE),
+            ("size", wintypes.WORD),
+            ("ace_count", wintypes.WORD),
+            ("reserved_2", wintypes.WORD),
+        ]
+
+    class AceHeader(ctypes.Structure):
+        _fields_ = [
+            ("type", wintypes.BYTE),
+            ("flags", wintypes.BYTE),
+            ("size", wintypes.WORD),
+        ]
+
+    security = ctypes.WinDLL("advapi32", use_last_error=True)
+    get_owner = security.GetSecurityDescriptorOwner
+    get_owner.argtypes = [
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.BOOL),
+    ]
+    get_owner.restype = wintypes.BOOL
+    get_group = security.GetSecurityDescriptorGroup
+    get_group.argtypes = get_owner.argtypes
+    get_group.restype = wintypes.BOOL
+    get_dacl = security.GetSecurityDescriptorDacl
+    get_dacl.argtypes = [
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.BOOL),
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.BOOL),
+    ]
+    get_dacl.restype = wintypes.BOOL
+    get_control = security.GetSecurityDescriptorControl
+    get_control.argtypes = [
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.WORD),
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    get_control.restype = wintypes.BOOL
+    is_valid_sid = security.IsValidSid
+    is_valid_sid.argtypes = [wintypes.LPVOID]
+    is_valid_sid.restype = wintypes.BOOL
+    get_length_sid = security.GetLengthSid
+    get_length_sid.argtypes = [wintypes.LPVOID]
+    get_length_sid.restype = wintypes.DWORD
+    get_ace = security.GetAce
+    get_ace.argtypes = [
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.LPVOID),
+    ]
+    get_ace.restype = wintypes.BOOL
+
+    buffer = ctypes.create_string_buffer(descriptor, len(descriptor))
+
+    def checked(result: int, operation: str) -> None:
+        if not result:
+            raise OSError(
+                ctypes.get_last_error(),
+                f"Windows security descriptor inválido durante {operation}",
+            )
+
+    def sid_bytes(pointer: wintypes.LPVOID) -> bytes | None:
+        if not pointer.value:
+            return None
+        checked(is_valid_sid(pointer), "IsValidSid")
+        length = get_length_sid(pointer)
+        if not length:
+            raise OSError("Windows security descriptor contém SID vazio")
+        return ctypes.string_at(pointer, length)
+
+    def ace_state(pointer: wintypes.LPVOID) -> tuple[Any, ...]:
+        header = AceHeader.from_address(pointer.value)
+        if header.size < 8:
+            raise OSError("Windows security descriptor contém ACE truncada")
+        raw = ctypes.string_at(pointer, header.size)
+        basic_sid_types = {
+            0x00, 0x01, 0x02, 0x03, 0x09, 0x0A, 0x0D, 0x0E,
+            0x11, 0x12, 0x13, 0x14, 0x15,
+        }
+        object_sid_types = {
+            0x05, 0x06, 0x07, 0x08, 0x0B, 0x0C, 0x0F, 0x10,
+        }
+        if header.type in basic_sid_types:
+            sid_offset = 8
+        elif header.type in object_sid_types:
+            if header.size < 12:
+                raise OSError("Windows security descriptor contém object ACE truncada")
+            object_flags = int.from_bytes(raw[8:12], "little")
+            if object_flags & ~0x03:
+                raise OSError("Windows security descriptor contém object ACE inválida")
+            sid_offset = 12 + (16 if object_flags & 0x01 else 0)
+            sid_offset += 16 if object_flags & 0x02 else 0
+        elif header.type == 0x04:
+            sid_offset = 12
+        else:
+            raise OSError(
+                f"tipo de ACE não suportado para atualização segura: {header.type}"
+            )
+        if sid_offset >= header.size:
+            raise OSError("Windows security descriptor contém ACE sem SID")
+        sid = sid_bytes(wintypes.LPVOID(pointer.value + sid_offset))
+        if sid is None or sid_offset + len(sid) > header.size:
+            raise OSError("Windows security descriptor contém SID fora da ACE")
+        sid_end = sid_offset + len(sid)
+        return (
+            header.type,
+            header.flags,
+            header.size,
+            int.from_bytes(raw[4:8], "little"),
+            raw[8:sid_offset],
+            sid,
+            raw[sid_end:],
+        )
+
+    owner = wintypes.LPVOID()
+    owner_defaulted = wintypes.BOOL()
+    group = wintypes.LPVOID()
+    group_defaulted = wintypes.BOOL()
+    dacl_present = wintypes.BOOL()
+    dacl = wintypes.LPVOID()
+    dacl_defaulted = wintypes.BOOL()
+    control = wintypes.WORD()
+    revision = wintypes.DWORD()
+    checked(
+        get_owner(buffer, ctypes.byref(owner), ctypes.byref(owner_defaulted)),
+        "GetSecurityDescriptorOwner",
+    )
+    checked(
+        get_group(buffer, ctypes.byref(group), ctypes.byref(group_defaulted)),
+        "GetSecurityDescriptorGroup",
+    )
+    checked(
+        get_dacl(
+            buffer,
+            ctypes.byref(dacl_present),
+            ctypes.byref(dacl),
+            ctypes.byref(dacl_defaulted),
+        ),
+        "GetSecurityDescriptorDacl",
+    )
+    checked(
+        get_control(buffer, ctypes.byref(control), ctypes.byref(revision)),
+        "GetSecurityDescriptorControl",
+    )
+    acl_state = None
+    if dacl.value:
+        header = Acl.from_address(dacl.value)
+        aces = []
+        for index in range(header.ace_count):
+            ace = wintypes.LPVOID()
+            checked(get_ace(dacl, index, ctypes.byref(ace)), "GetAce")
+            aces.append(ace_state(ace))
+        acl_state = (header.revision, header.ace_count, tuple(aces))
+    return {
+        "owner_sid": sid_bytes(owner),
+        "owner_defaulted": bool(owner_defaulted.value),
+        "group_sid": sid_bytes(group),
+        "group_defaulted": bool(group_defaulted.value),
+        "dacl_present": bool(dacl_present.value),
+        "dacl_null": bool(dacl_present.value and not dacl.value),
+        "dacl_defaulted": bool(dacl_defaulted.value),
+        "dacl_protected": bool(control.value & 0x1000),
+        "dacl": acl_state,
+        "control": control.value,
+        "revision": revision.value,
+    }
+
+
+def _windows_security_equivalent(
+    expected: dict[str, Any], actual: dict[str, Any]
+) -> bool:
+    semantic_fields = (
+        "owner_sid",
+        "owner_defaulted",
+        "group_sid",
+        "group_defaulted",
+        "dacl_present",
+        "dacl_null",
+        "dacl_defaulted",
+        "dacl_protected",
+        "dacl",
+        "revision",
+    )
+    if any(expected[field] != actual[field] for field in semantic_fields):
+        return False
+    expected_control = int(expected["control"])
+    actual_control = int(actual["control"])
+    if (
+        expected_control & ~_WINDOWS_DACL_AUTO_INHERITED
+        != actual_control & ~_WINDOWS_DACL_AUTO_INHERITED
+    ):
+        return False
+    changed = expected_control ^ actual_control
+    return changed == 0 or (
+        changed == _WINDOWS_DACL_AUTO_INHERITED
+        and not expected_control & _WINDOWS_DACL_AUTO_INHERITED
+        and bool(actual_control & _WINDOWS_DACL_AUTO_INHERITED)
+    )
+
+
+def _windows_owner_group_equivalent(
+    expected: dict[str, Any], actual: dict[str, Any]
+) -> bool:
+    return all(
+        expected[field] == actual[field]
+        for field in (
+            "owner_sid",
+            "owner_defaulted",
+            "group_sid",
+            "group_defaulted",
+        )
+    )
+
+
+def _windows_metadata_required() -> bool:
+    return os.name == "nt"
+
+
+def _windows_persisted_security(security: dict[str, Any]) -> dict[str, Any]:
+    dacl = security["dacl"]
+    persisted_dacl = None
+    if dacl is not None:
+        revision, ace_count, aces = dacl
+        persisted_dacl = [
+            int(revision),
+            int(ace_count),
+            [
+                [
+                    int(ace_type),
+                    int(flags),
+                    int(size),
+                    int(mask),
+                    prefix.hex(),
+                    sid.hex(),
+                    suffix.hex(),
+                ]
+                for ace_type, flags, size, mask, prefix, sid, suffix in aces
+            ],
+        ]
+    return {
+        "owner_sid": (
+            security["owner_sid"].hex()
+            if security["owner_sid"] is not None
+            else None
+        ),
+        "owner_defaulted": bool(security["owner_defaulted"]),
+        "group_sid": (
+            security["group_sid"].hex()
+            if security["group_sid"] is not None
+            else None
+        ),
+        "group_defaulted": bool(security["group_defaulted"]),
+        "dacl_present": bool(security["dacl_present"]),
+        "dacl_null": bool(security["dacl_null"]),
+        "dacl_defaulted": bool(security["dacl_defaulted"]),
+        "dacl_protected": bool(security["dacl_protected"]),
+        "dacl": persisted_dacl,
+        "control": int(security["control"]),
+        "revision": int(security["revision"]),
+    }
+
+
+def _windows_persisted_file_state(path: Path) -> dict[str, Any]:
+    state = _windows_file_state(path)
+    return {
+        "version": 1,
+        "attributes": int(state["attributes"]),
+        "security": _windows_persisted_security(state["security"]),
+        "streams": [
+            {"name": name, "size": size, "sha256": digest}
+            for name, size, digest in state["streams"]
+        ],
+    }
+
+
+def _validate_hex_bytes(
+    value: Any, *, field: str, maximum_bytes: int, allow_none: bool = False
+) -> None:
+    if value is None and allow_none:
+        return
+    if not isinstance(value, str) or len(value) % 2 or len(value) > maximum_bytes * 2:
+        raise HostBootstrapError(f"campo hexadecimal Windows inválido: {field}")
+    try:
+        bytes.fromhex(value)
+    except ValueError as exc:
+        raise HostBootstrapError(
+            f"campo hexadecimal Windows inválido: {field}"
+        ) from exc
+
+
+def _validate_windows_persisted_state(state: Any, destination: str) -> None:
+    if not isinstance(state, dict) or set(state) != {
+        "version",
+        "attributes",
+        "security",
+        "streams",
+    }:
+        raise HostBootstrapError(
+            f"estado Windows inválido no rollback: {destination}"
+        )
+    if state["version"] != 1:
+        raise HostBootstrapError(
+            f"versão do estado Windows inválida: {destination}"
+        )
+    attributes = state["attributes"]
+    if type(attributes) is not int or not 0 <= attributes <= 0xFFFFFFFF:
+        raise HostBootstrapError(
+            f"atributos Windows inválidos no rollback: {destination}"
+        )
+    security = state["security"]
+    security_fields = {
+        "owner_sid",
+        "owner_defaulted",
+        "group_sid",
+        "group_defaulted",
+        "dacl_present",
+        "dacl_null",
+        "dacl_defaulted",
+        "dacl_protected",
+        "dacl",
+        "control",
+        "revision",
+    }
+    if not isinstance(security, dict) or set(security) != security_fields:
+        raise HostBootstrapError(
+            f"segurança Windows inválida no rollback: {destination}"
+        )
+    _validate_hex_bytes(
+        security["owner_sid"],
+        field=f"{destination}.owner_sid",
+        maximum_bytes=256,
+        allow_none=True,
+    )
+    _validate_hex_bytes(
+        security["group_sid"],
+        field=f"{destination}.group_sid",
+        maximum_bytes=256,
+        allow_none=True,
+    )
+    for field in (
+        "owner_defaulted",
+        "group_defaulted",
+        "dacl_present",
+        "dacl_null",
+        "dacl_defaulted",
+        "dacl_protected",
+    ):
+        if type(security[field]) is not bool:
+            raise HostBootstrapError(
+                f"flag de segurança Windows inválida: {destination}.{field}"
+            )
+    for field, maximum in (("control", 0xFFFF), ("revision", 0xFFFFFFFF)):
+        value = security[field]
+        if type(value) is not int or not 0 <= value <= maximum:
+            raise HostBootstrapError(
+                f"campo de segurança Windows inválido: {destination}.{field}"
+            )
+    dacl = security["dacl"]
+    if dacl is not None:
+        if (
+            not isinstance(dacl, list)
+            or len(dacl) != 3
+            or type(dacl[0]) is not int
+            or type(dacl[1]) is not int
+            or not isinstance(dacl[2], list)
+            or dacl[1] != len(dacl[2])
+            or len(dacl[2]) > MAX_WINDOWS_ROLLBACK_ACES
+        ):
+            raise HostBootstrapError(
+                f"DACL Windows inválida no rollback: {destination}"
+            )
+        for index, ace in enumerate(dacl[2]):
+            if (
+                not isinstance(ace, list)
+                or len(ace) != 7
+                or any(type(ace[position]) is not int for position in range(4))
+                or not 0 <= ace[0] <= 0xFF
+                or not 0 <= ace[1] <= 0xFF
+                or not 8 <= ace[2] <= 0xFFFF
+                or not 0 <= ace[3] <= 0xFFFFFFFF
+            ):
+                raise HostBootstrapError(
+                    f"ACE Windows inválida no rollback: {destination}[{index}]"
+                )
+            for position, name in ((4, "prefix"), (5, "sid"), (6, "suffix")):
+                _validate_hex_bytes(
+                    ace[position],
+                    field=f"{destination}.ace[{index}].{name}",
+                    maximum_bytes=0xFFFF,
+                )
+            encoded_size = 8 + sum(len(ace[position]) // 2 for position in (4, 5, 6))
+            if encoded_size != ace[2]:
+                raise HostBootstrapError(
+                    f"tamanho de ACE Windows divergente: {destination}[{index}]"
+                )
+    streams = state["streams"]
+    if not isinstance(streams, list) or len(streams) > MAX_WINDOWS_ROLLBACK_STREAMS:
+        raise HostBootstrapError(
+            f"inventário de ADS inválido no rollback: {destination}"
+        )
+    names: list[str] = []
+    for stream in streams:
+        if not isinstance(stream, dict) or set(stream) != {"name", "size", "sha256"}:
+            raise HostBootstrapError(
+                f"entrada de ADS inválida no rollback: {destination}"
+            )
+        name = stream["name"]
+        if (
+            not isinstance(name, str)
+            or not 1 <= len(name) <= 296
+            or not name.startswith(":")
+            or not name.endswith(":$DATA")
+            or name == "::$DATA"
+        ):
+            raise HostBootstrapError(
+                f"nome de ADS inválido no rollback: {destination}"
+            )
+        if type(stream["size"]) is not int or stream["size"] < 0:
+            raise HostBootstrapError(
+                f"tamanho de ADS inválido no rollback: {destination}"
+            )
+        validate_sha256(stream["sha256"])
+        names.append(name)
+    if names != sorted(names) or len({name.casefold() for name in names}) != len(names):
+        raise HostBootstrapError(
+            f"inventário de ADS não canônico no rollback: {destination}"
+        )
+
+
+def _windows_persisted_security_equivalent(
+    expected: dict[str, Any], actual: dict[str, Any]
+) -> bool:
+    semantic_fields = (
+        "owner_sid",
+        "owner_defaulted",
+        "group_sid",
+        "group_defaulted",
+        "dacl_present",
+        "dacl_null",
+        "dacl_defaulted",
+        "dacl_protected",
+        "dacl",
+        "revision",
+    )
+    if any(expected[field] != actual[field] for field in semantic_fields):
+        return False
+    expected_control = int(expected["control"])
+    actual_control = int(actual["control"])
+    if (
+        expected_control & ~_WINDOWS_DACL_AUTO_INHERITED
+        != actual_control & ~_WINDOWS_DACL_AUTO_INHERITED
+    ):
+        return False
+    changed = expected_control ^ actual_control
+    return changed == 0 or (
+        changed == _WINDOWS_DACL_AUTO_INHERITED
+        and not expected_control & _WINDOWS_DACL_AUTO_INHERITED
+        and bool(actual_control & _WINDOWS_DACL_AUTO_INHERITED)
+    )
+
+
+def _windows_persisted_state_equivalent(
+    expected: dict[str, Any], actual: dict[str, Any]
+) -> bool:
+    return (
+        expected["version"] == actual["version"]
+        and expected["attributes"] == actual["attributes"]
+        and expected["streams"] == actual["streams"]
+        and _windows_persisted_security_equivalent(
+            expected["security"], actual["security"]
+        )
+    )
+
+
+def _windows_path_matches_persisted_state(
+    path: Path, expected: dict[str, Any]
+) -> bool:
+    try:
+        actual = _windows_persisted_file_state(path)
+    except OSError:
+        return False
+    return _windows_persisted_state_equivalent(expected, actual)
+
+
+def _windows_clone_verified(
+    source: Path,
+    destination: Path,
+    *,
+    expected_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    source_state = _windows_file_state(source)
+    source_metadata = {
+        "version": 1,
+        "attributes": int(source_state["attributes"]),
+        "security": _windows_persisted_security(source_state["security"]),
+        "streams": [
+            {"name": name, "size": size, "sha256": digest}
+            for name, size, digest in source_state["streams"]
+        ],
+    }
+    if expected_metadata is not None and not _windows_persisted_state_equivalent(
+        expected_metadata, source_metadata
+    ):
+        raise OSError("origem Windows divergiu do estado persistido")
+    if destination.exists() or destination.is_symlink():
+        raise OSError(f"clone Windows já existe: {destination}")
+    owned = False
+    try:
+        _windows_copy_file(source, destination)
+        owned = True
+        clone_state = _windows_file_state(destination)
+        if not _windows_owner_group_equivalent(
+            source_state["security"], clone_state["security"]
+        ):
+            raise OSError("clone Windows alterou owner ou group da origem")
+        if not _windows_security_equivalent(
+            source_state["security"], clone_state["security"]
+        ):
+            _windows_set_dacl(destination, source_state["security_descriptor"])
+        if _windows_get_file_attributes(destination) != source_state["attributes"]:
+            _windows_set_file_attributes(destination, source_state["attributes"])
+        final_state = _windows_file_state(destination)
+        final_metadata = {
+            "version": 1,
+            "attributes": int(final_state["attributes"]),
+            "security": _windows_persisted_security(final_state["security"]),
+            "streams": [
+                {"name": name, "size": size, "sha256": digest}
+                for name, size, digest in final_state["streams"]
+            ],
+        }
+        if (
+            final_state["content"] != source_state["content"]
+            or not _windows_persisted_state_equivalent(
+                source_metadata, final_metadata
+            )
+        ):
+            raise OSError("clone Windows divergiu da origem")
+        live_source = _windows_file_state(source)
+        live_metadata = {
+            "version": 1,
+            "attributes": int(live_source["attributes"]),
+            "security": _windows_persisted_security(live_source["security"]),
+            "streams": [
+                {"name": name, "size": size, "sha256": digest}
+                for name, size, digest in live_source["streams"]
+            ],
+        }
+        if (
+            live_source["identity"] != source_state["identity"]
+            or live_source["content"] != source_state["content"]
+            or not _windows_persisted_state_equivalent(
+                source_metadata, live_metadata
+            )
+        ):
+            raise OSError("origem Windows mudou durante a clonagem")
+        return source_metadata
+    except Exception:
+        if owned:
+            _cleanup_owned_stage(destination)
+        raise
+
+
+def _overwrite_default_stream(path: Path, payload: bytes) -> None:
+    with path.open("r+b") as handle:
+        handle.seek(0)
+        handle.truncate(0)
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _cleanup_owned_stage(path: Path) -> None:
+    if not path.exists():
+        return
+    if path.is_symlink() or not path.is_file():
+        raise OSError(f"stage Windows owned mudou de tipo: {path}")
+    path.unlink()
+
+
+def _windows_replace_file(source: Path, destination: Path) -> None:
+    payload = source.read_bytes()
+    expected_state = _windows_file_state(destination)
+    descriptor = expected_state["security_descriptor"]
+    expected_security = expected_state["security"]
+    expected_attributes = expected_state["attributes"]
+    expected_streams = expected_state["streams"]
+    stage = destination.with_name(
+        destination.name + f".replace-stage-{uuid.uuid4().hex}"
+    )
+    if stage.exists():
+        raise OSError(f"stage Windows já existe: {stage}")
+    stage_owned = False
+    primary_error: BaseException | None = None
+    try:
+        _windows_copy_file(destination, stage)
+        stage_owned = True
+        cloned_security = _windows_security_fingerprint(
+            _windows_get_security_descriptor(stage)
+        )
+        if not _windows_owner_group_equivalent(
+            expected_security, cloned_security
+        ):
+            raise OSError("clone Windows alterou owner ou group do destino")
+        if _windows_get_file_attributes(stage) != expected_attributes:
+            raise OSError("clone Windows alterou atributos do destino")
+        if _windows_stream_fingerprint(stage) != expected_streams:
+            raise OSError("clone Windows alterou ADS do destino")
+        _overwrite_default_stream(stage, payload)
+        if not _windows_security_equivalent(expected_security, cloned_security):
+            _windows_set_dacl(stage, descriptor)
+        if _windows_get_file_attributes(stage) != expected_attributes:
+            _windows_set_file_attributes(stage, expected_attributes)
+        actual_security = _windows_security_fingerprint(
+            _windows_get_security_descriptor(stage)
+        )
+        if not _windows_security_equivalent(expected_security, actual_security):
+            raise OSError(
+                "stage Windows alterou owner, group, DACL ou ACEs do destino"
+            )
+        if stage.read_bytes() != payload:
+            raise OSError("stage Windows não reteve o payload esperado")
+        if _windows_get_file_attributes(stage) != expected_attributes:
+            raise OSError("stage Windows não reteve atributos do destino")
+        if _windows_stream_fingerprint(stage) != expected_streams:
+            raise OSError("stage Windows não reteve ADS do destino")
+        live_state = _windows_file_state(destination)
+        if (
+            live_state["identity"] != expected_state["identity"]
+            or live_state["content"] != expected_state["content"]
+            or live_state["attributes"] != expected_attributes
+            or live_state["streams"] != expected_streams
+            or not _windows_security_equivalent(
+                expected_security, live_state["security"]
+            )
+        ):
+            raise OSError(
+                "destino Windows mudou desde o snapshot; ativação recusada"
+            )
+        staged_identity = _windows_file_identity(stage)
+        source.unlink()
+        _windows_move_file(stage, destination)
+        stage_owned = False
+        final_state = _windows_file_state(destination)
+        if (
+            final_state["identity"] != staged_identity
+            or final_state["content"] != (len(payload), sha256_bytes(payload))
+            or final_state["attributes"] != expected_attributes
+            or final_state["streams"] != expected_streams
+            or not _windows_security_equivalent(
+                expected_security, final_state["security"]
+            )
+        ):
+            raise OSError("readback final do destino Windows divergiu do stage")
+    except Exception as exc:
+        primary_error = exc
+        raise
+    finally:
+        if stage_owned:
+            try:
+                _cleanup_owned_stage(stage)
+            except OSError as cleanup_error:
+                if primary_error is None:
+                    raise
+                raise OSError(
+                    f"{primary_error}; limpeza do stage Windows falhou: "
+                    f"{cleanup_error}"
+                ) from primary_error
+
+
+def replace_file(source: Path, destination: Path) -> None:
+    """Substitui uma folha sem expor metadados Windows parcialmente aplicados."""
+    if os.name == "nt" and destination.exists():
+        _windows_replace_file(source, destination)
         return
     os.replace(source, destination)
 
@@ -370,6 +1331,7 @@ def prepare_runtime_rollback(
     backup_dir = install_root / (
         f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex}"
     )
+    windows_metadata = _windows_metadata_required()
     entries: dict[str, dict[str, Any]] = {}
     for source, destination in RUNTIME_MAP.items():
         target = _managed_target(install_root, destination)
@@ -395,7 +1357,12 @@ def prepare_runtime_rollback(
                 )
             previous = backup_dir / "files" / destination
             previous.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(target, previous)
+            if windows_metadata:
+                entry["previous_windows_state"] = _windows_clone_verified(
+                    target, previous
+                )
+            else:
+                shutil.copy2(target, previous)
             current_stat = target.stat()
             entry.update(
                 {
@@ -406,7 +1373,12 @@ def prepare_runtime_rollback(
             )
         entries[destination] = entry
     snapshot = {
-        "version": 1,
+        "version": ROLLBACK_MANIFEST_VERSION,
+        "metadata_contract": (
+            WINDOWS_ROLLBACK_METADATA_CONTRACT
+            if windows_metadata
+            else POSIX_ROLLBACK_METADATA_CONTRACT
+        ),
         "install_root": str(install_root.resolve()),
         "created_at": utc_now(),
         "entries": entries,
@@ -437,7 +1409,24 @@ def _load_runtime_rollback(
         snapshot = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise HostBootstrapError("manifesto de rollback ausente ou inválido") from exc
-    if snapshot.get("version") != 1:
+    version = snapshot.get("version")
+    windows_metadata = _windows_metadata_required()
+    if version == 1:
+        if windows_metadata:
+            raise HostBootstrapError(
+                "manifesto de rollback v1 não comprova ACL/ADS no Windows"
+            )
+    elif version == ROLLBACK_MANIFEST_VERSION:
+        expected_contract = (
+            WINDOWS_ROLLBACK_METADATA_CONTRACT
+            if windows_metadata
+            else POSIX_ROLLBACK_METADATA_CONTRACT
+        )
+        if snapshot.get("metadata_contract") != expected_contract:
+            raise HostBootstrapError(
+                "contrato de metadados do rollback divergente"
+            )
+    else:
         raise HostBootstrapError("versão do manifesto de rollback inválida")
     if os.path.normcase(str(Path(snapshot.get("install_root", "")).resolve())) != os.path.normcase(str(root)):
         raise HostBootstrapError("raiz do manifesto de rollback divergente")
@@ -469,6 +1458,27 @@ def _load_runtime_rollback(
                 raise HostBootstrapError(
                     f"backup gerenciado divergente: {destination}"
                 )
+            if windows_metadata:
+                previous_windows_state = entry.get("previous_windows_state")
+                _validate_windows_persisted_state(
+                    previous_windows_state, destination
+                )
+                try:
+                    observed_windows_state = _windows_persisted_file_state(previous)
+                except OSError as exc:
+                    raise HostBootstrapError(
+                        f"backup Windows ilegível: {destination}"
+                    ) from exc
+                if not _windows_persisted_state_equivalent(
+                    previous_windows_state, observed_windows_state
+                ):
+                    raise HostBootstrapError(
+                        f"metadados do backup Windows divergentes: {destination}"
+                    )
+        elif windows_metadata and "previous_windows_state" in entry:
+            raise HostBootstrapError(
+                f"estado Windows inesperado para arquivo novo: {destination}"
+            )
     return snapshot
 
 
@@ -497,6 +1507,7 @@ def restore_runtime_rollback(
     """Restore exactly the prior managed state without touching unmanaged files."""
     snapshot = _load_runtime_rollback(install_root, backup_dir)
     backup = backup_dir.resolve()
+    windows_metadata = _windows_metadata_required()
     for destination, entry in snapshot["entries"].items():
         target = _managed_target(install_root, destination)
         if entry["existed"]:
@@ -506,15 +1517,24 @@ def restore_runtime_rollback(
                 )
             observed = target.stat()
             current_sha256 = sha256_file(target)
+            metadata_matches = (
+                _windows_path_matches_persisted_state(
+                    target, entry["previous_windows_state"]
+                )
+                if windows_metadata
+                else True
+            )
             if (
                 current_sha256 == entry["previous_sha256"]
                 and observed.st_size == entry["previous_size"]
                 and stat.S_IMODE(observed.st_mode) == entry["previous_mode"]
+                and metadata_matches
             ):
                 continue
             if (
                 current_sha256 != entry["desired_sha256"]
                 or observed.st_size != entry["desired_size"]
+                or not metadata_matches
             ):
                 raise HostBootstrapError(
                     f"arquivo existente divergente não será sobrescrito: {destination}"
@@ -524,25 +1544,57 @@ def restore_runtime_rollback(
             temporary = target.with_name(
                 target.name + f".rollback-{uuid.uuid4().hex}"
             )
-            shutil.copy2(previous, temporary)
-            try:
-                replace_file(temporary, target)
-            except OSError:
+            if windows_metadata:
+                _windows_clone_verified(
+                    previous,
+                    temporary,
+                    expected_metadata=entry["previous_windows_state"],
+                )
+                temporary_owned = True
                 try:
+                    live_observed = target.stat()
                     if (
-                        temporary.is_file()
-                        and not temporary.is_symlink()
-                        and temporary.stat().st_size == entry["previous_size"]
-                        and sha256_file(temporary) == entry["previous_sha256"]
+                        sha256_file(target) != entry["desired_sha256"]
+                        or live_observed.st_size != entry["desired_size"]
+                        or not _windows_path_matches_persisted_state(
+                            target, entry["previous_windows_state"]
+                        )
                     ):
-                        try:
-                            temporary.unlink()
-                        except PermissionError:
-                            temporary.chmod(stat.S_IREAD | stat.S_IWRITE)
-                            temporary.unlink()
+                        raise HostBootstrapError(
+                            "destino Windows mudou antes da ativação do rollback: "
+                            f"{destination}"
+                        )
+                    staged_identity = _windows_file_identity(temporary)
+                    _windows_move_file(temporary, target)
+                    temporary_owned = False
+                    if _windows_file_identity(target) != staged_identity:
+                        raise HostBootstrapError(
+                            "rollback Windows não ativou o clone verificado: "
+                            f"{destination}"
+                        )
+                finally:
+                    if temporary_owned:
+                        _cleanup_owned_stage(temporary)
+            else:
+                shutil.copy2(previous, temporary)
+                try:
+                    replace_file(temporary, target)
                 except OSError:
-                    pass
-                raise
+                    try:
+                        if (
+                            temporary.is_file()
+                            and not temporary.is_symlink()
+                            and temporary.stat().st_size == entry["previous_size"]
+                            and sha256_file(temporary) == entry["previous_sha256"]
+                        ):
+                            try:
+                                temporary.unlink()
+                            except PermissionError:
+                                temporary.chmod(stat.S_IREAD | stat.S_IWRITE)
+                                temporary.unlink()
+                    except OSError:
+                        pass
+                    raise
         elif target.exists():
             if target.is_symlink() or not target.is_file():
                 raise HostBootstrapError(
@@ -555,6 +1607,17 @@ def restore_runtime_rollback(
                 raise HostBootstrapError(
                     f"arquivo novo divergente não será removido: {destination}"
                 )
+            if windows_metadata:
+                try:
+                    streams = _windows_persisted_file_state(target)["streams"]
+                except OSError as exc:
+                    raise HostBootstrapError(
+                        f"ADS do arquivo novo ilegível: {destination}"
+                    ) from exc
+                if streams:
+                    raise HostBootstrapError(
+                        f"arquivo novo com ADS não será removido: {destination}"
+                    )
             target.unlink()
 
     for destination, entry in snapshot["entries"].items():
@@ -569,6 +1632,12 @@ def restore_runtime_rollback(
                 sha256_file(target) != entry["previous_sha256"]
                 or observed.st_size != entry["previous_size"]
                 or stat.S_IMODE(observed.st_mode) != entry["previous_mode"]
+                or (
+                    windows_metadata
+                    and not _windows_path_matches_persisted_state(
+                        target, entry["previous_windows_state"]
+                    )
+                )
             ):
                 raise HostBootstrapError(
                     f"rollback pós-condição divergente: {destination}"
@@ -597,16 +1666,35 @@ def install_bundle(
     validate_runtime_rollback_for_bundle(
         bundle_dir, install_root, backup_dir
     )
+    rollback_snapshot = _load_runtime_rollback(install_root, backup_dir)
+    windows_metadata = _windows_metadata_required()
     try:
         installed: dict[str, dict[str, Any]] = {}
         for source, destination in RUNTIME_MAP.items():
             payload = (bundle_dir / source).read_bytes()
             target = _managed_target(install_root, destination)
             atomic_write(target, payload)
-            installed[destination] = {
+            installed_file: dict[str, Any] = {
                 "sha256": sha256_file(target),
                 "size": target.stat().st_size,
             }
+            if windows_metadata:
+                windows_state = _windows_persisted_file_state(target)
+                rollback_entry = rollback_snapshot["entries"][destination]
+                if rollback_entry["existed"]:
+                    if not _windows_persisted_state_equivalent(
+                        rollback_entry["previous_windows_state"], windows_state
+                    ):
+                        raise HostBootstrapError(
+                            "metadados Windows divergiram após instalação: "
+                            f"{destination}"
+                        )
+                elif windows_state["streams"]:
+                    raise HostBootstrapError(
+                        f"arquivo Windows novo recebeu ADS inesperado: {destination}"
+                    )
+                installed_file["windows_state"] = windows_state
+            installed[destination] = installed_file
         work_root.mkdir(parents=True, exist_ok=True)
         for source, destination in RUNTIME_MAP.items():
             expected = index[source]
@@ -615,6 +1703,15 @@ def install_bundle(
                 actual["sha256"]
                 != str(expected.get("sha256", "")).lower()
                 or actual["size"] != expected.get("size")
+                or (
+                    windows_metadata
+                    and not _windows_persisted_state_equivalent(
+                        actual["windows_state"],
+                        _windows_persisted_file_state(
+                            _managed_target(install_root, destination)
+                        ),
+                    )
+                )
             ):
                 raise HostBootstrapError(
                     f"verificação pós-instalação falhou: {destination}"
