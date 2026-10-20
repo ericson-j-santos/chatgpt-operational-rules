@@ -167,13 +167,24 @@ jobs:
 
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login == 'ericson-j-santos'
+      )
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      EXPECTED_SHA: ${{ github.sha }}
-      CORRELATION_ID: ${{ inputs.correlation_id }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CORRELATION_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.correlation_id || format('gha-{0}-{1}', github.run_id, github.run_attempt) }}
+      EVENT_NAME: ${{ github.event_name }}
+      SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+      PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login || '' }}
     steps:
       - name: Checkout exact revision without credentials
         uses: actions/checkout@v4
@@ -192,7 +203,10 @@ jobs:
             DEBIAN_FRONTEND=noninteractive \
             GITHUB_ACTIONS="$GITHUB_ACTIONS" \
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            GITHUB_EVENT_NAME="$EVENT_NAME" \
+            TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
+            TODO22_PR_AUTHOR="$PR_AUTHOR" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
             /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \
@@ -219,7 +233,10 @@ jobs:
             DEBIAN_FRONTEND=noninteractive \
             GITHUB_ACTIONS="$GITHUB_ACTIONS" \
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            GITHUB_REF_NAME="$GITHUB_REF_NAME" \
+            GITHUB_EVENT_NAME="$EVENT_NAME" \
+            TODO22_SOURCE_REF="$SOURCE_REF" \
+            TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY" \
+            TODO22_PR_AUTHOR="$PR_AUTHOR" \
             RUNNER_TEMP="$RUNNER_TEMP" \
             TODO22_RUNNER_ENVIRONMENT="$TODO22_RUNNER_ENVIRONMENT" \
             /usr/bin/python3 scripts/todo_gateway_debian_installer_isolated_e2e.py \
