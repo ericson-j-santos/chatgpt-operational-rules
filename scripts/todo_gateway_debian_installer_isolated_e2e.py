@@ -25,7 +25,6 @@ from urllib.request import urlopen
 
 REPOSITORY = "ericson-j-santos/chatgpt-operational-rules"
 APP_USER = "todo-global"
-TARGET_REF = "fix/todo22-installer-isolated-gate-20261019"
 OWNER = "ericson-j-santos"
 REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 DB_USER = "todo_global_bus_dev_user"
@@ -113,8 +112,14 @@ def validate_execution_context(
         raise HomologationError("github_hosted_runner_required")
     if env.get("GITHUB_REPOSITORY") != REPOSITORY:
         raise HomologationError("repository_mismatch")
+    if env.get("TODO22_ACTOR") != OWNER:
+        raise HomologationError("github_actor_mismatch")
+    if env.get("TODO22_TRIGGERING_ACTOR") != OWNER:
+        raise HomologationError("github_triggering_actor_mismatch")
     event_name = env.get("GITHUB_EVENT_NAME")
     source_ref = env.get("TODO22_SOURCE_REF", "")
+    full_ref = env.get("TODO22_FULL_REF", "")
+    ref_type = env.get("TODO22_REF_TYPE", "")
     if not REF_RE.fullmatch(source_ref):
         raise HomologationError("ref_mismatch")
     if event_name == "pull_request":
@@ -122,10 +127,20 @@ def validate_execution_context(
             raise HomologationError("pull_request_repository_mismatch")
         if env.get("TODO22_PR_AUTHOR") != OWNER:
             raise HomologationError("pull_request_owner_mismatch")
+        if env.get("TODO22_PR_BASE_REF") != "main":
+            raise HomologationError("pull_request_base_mismatch")
+        if env.get("TODO22_PR_DRAFT") != "true":
+            raise HomologationError("pull_request_draft_required")
     elif event_name == "push":
-        if source_ref != "main":
+        if (
+            source_ref != "main"
+            or full_ref != "refs/heads/main"
+            or ref_type != "branch"
+        ):
             raise HomologationError("ref_mismatch")
     elif event_name == "workflow_dispatch":
+        if ref_type != "branch" or full_ref != f"refs/heads/{source_ref}":
+            raise HomologationError("ref_mismatch")
         if source_ref != "main" and env.get("TODO22_MANUAL_PR_VERIFIED") != "true":
             raise HomologationError("ref_mismatch")
     else:
