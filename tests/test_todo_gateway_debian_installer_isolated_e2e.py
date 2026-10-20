@@ -463,6 +463,7 @@ def test_failed_initial_process_persists_false_receipt_without_raw_output(
     assert calls == [(tmp_path, False, 900)]
     assert receipt["ready"] is False
     assert receipt["error"] == "initial_install_failed"
+    assert receipt["ref"] == _env()["TODO22_SOURCE_REF"]
     diagnostic = receipt["initial_process_diagnostic"]
     assert diagnostic["returncode"] == returncode
     assert diagnostic["stdout_contract_match"] is stdout_match

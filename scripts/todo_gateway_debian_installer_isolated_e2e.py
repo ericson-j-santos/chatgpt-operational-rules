@@ -652,7 +652,7 @@ def homologate(
         "generated_at": datetime.now(UTC).isoformat(),
         "repository": REPOSITORY,
         "head_sha": expected_sha,
-        "ref": env.get("GITHUB_REF_NAME", ""),
+        "ref": env.get("TODO22_SOURCE_REF", ""),
         "correlation_id": correlation_id,
         "environment": "github-hosted-ubuntu-24.04-disposable",
         "pilot_runtime_mutated": False,
