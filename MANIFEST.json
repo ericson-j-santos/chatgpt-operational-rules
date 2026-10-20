@@ -1,6 +1,6 @@
 {
   "version": "1.6.11",
-  "generated_at": "2026-10-20T01:05:48.777122+00:00",
+  "generated_at": "2026-10-20T01:07:50.061Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -849,8 +849,8 @@
     },
     {
       "path": "tests/test_pr_ci_self_heal.py",
-      "sha256": "b18c677188fd33b7916c09b90a03ea42a941488329c196b6c7b2a6c3fa5b92ff",
-      "size": 9568
+      "sha256": "92e081d1b9a29a66bd12e4ca4b53dadefa63a4b1286337f2977d39a2f7a4f96d",
+      "size": 10570
     },
     {
       "path": "tests/test_progress_watchdog.py",
