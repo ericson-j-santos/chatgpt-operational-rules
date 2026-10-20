@@ -1,8 +1,11 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.13
+Versão: 1.6.14
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
+
+## Regra nº 1 — custo adicional zero
+Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-governance.md`. O custo adicional máximo autorizado é **R$ 0,00**; custo desconhecido, overage não bloqueado ou qualquer custo incremental maior que zero deve falhar fechado. Cartão cadastrado e autorização técnica genérica não autorizam gasto.
 
 ## Ordem de precedência
 1. Instrução explícita do usuário no chat atual.
