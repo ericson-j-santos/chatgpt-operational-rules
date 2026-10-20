@@ -41,6 +41,28 @@ O host deve expor uma capability versionada de manutenção que:
 - faça readback independente de health/readiness e capabilities após atualização;
 - falhe fechado em divergência de host, SHA, digest, política ou pós-condição.
 
+## Contrato obrigatório de requisição de capability
+
+Toda capability que possa alterar estado deve receber uma requisição tipada e
+fail-closed. O contrato mínimo deve incluir, conforme aplicável:
+
+- versão do schema/contrato;
+- identificador único da capability/ação;
+- host/alvo e ambiente explícitos;
+- versão/HEAD SHA e digest do artefato/runtime quando houver;
+- `correlation_id` e `idempotency_key`;
+- confirmação explícita quando o risco exigir;
+- mapa fechado de parâmetros, rejeitando chaves desconhecidas;
+- timeout e política de concorrência/lease quando houver;
+- estratégia de rollback/recuperação;
+- pós-condição e readback independente antes de declarar sucesso.
+
+A capability não deve aceitar shell, URL, repositório, caminho, credencial ou
+SQL arbitrários quando esses valores puderem ser fixados ou limitados por
+allowlist. Autorizações Risk 3 específicas devem ser vinculadas ao worktree,
+HEAD e script versionado exatos sempre que a operação depender de código local;
+a allowlist não pode ser reutilizada a partir de outro checkout.
+
 ## Guardrail de instalação
 
 Todo instalador de runtime persistente deve instalar desde a primeira versão uma

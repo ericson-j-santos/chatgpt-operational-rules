@@ -1,6 +1,6 @@
 {
-  "version": "1.6.11",
-  "generated_at": "2026-10-20T01:13:39.134Z",
+  "version": "1.6.12",
+  "generated_at": "2026-10-20T04:47:17.864793+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "dcb9a8ed1bde939c3fc01646966073990094597c50cafcb6eb13d96b47115dc9",
-      "size": 13394
+      "sha256": "011c23e205bc7eb7e940011eb66da928642761d76f57bb8da470e84fd1373ae0",
+      "size": 13532
     },
     {
       "path": ".gitignore",
@@ -54,17 +54,17 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9c228c4d820e848b79499b685f6cfa533211b7f58d49ad5c8f9caa58c6599ebe",
-      "size": 14673
+      "sha256": "ed66d39c99422737e754cc3ac6bf90e8df19cb93f5082731131789daab248ab5",
+      "size": 15358
     },
     {
       "path": "README.md",
-      "sha256": "8318507d45a4b9db9875653fd2d443c138bffce4a3fedf3368ebfe8894076542",
+      "sha256": "41362e6f2ad5e842e91c8386cf2af15c6fe5e63585830b19ff613b6e651aa96b",
       "size": 8632
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "b3ab3dcb846dcc4a7e47574e22503ac748b3e8d77b20a173c7916efcdb5ebf4f",
+      "sha256": "8a5fd6d0f7ed325b14e180e16e96f28c0ada5cb0488503266c2567461cd9f0a0",
       "size": 2317
     },
     {
@@ -189,8 +189,8 @@
     },
     {
       "path": "rules/control-plane-recovery.md",
-      "sha256": "5ba8b0a86b643ec07cbc98508d661252f975fab14296774fbf8703328576f499",
-      "size": 2904
+      "sha256": "56c9577ff4da5ff84b7b89f5bd0a20581735a373d386ada4dc8ae964e026da5c",
+      "size": 3992
     },
     {
       "path": "rules/dual-host-routing.md",
@@ -414,8 +414,8 @@
     },
     {
       "path": "scripts/owner_risk3_gateway.py",
-      "sha256": "16aa0f3e793c05381f33f51698a48b98904d3b5721ff0c5470f3dde5ad703e85",
-      "size": 17544
+      "sha256": "6fc74edbff60c27e92836891202a337e87976cdde9c9ef2f48900c31462160a9",
+      "size": 19336
     },
     {
       "path": "scripts/pc24x7_cloudflare_quick_tunnel.py",
@@ -536,6 +536,11 @@
       "path": "scripts/session_preflight_e2e.py",
       "sha256": "922fc8c2c227cf5876ab730b2fc388d8c4730c32d1ebf5b6fa1618c51e9b53a2",
       "size": 6338
+    },
+    {
+      "path": "scripts/set_owner_risk3_action.py",
+      "sha256": "604204faf7fb0b70d47aab97b9ba58030e4421cf148b1b3de9eabe2670c5f460",
+      "size": 7623
     },
     {
       "path": "scripts/set_owner_risk3_development_mode.py",
@@ -841,6 +846,11 @@
       "path": "tests/test_owner_risk3_gateway.py",
       "sha256": "e51c8ae33f63abb2fe1fb69f47dff6ddbadf899970e3a20f3de1609b8668033d",
       "size": 10074
+    },
+    {
+      "path": "tests/test_owner_risk3_specific_action.py",
+      "sha256": "e1fb8b56e4bf014f52d89c7c9616e4e4cf190d5c47c8aa2ff873251a39454664",
+      "size": 6108
     },
     {
       "path": "tests/test_powerplatform_alm_official_monitor.py",
