@@ -426,6 +426,8 @@ class HostRuntimeUpdateTests(unittest.TestCase):
         import ctypes
         from ctypes import wintypes
 
+        self.maxDiff = None
+
         class Acl(ctypes.Structure):
             _fields_ = [
                 ("revision", wintypes.BYTE),
