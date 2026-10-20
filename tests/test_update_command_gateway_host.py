@@ -1362,10 +1362,17 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 updater.bootstrap,
                 "replace_file",
                 side_effect=PermissionError("injected rollback sharing violation"),
-            ), self.assertRaisesRegex(PermissionError, "sharing violation"):
+            ) as replace_mock, mock.patch.object(
+                updater.bootstrap,
+                "_windows_move_file",
+                side_effect=PermissionError("injected rollback sharing violation"),
+            ) as move_mock, self.assertRaisesRegex(
+                PermissionError, "sharing violation"
+            ):
                 updater.restore_backup(install, backup)
 
             self.assertEqual(list(gateway.parent.glob("command_gateway.py.rollback-*")), [])
+            self.assertEqual(replace_mock.call_count + move_mock.call_count, 1)
 
     def test_legacy_bundle_upgrade_starts_launcher_and_keeps_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1524,12 +1531,46 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             updater.bootstrap._windows_dacl_security_information(
                 {"dacl_protected": False}
             ),
-            0x20000004,
+            0x00000004,
         )
         with self.assertRaisesRegex(OSError, "proteção da DACL Windows inválido"):
             updater.bootstrap._windows_dacl_security_information(
                 {"dacl_protected": 1}
             )
+
+    def test_windows_security_diagnostic_hashes_sids(self):
+        private_owner = b"private-owner-sid"
+        private_group = b"private-group-sid"
+        private_ace_sid = b"private-ace-sid"
+        diagnostic = updater.bootstrap._windows_security_diagnostic(
+            {
+                "owner_sid": private_owner,
+                "owner_defaulted": False,
+                "group_sid": private_group,
+                "group_defaulted": False,
+                "dacl_present": True,
+                "dacl_null": False,
+                "dacl_defaulted": False,
+                "dacl_protected": True,
+                "dacl": (
+                    2,
+                    1,
+                    ((0, 0, 20, 0x001F01FF, b"", private_ace_sid, b""),),
+                ),
+                "control": 0x9404,
+                "revision": 1,
+            }
+        )
+        rendered = repr(diagnostic)
+        self.assertNotIn(private_owner.decode("ascii"), rendered)
+        self.assertNotIn(private_group.decode("ascii"), rendered)
+        self.assertNotIn(private_ace_sid.decode("ascii"), rendered)
+        self.assertEqual(diagnostic["control"], "0x9404")
+        self.assertEqual(diagnostic["dacl"]["ace_count"], 1)
+        self.assertEqual(
+            diagnostic["dacl"]["aces"][0]["sid_sha256"],
+            hashlib.sha256(private_ace_sid).hexdigest(),
+        )
 
     def test_windows_rejects_v1_rollback_while_posix_remains_compatible(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1549,7 +1590,10 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 json.dumps(manifest, sort_keys=True), encoding="utf-8"
             )
 
-            loaded = updater.bootstrap._load_runtime_rollback(install, backup)
+            with mock.patch.object(
+                updater.bootstrap, "_windows_metadata_required", return_value=False
+            ):
+                loaded = updater.bootstrap._load_runtime_rollback(install, backup)
             self.assertEqual(loaded["version"], 1)
             with mock.patch.object(
                 updater.bootstrap, "_windows_metadata_required", return_value=True

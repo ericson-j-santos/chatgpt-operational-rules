@@ -1,6 +1,6 @@
 {
   "version": "1.6.13",
-  "generated_at": "2026-10-20T15:56:53.238240+00:00",
+  "generated_at": "2026-10-20T16:09:32.790642+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -379,8 +379,8 @@
     },
     {
       "path": "scripts/install_command_gateway_host.py",
-      "sha256": "2cf62a921b6fc5378e416c43c88b88ea28f71fb74f7dc3e1a00586fc2217e5e6",
-      "size": 75257
+      "sha256": "73ef3c091a16a261dfe71fa0ac7bb2e2c6a7f07bdfa3bc592c44855751c92329",
+      "size": 78149
     },
     {
       "path": "scripts/install_gitlab_relay_registrar_windows.py",
@@ -1019,8 +1019,8 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "0f41f8f7da6ed25a0e56012e70d4e20e05dd52f808f2aaa488e8020012fe30cc",
-      "size": 73057
+      "sha256": "f0c21542e0293d9d22cd391e0fef5b87afe7eb82cd5357e640b61a64d2a936ee",
+      "size": 74892
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",

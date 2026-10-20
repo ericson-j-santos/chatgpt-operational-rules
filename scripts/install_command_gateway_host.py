@@ -390,11 +390,13 @@ def _windows_dacl_security_information(security: dict[str, Any]) -> int:
         raise OSError("estado de proteção da DACL Windows inválido")
     dacl_security_information = 0x00000004
     protected_dacl_security_information = 0x80000000
-    unprotected_dacl_security_information = 0x20000000
+    # DACL_SECURITY_INFORMATION preserves an already-unprotected stage without
+    # asking Windows to propagate inheritance again.  Explicitly requesting
+    # UNPROTECTED_DACL_SECURITY_INFORMATION can materialize inherited ACEs and
+    # therefore change the ACL we are trying to preserve.  A protected source
+    # still needs the protection bit applied to the inactive stage.
     return dacl_security_information | (
-        protected_dacl_security_information
-        if protected
-        else unprotected_dacl_security_information
+        protected_dacl_security_information if protected else 0
     )
 
 
@@ -403,19 +405,50 @@ def _windows_set_dacl(path: Path, descriptor: bytes) -> None:
     from ctypes import wintypes
 
     security = ctypes.WinDLL("advapi32", use_last_error=True)
-    set_security = security.SetFileSecurityW
-    set_security.argtypes = [
-        wintypes.LPCWSTR,
+    get_dacl = security.GetSecurityDescriptorDacl
+    get_dacl.argtypes = [
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.BOOL),
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.BOOL),
+    ]
+    get_dacl.restype = wintypes.BOOL
+    set_named_security = security.SetNamedSecurityInfoW
+    set_named_security.argtypes = [
+        wintypes.LPWSTR,
+        wintypes.DWORD,
         wintypes.DWORD,
         wintypes.LPVOID,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
     ]
-    set_security.restype = wintypes.BOOL
+    set_named_security.restype = wintypes.DWORD
     buffer = ctypes.create_string_buffer(descriptor, len(descriptor))
-    security_information = _windows_dacl_security_information(
-        _windows_security_fingerprint(descriptor)
-    )
-    if not set_security(str(path), security_information, buffer):
+    descriptor_security = _windows_security_fingerprint(descriptor)
+    dacl_present = wintypes.BOOL()
+    dacl = wintypes.LPVOID()
+    dacl_defaulted = wintypes.BOOL()
+    if not get_dacl(
+        buffer,
+        ctypes.byref(dacl_present),
+        ctypes.byref(dacl),
+        ctypes.byref(dacl_defaulted),
+    ):
         raise ctypes.WinError(ctypes.get_last_error())
+    if not dacl_present.value:
+        raise OSError("security descriptor Windows sem DACL presente")
+    error = set_named_security(
+        str(path),
+        1,  # SE_FILE_OBJECT
+        _windows_dacl_security_information(descriptor_security),
+        None,
+        None,
+        dacl,
+        None,
+    )
+    if error:
+        raise ctypes.WinError(error)
 
 
 def _windows_get_file_attributes(path: Path) -> int:
@@ -769,6 +802,47 @@ def _windows_security_fingerprint(descriptor: bytes) -> dict[str, Any]:
         "dacl": acl_state,
         "control": control.value,
         "revision": revision.value,
+    }
+
+
+def _windows_security_diagnostic(security: dict[str, Any]) -> dict[str, Any]:
+    """Summarize an ACL mismatch without publishing local account SIDs."""
+
+    def digest(value: bytes | None) -> str | None:
+        return None if value is None else sha256_bytes(value)
+
+    dacl = security["dacl"]
+    summarized_dacl = None
+    if dacl is not None:
+        revision, ace_count, aces = dacl
+        summarized_dacl = {
+            "revision": revision,
+            "ace_count": ace_count,
+            "aces": tuple(
+                {
+                    "type": ace[0],
+                    "flags": ace[1],
+                    "size": ace[2],
+                    "mask": ace[3],
+                    "opaque_before_sid_sha256": digest(ace[4]),
+                    "sid_sha256": digest(ace[5]),
+                    "opaque_tail_sha256": digest(ace[6]),
+                }
+                for ace in aces
+            ),
+        }
+    return {
+        "owner_sid_sha256": digest(security["owner_sid"]),
+        "owner_defaulted": security["owner_defaulted"],
+        "group_sid_sha256": digest(security["group_sid"]),
+        "group_defaulted": security["group_defaulted"],
+        "dacl_present": security["dacl_present"],
+        "dacl_null": security["dacl_null"],
+        "dacl_defaulted": security["dacl_defaulted"],
+        "dacl_protected": security["dacl_protected"],
+        "dacl": summarized_dacl,
+        "control": f"0x{int(security['control']):04x}",
+        "revision": security["revision"],
     }
 
 
@@ -1222,7 +1296,10 @@ def _windows_replace_file(source: Path, destination: Path) -> None:
         )
         if not _windows_security_equivalent(expected_security, actual_security):
             raise OSError(
-                "stage Windows alterou owner, group, DACL ou ACEs do destino"
+                "stage Windows alterou owner, group, DACL ou ACEs do destino; "
+                f"esperado={_windows_security_diagnostic(expected_security)!r}; "
+                f"clone={_windows_security_diagnostic(cloned_security)!r}; "
+                f"atual={_windows_security_diagnostic(actual_security)!r}"
             )
         if stage.read_bytes() != payload:
             raise OSError("stage Windows não reteve o payload esperado")
