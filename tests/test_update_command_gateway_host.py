@@ -426,20 +426,147 @@ class HostRuntimeUpdateTests(unittest.TestCase):
         import ctypes
         from ctypes import wintypes
 
-        def security_descriptor(path: Path) -> bytes:
-            kernel32 = ctypes.WinDLL("advapi32", use_last_error=True)
-            get_security = kernel32.GetFileSecurityW
-            get_security.argtypes = [
-                wintypes.LPCWSTR,
-                wintypes.DWORD,
-                wintypes.LPVOID,
-                wintypes.DWORD,
-                ctypes.POINTER(wintypes.DWORD),
+        class Acl(ctypes.Structure):
+            _fields_ = [
+                ("revision", wintypes.BYTE),
+                ("reserved_1", wintypes.BYTE),
+                ("size", wintypes.WORD),
+                ("ace_count", wintypes.WORD),
+                ("reserved_2", wintypes.WORD),
             ]
-            get_security.restype = wintypes.BOOL
+
+        class AceHeader(ctypes.Structure):
+            _fields_ = [
+                ("type", wintypes.BYTE),
+                ("flags", wintypes.BYTE),
+                ("size", wintypes.WORD),
+            ]
+
+        security = ctypes.WinDLL("advapi32", use_last_error=True)
+        get_security = security.GetFileSecurityW
+        get_security.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+        ]
+        get_security.restype = wintypes.BOOL
+        get_owner = security.GetSecurityDescriptorOwner
+        get_owner.argtypes = [
+            wintypes.LPVOID,
+            ctypes.POINTER(wintypes.LPVOID),
+            ctypes.POINTER(wintypes.BOOL),
+        ]
+        get_owner.restype = wintypes.BOOL
+        get_group = security.GetSecurityDescriptorGroup
+        get_group.argtypes = get_owner.argtypes
+        get_group.restype = wintypes.BOOL
+        get_dacl = security.GetSecurityDescriptorDacl
+        get_dacl.argtypes = [
+            wintypes.LPVOID,
+            ctypes.POINTER(wintypes.BOOL),
+            ctypes.POINTER(wintypes.LPVOID),
+            ctypes.POINTER(wintypes.BOOL),
+        ]
+        get_dacl.restype = wintypes.BOOL
+        get_control = security.GetSecurityDescriptorControl
+        get_control.argtypes = [
+            wintypes.LPVOID,
+            ctypes.POINTER(wintypes.WORD),
+            ctypes.POINTER(wintypes.DWORD),
+        ]
+        get_control.restype = wintypes.BOOL
+        get_length_sid = security.GetLengthSid
+        get_length_sid.argtypes = [wintypes.LPVOID]
+        get_length_sid.restype = wintypes.DWORD
+        is_valid_sid = security.IsValidSid
+        is_valid_sid.argtypes = [wintypes.LPVOID]
+        is_valid_sid.restype = wintypes.BOOL
+        get_ace = security.GetAce
+        get_ace.argtypes = [
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.LPVOID),
+        ]
+        get_ace.restype = wintypes.BOOL
+
+        def sid_bytes(pointer: wintypes.LPVOID) -> bytes | None:
+            if not pointer.value:
+                return None
+            self.assertTrue(is_valid_sid(pointer))
+            length = get_length_sid(pointer)
+            self.assertGreater(length, 0)
+            return ctypes.string_at(pointer, length)
+
+        def ace_state(pointer: wintypes.LPVOID) -> dict[str, object]:
+            header = AceHeader.from_address(pointer.value)
+            self.assertGreaterEqual(header.size, 8)
+            raw = ctypes.string_at(pointer, header.size)
+
+            basic_sid_types = {
+                0x00,  # ACCESS_ALLOWED_ACE_TYPE
+                0x01,  # ACCESS_DENIED_ACE_TYPE
+                0x02,  # SYSTEM_AUDIT_ACE_TYPE
+                0x03,  # SYSTEM_ALARM_ACE_TYPE
+                0x09,  # ACCESS_ALLOWED_CALLBACK_ACE_TYPE
+                0x0A,  # ACCESS_DENIED_CALLBACK_ACE_TYPE
+                0x0D,  # SYSTEM_AUDIT_CALLBACK_ACE_TYPE
+                0x0E,  # SYSTEM_ALARM_CALLBACK_ACE_TYPE
+                0x11,  # SYSTEM_MANDATORY_LABEL_ACE_TYPE
+                0x12,  # SYSTEM_RESOURCE_ATTRIBUTE_ACE_TYPE
+                0x13,  # SYSTEM_SCOPED_POLICY_ID_ACE_TYPE
+                0x14,  # SYSTEM_PROCESS_TRUST_LABEL_ACE_TYPE
+                0x15,  # SYSTEM_ACCESS_FILTER_ACE_TYPE
+            }
+            object_sid_types = {
+                0x05,  # ACCESS_ALLOWED_OBJECT_ACE_TYPE
+                0x06,  # ACCESS_DENIED_OBJECT_ACE_TYPE
+                0x07,  # SYSTEM_AUDIT_OBJECT_ACE_TYPE
+                0x08,  # SYSTEM_ALARM_OBJECT_ACE_TYPE
+                0x0B,  # ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE
+                0x0C,  # ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE
+                0x0F,  # SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE
+                0x10,  # SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE
+            }
+            if header.type in basic_sid_types:
+                sid_offset = 8
+            elif header.type in object_sid_types:
+                self.assertGreaterEqual(header.size, 12)
+                object_flags = int.from_bytes(raw[8:12], "little")
+                self.assertFalse(object_flags & ~0x03)
+                sid_offset = 12
+                if object_flags & 0x01:
+                    sid_offset += 16
+                if object_flags & 0x02:
+                    sid_offset += 16
+            elif header.type == 0x04:  # ACCESS_ALLOWED_COMPOUND_ACE_TYPE
+                sid_offset = 12
+            else:
+                self.fail(f"tipo de ACE não suportado pelo teste: {header.type}")
+
+            self.assertLess(sid_offset, header.size)
+            sid_pointer = wintypes.LPVOID(pointer.value + sid_offset)
+            sid = sid_bytes(sid_pointer)
+            self.assertIsNotNone(sid)
+            sid_end = sid_offset + len(sid)
+            self.assertLessEqual(sid_end, header.size)
+            return {
+                "type": header.type,
+                "flags": header.flags,
+                "size": header.size,
+                "mask": int.from_bytes(raw[4:8], "little"),
+                "opaque_before_sid": raw[8:sid_offset],
+                "sid": sid,
+                "opaque_tail": raw[sid_end:],
+            }
+
+        def security_state(path: Path) -> dict[str, object]:
             needed = wintypes.DWORD()
             information = 0x00000001 | 0x00000002 | 0x00000004
+            ctypes.set_last_error(0)
             get_security(str(path), information, None, 0, ctypes.byref(needed))
+            self.assertEqual(ctypes.get_last_error(), 122)
             self.assertGreater(needed.value, 0)
             buffer = ctypes.create_string_buffer(needed.value)
             self.assertTrue(
@@ -451,18 +578,141 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                     ctypes.byref(needed),
                 )
             )
-            return bytes(buffer.raw[: needed.value])
+
+            owner = wintypes.LPVOID()
+            owner_defaulted = wintypes.BOOL()
+            self.assertTrue(
+                get_owner(buffer, ctypes.byref(owner), ctypes.byref(owner_defaulted))
+            )
+            group = wintypes.LPVOID()
+            group_defaulted = wintypes.BOOL()
+            self.assertTrue(
+                get_group(buffer, ctypes.byref(group), ctypes.byref(group_defaulted))
+            )
+            dacl_present = wintypes.BOOL()
+            dacl = wintypes.LPVOID()
+            dacl_defaulted = wintypes.BOOL()
+            self.assertTrue(
+                get_dacl(
+                    buffer,
+                    ctypes.byref(dacl_present),
+                    ctypes.byref(dacl),
+                    ctypes.byref(dacl_defaulted),
+                )
+            )
+            control = wintypes.WORD()
+            revision = wintypes.DWORD()
+            self.assertTrue(
+                get_control(buffer, ctypes.byref(control), ctypes.byref(revision))
+            )
+
+            acl_state = None
+            if dacl.value:
+                header = Acl.from_address(dacl.value)
+                aces = []
+                for index in range(header.ace_count):
+                    ace = wintypes.LPVOID()
+                    self.assertTrue(get_ace(dacl, index, ctypes.byref(ace)))
+                    aces.append(ace_state(ace))
+                acl_state = {
+                    "revision": header.revision,
+                    "ace_count": header.ace_count,
+                    "aces": tuple(aces),
+                }
+
+            dacl_auto_inherited = 0x0400
+            dacl_protected = 0x1000
+            return {
+                "owner_sid": sid_bytes(owner),
+                "owner_defaulted": bool(owner_defaulted.value),
+                "group_sid": sid_bytes(group),
+                "group_defaulted": bool(group_defaulted.value),
+                "dacl_present": bool(dacl_present.value),
+                "dacl_null": bool(dacl_present.value and not dacl.value),
+                "dacl_defaulted": bool(dacl_defaulted.value),
+                "dacl_protected": bool(control.value & dacl_protected),
+                "dacl_auto_inherited": bool(
+                    control.value & dacl_auto_inherited
+                ),
+                "dacl": acl_state,
+                "control": control.value,
+                "revision": revision.value,
+            }
+
+        def assert_security_preserved(
+            before: dict[str, object], after: dict[str, object]
+        ) -> None:
+            for component in (
+                "owner_sid",
+                "owner_defaulted",
+                "group_sid",
+                "group_defaulted",
+                "dacl_present",
+                "dacl_null",
+                "dacl_defaulted",
+                "dacl_protected",
+                "dacl",
+                "revision",
+            ):
+                self.assertEqual(after[component], before[component], component)
+
+            # ReplaceFileW pode marcar uma DACL idêntica como auto-herdada.
+            # O bit é bookkeeping e não participa do AccessCheck; qualquer
+            # outra mudança de controle (inclusive DACL_PROTECTED) continua erro.
+            dacl_auto_inherited = 0x0400
+            before_control = int(before["control"])
+            after_control = int(after["control"])
+            self.assertEqual(
+                after_control & ~dacl_auto_inherited,
+                before_control & ~dacl_auto_inherited,
+            )
+            changed = before_control ^ after_control
+            self.assertIn(changed, (0, dacl_auto_inherited))
+            if changed:
+                self.assertFalse(before_control & dacl_auto_inherited)
+                self.assertTrue(after_control & dacl_auto_inherited)
 
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "managed.py"
             target.write_bytes(b"previous\n")
             stream = Path(str(target) + ":reqsys-test-stream")
             stream.write_bytes(b"preserve-stream\n")
-            before = security_descriptor(target)
+            before = security_state(target)
             updater.bootstrap.atomic_write(target, b"desired\n")
             self.assertEqual(target.read_bytes(), b"desired\n")
             self.assertEqual(stream.read_bytes(), b"preserve-stream\n")
-            self.assertEqual(security_descriptor(target), before)
+            after = security_state(target)
+            assert_security_preserved(before, after)
+
+            # Controle do próprio teste: perder a DACL ou alterar uma ACE deve
+            # continuar sendo detectado apesar da normalização permitida acima.
+            without_dacl = dict(after)
+            without_dacl["dacl_present"] = False
+            without_dacl["dacl_null"] = False
+            without_dacl["dacl"] = None
+            with self.assertRaises(AssertionError):
+                assert_security_preserved(before, without_dacl)
+
+            acl_state = after["dacl"]
+            self.assertIsInstance(acl_state, dict)
+            aces = list(acl_state["aces"])
+            self.assertGreater(len(aces), 0)
+            changed_ace = dict(aces[0])
+            changed_ace["mask"] = int(changed_ace["mask"]) ^ 0x01
+            aces[0] = changed_ace
+            changed_acl = dict(acl_state)
+            changed_acl["aces"] = tuple(aces)
+            with_changed_ace = dict(after)
+            with_changed_ace["dacl"] = changed_acl
+            with self.assertRaises(AssertionError):
+                assert_security_preserved(before, with_changed_ace)
+
+            with_changed_protection = dict(after)
+            with_changed_protection["dacl_protected"] = not bool(
+                after["dacl_protected"]
+            )
+            with self.assertRaises(AssertionError):
+                assert_security_preserved(before, with_changed_protection)
 
     def test_failure_after_each_managed_copy_restores_exact_legacy_state(self):
         commit = "f" * 40
