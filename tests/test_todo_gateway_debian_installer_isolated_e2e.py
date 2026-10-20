@@ -33,7 +33,10 @@ def _env() -> dict[str, str]:
         "GITHUB_ACTIONS": "true",
         "TODO22_RUNNER_ENVIRONMENT": "github-hosted",
         "GITHUB_REPOSITORY": "ericson-j-santos/chatgpt-operational-rules",
-        "GITHUB_REF_NAME": "fix/todo22-installer-isolated-gate-20261019",
+        "GITHUB_EVENT_NAME": "pull_request",
+        "TODO22_SOURCE_REF": "fix/post-merge-homologation-gate-20261019",
+        "TODO22_PR_HEAD_REPOSITORY": "ericson-j-santos/chatgpt-operational-rules",
+        "TODO22_PR_AUTHOR": "ericson-j-santos",
     }
 
 
@@ -59,7 +62,10 @@ def test_context_accepts_only_clean_github_hosted_systemd_vm():
     ("env_update", "euid", "pid1_name", "in_container", "collisions", "error"),
     [
         ({"TODO22_RUNNER_ENVIRONMENT": "self-hosted"}, 0, "systemd", False, [], "github_hosted"),
-        ({"GITHUB_REF_NAME": "main"}, 0, "systemd", False, [], "ref_mismatch"),
+        ({"TODO22_SOURCE_REF": "bad ref"}, 0, "systemd", False, [], "ref_mismatch"),
+        ({"TODO22_PR_HEAD_REPOSITORY": "fork/repo"}, 0, "systemd", False, [], "pull_request_repository"),
+        ({"TODO22_PR_AUTHOR": "other-user"}, 0, "systemd", False, [], "pull_request_owner"),
+        ({"GITHUB_EVENT_NAME": "schedule"}, 0, "systemd", False, [], "github_event_not_allowed"),
         ({}, 1000, "systemd", False, [], "root_required"),
         ({}, 0, "bash", False, [], "systemd_vm"),
         ({}, 0, "systemd", True, [], "systemd_vm"),
@@ -78,6 +84,57 @@ def test_context_fails_closed_outside_disposable_vm(
             pid1_name=pid1_name,
             in_container=in_container,
             collisions=collisions,
+        )
+
+
+def test_context_accepts_main_push_and_allowlisted_manual_dispatch():
+    for event_name, source_ref in (
+        ("push", "main"),
+        ("workflow_dispatch", "main"),
+        ("workflow_dispatch", isolated_harness.TARGET_REF),
+    ):
+        env = _env()
+        env.update(
+            {
+                "GITHUB_EVENT_NAME": event_name,
+                "TODO22_SOURCE_REF": source_ref,
+                "TODO22_PR_HEAD_REPOSITORY": "",
+                "TODO22_PR_AUTHOR": "",
+            }
+        )
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
+        )
+
+
+@pytest.mark.parametrize(
+    ("event_name", "source_ref"),
+    [
+        ("push", "feature/not-main"),
+        ("workflow_dispatch", "feature/not-allowlisted"),
+    ],
+)
+def test_context_rejects_untrusted_non_pr_refs(event_name, source_ref):
+    env = _env()
+    env.update(
+        {
+            "GITHUB_EVENT_NAME": event_name,
+            "TODO22_SOURCE_REF": source_ref,
+            "TODO22_PR_HEAD_REPOSITORY": "",
+            "TODO22_PR_AUTHOR": "",
+        }
+    )
+    with pytest.raises(HomologationError, match="ref_mismatch"):
+        validate_execution_context(
+            env,
+            euid=0,
+            pid1_name="systemd",
+            in_container=False,
+            collisions=[],
         )
 
 
@@ -261,17 +318,24 @@ def test_activation_journal_contract_and_residuals_fail_closed(tmp_path, monkeyp
     assert not journal.exists()
 
 
-def test_isolated_homologation_is_manual_hosted_and_reuses_canonical_installer():
+def test_isolated_homologation_is_automatic_same_repo_and_reuses_canonical_installer():
     workflow = WORKFLOW.read_text(encoding="utf-8")
     job = workflow.split("  debian-installer-isolated:\n", 1)[1]
     assert "run-name: Operational Rules / ${{ inputs.correlation_id || github.ref_name }}" in workflow
     assert "inputs:\n      expected_sha:" in workflow
     assert "      correlation_id:" in workflow
-    assert "if: github.event_name == 'workflow_dispatch'" in job
+    assert "github.event_name == 'workflow_dispatch'" in job
+    assert "github.event_name == 'push'" in job
+    assert "github.event_name == 'pull_request'" in job
+    assert "github.event.pull_request.head.repo.full_name == github.repository" in job
+    assert "github.event.pull_request.user.login == 'ericson-j-santos'" in job
     assert "needs: validate" in job
     assert "runs-on: ubuntu-24.04" in job
     assert "persist-credentials: false" in job
     assert "TODO22_RUNNER_ENVIRONMENT: ${{ runner.environment }}" in job
+    assert 'TODO22_SOURCE_REF="$SOURCE_REF"' in job
+    assert 'TODO22_PR_HEAD_REPOSITORY="$PR_HEAD_REPOSITORY"' in job
+    assert 'TODO22_PR_AUTHOR="$PR_AUTHOR"' in job
     assert "scripts/todo_gateway_debian_installer_isolated_e2e.py" in job
     assert "--preflight-only" in job
     harness = (ROOT / "scripts" / "todo_gateway_debian_installer_isolated_e2e.py").read_text(
