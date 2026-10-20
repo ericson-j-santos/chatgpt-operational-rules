@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.14 - 2026-10-20
+
+- Formalizada a Regra nº 1 global: custo adicional máximo de R$ 0,00, com decisão fail-closed quando custo, franquia ou proteção contra overage não estiverem comprovados.
+- Cartão cadastrado e autorizações técnicas genéricas deixam explicitamente de constituir autorização financeira; qualquer exceção paga exige autorização específica de produto, ação, valor máximo, moeda e escopo/período.
+- GitHub Actions e demais produtos medidos passam a exigir classificação `COST_ZERO_CONFIRMED` antes da execução; custo desconhecido ou não zero bloqueia sem enfraquecer testes, evidências ou gates.
+- O validador passa a exigir a presença da regra de governança de custo e as políticas do Command Gateway avançam apenas o identificador de versão, sem mudança de permissões ou allowlists.
+
 ## 1.6.13 - 2026-10-20
 
 - A atualização persistente do Command Gateway passa a testar a substituição de cada arquivo gerenciado antes de escrever o novo bundle, bloqueando explicitamente alvo read-only e preservando o erro do sistema quando sharing mode, ACL, antivírus ou outra interferência não puderem ser distinguidos; no Windows, a ativação usa um clone irmão preparado por `CopyFileExW` e `MoveFileExW`, preservando e relendo OWNER, GROUP, DACL, atributos e streams alternativos sem expor o merge de ACL do `ReplaceFileW`.
