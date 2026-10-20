@@ -216,6 +216,8 @@ jobs:
           python-version: "3.12"
       - name: Validate native Windows policy loading and shared path controls
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
+      - name: Validate transactional Command Gateway runtime update on Windows
+        run: python -m unittest -v tests/test_update_command_gateway_host.py
 
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation

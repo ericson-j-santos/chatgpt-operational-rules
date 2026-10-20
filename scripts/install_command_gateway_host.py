@@ -291,12 +291,42 @@ def verify_bundle(bundle_dir: Path) -> tuple[dict[str, Any], dict[str, dict[str,
     return manifest, index
 
 
+def replace_file(source: Path, destination: Path) -> None:
+    """Substitui uma folha, preservando metadados do destino no Windows."""
+    if os.name == "nt" and destination.exists():
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        replace = kernel32.ReplaceFileW
+        replace.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.LPVOID,
+        ]
+        replace.restype = wintypes.BOOL
+        if not replace(
+            str(destination),
+            str(source),
+            None,
+            0,
+            None,
+            None,
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return
+    os.replace(source, destination)
+
+
 def atomic_write(path: Path, payload: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(path.name + f".tmp-{uuid.uuid4().hex}")
     temp.write_bytes(payload)
     try:
-        os.replace(temp, path)
+        replace_file(temp, path)
     except OSError:
         try:
             if (
@@ -470,13 +500,49 @@ def restore_runtime_rollback(
     for destination, entry in snapshot["entries"].items():
         target = _managed_target(install_root, destination)
         if entry["existed"]:
+            if target.is_symlink() or not target.is_file():
+                raise HostBootstrapError(
+                    f"arquivo existente divergente não será sobrescrito: {destination}"
+                )
+            observed = target.stat()
+            current_sha256 = sha256_file(target)
+            if (
+                current_sha256 == entry["previous_sha256"]
+                and observed.st_size == entry["previous_size"]
+                and stat.S_IMODE(observed.st_mode) == entry["previous_mode"]
+            ):
+                continue
+            if (
+                current_sha256 != entry["desired_sha256"]
+                or observed.st_size != entry["desired_size"]
+            ):
+                raise HostBootstrapError(
+                    f"arquivo existente divergente não será sobrescrito: {destination}"
+                )
             previous = backup / "files" / destination
             target.parent.mkdir(parents=True, exist_ok=True)
             temporary = target.with_name(
                 target.name + f".rollback-{uuid.uuid4().hex}"
             )
             shutil.copy2(previous, temporary)
-            os.replace(temporary, target)
+            try:
+                replace_file(temporary, target)
+            except OSError:
+                try:
+                    if (
+                        temporary.is_file()
+                        and not temporary.is_symlink()
+                        and temporary.stat().st_size == entry["previous_size"]
+                        and sha256_file(temporary) == entry["previous_sha256"]
+                    ):
+                        try:
+                            temporary.unlink()
+                        except PermissionError:
+                            temporary.chmod(stat.S_IREAD | stat.S_IWRITE)
+                            temporary.unlink()
+                except OSError:
+                    pass
+                raise
         elif target.exists():
             if target.is_symlink() or not target.is_file():
                 raise HostBootstrapError(
@@ -520,6 +586,8 @@ def install_bundle(
     source_commit: str,
     *,
     rollback_dir: Path | None = None,
+    rollback_on_error: bool = True,
+    write_receipt: bool = True,
 ) -> dict[str, Any]:
     source_commit = validate_commit(source_commit)
     manifest, index = verify_bundle(bundle_dir)
@@ -563,21 +631,24 @@ def install_bundle(
             "backup_dir": str(backup_dir),
             "files": installed,
         }
-        receipt_path = install_root / "install-receipt.json"
-        atomic_write(
-            receipt_path,
-            (
-                json.dumps(
-                    receipt,
-                    ensure_ascii=False,
-                    sort_keys=True,
-                    indent=2,
-                )
-                + "\n"
-            ).encode("utf-8"),
-        )
+        if write_receipt:
+            receipt_path = install_root / "install-receipt.json"
+            atomic_write(
+                receipt_path,
+                (
+                    json.dumps(
+                        receipt,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        indent=2,
+                    )
+                    + "\n"
+                ).encode("utf-8"),
+            )
         return receipt
     except Exception as exc:
+        if not rollback_on_error:
+            raise
         try:
             restore_runtime_rollback(install_root, backup_dir)
         except Exception as rollback_exc:
