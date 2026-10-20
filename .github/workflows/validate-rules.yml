@@ -123,7 +123,7 @@ jobs:
       - name: Run execution lane isolated E2E
         run: python -m scripts.execution_lane_e2e
       - name: Run Command Gateway unit tests
-        run: python -m unittest -v tests/test_command_gateway.py tests/test_governed_branch_update_policy.py tests/test_update_branch_fast_forward_governed.py
+        run: python -m unittest -v tests/test_command_gateway.py tests/test_command_gateway_posix_policy.py tests/test_validate_rules_policy_profiles.py tests/test_governed_branch_update_policy.py tests/test_update_branch_fast_forward_governed.py
       - name: Run dormant Render PostgreSQL preservation safety tests
         run: python -m unittest -v tests/test_render_postgres_preservation.py
       - name: Run restricted host health unit tests
@@ -196,6 +196,25 @@ jobs:
           path: ${{ runner.temp }}/triage-reservation-evidence.json
           if-no-files-found: error
           retention-days: 7
+
+  gateway-windows-policy:
+    name: Command Gateway Windows policy compatibility
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact revision without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate native Windows policy loading and shared path controls
+        run: python -m unittest -v tests/test_command_gateway_posix_policy.py
 
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation

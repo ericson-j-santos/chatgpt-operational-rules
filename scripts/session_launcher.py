@@ -40,7 +40,12 @@ SYNC_REF_RE = re.compile(
 )
 
 PhaseCallback = Callable[[str], None]
-DIAGNOSTIC_ENV_KEYS = ("LOCALAPPDATA", "USERPROFILE")
+DIAGNOSTIC_ENV_KEYS = (
+    "LOCALAPPDATA",
+    "USERPROFILE",
+    "REQSYS_WORKSPACE_ROOT",
+    "REQSYS_GATEWAY_STATE_DIR",
+)
 DIAGNOSTIC_IDENTIFIER_LIMIT = 256
 
 
@@ -153,6 +158,13 @@ def _load_diagnostic_policy(path: Path) -> tuple[dict, str]:
                     f"{key}[{index}] deve ser string não vazia para diagnóstico",
                     EXIT_SESSION_LAUNCHER,
                 )
+    try:
+        cg.validate_policy(policy, enforce_platform=False)
+    except cg.GatewayError as exc:
+        raise cg.GatewayError(
+            f"policy inválida para diagnóstico: {exc}",
+            EXIT_SESSION_LAUNCHER,
+        ) from exc
     return policy, hashlib.sha256(raw).hexdigest()
 
 
@@ -204,12 +216,27 @@ def diagnose(
         items: list[dict[str, object]] = []
         for raw in configured:
             value = str(raw or "")
-            normalized = cg.norm(value)
+            try:
+                expanded = cg.expand_path(value)
+                normalized = cg.norm(value)
+            except cg.GatewayError:
+                items.append(
+                    {
+                        "configured": _diagnostic_text(value),
+                        "expanded": None,
+                        "normalized": None,
+                        "resolved": False,
+                        "exact_match": False,
+                        "pattern_match": False,
+                    }
+                )
+                continue
             items.append(
                 {
                     "configured": _diagnostic_text(value),
-                    "expanded": _diagnostic_text(cg.expand_path(value)),
+                    "expanded": _diagnostic_text(expanded),
                     "normalized": _diagnostic_text(normalized),
+                    "resolved": True,
                     "exact_match": repo_norm == normalized,
                     "pattern_match": cg.pattern_match(repo_norm, value),
                 }

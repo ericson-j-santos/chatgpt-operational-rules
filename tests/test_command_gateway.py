@@ -26,7 +26,11 @@ class CommandGatewayTests(unittest.TestCase):
             self.assertTrue(cg.pattern_match(str(root / "wt-one" / "sub"), str(root / "wt-*")))
 
     def test_operational_policy_allows_only_dedicated_worker_namespace(self) -> None:
-        policy = cg.load_policy(POLICY)
+        policy = cg.load_policy(
+            POLICY,
+            enforce_platform=False,
+            validate_paths=False,
+        )
         allowed = policy["allowed_roots"]
         self.assertIn(r"C:\dev\chatgpt-workers\*", allowed)
         self.assertNotIn(r"C:\Users\Windows\portal-portabilidade", allowed)

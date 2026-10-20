@@ -26,25 +26,26 @@ def sha256_file(path: Path) -> str:
 
 
 def snapshot_path(policy: dict, session_id: str) -> Path:
-    directory = cg.state_dir(policy) / "snapshots"
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory / f"{sb.validate_session_id(session_id)}.json"
-
-
-def write_snapshot(path: Path, payload: dict) -> None:
-    payload["snapshot_sha256"] = cg.snapshot_sha256(payload)
-    temp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
-    temp.write_text(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
-        encoding="utf-8",
-        newline="\n",
+    return cg.secure_state_path(
+        policy,
+        "snapshots",
+        f"{sb.validate_session_id(session_id)}.json",
+        create_parent=True,
     )
-    os.replace(temp, path)
 
 
-def read_valid_snapshot(path: Path) -> dict:
+def write_snapshot(policy: dict, path: Path, payload: dict) -> None:
+    payload["snapshot_sha256"] = cg.snapshot_sha256(payload)
+    cg.atomic_write_state_text(
+        policy,
+        path,
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
+    )
+
+
+def read_valid_snapshot(policy: dict, path: Path) -> dict:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(cg.read_state_text(policy, path))
     except (OSError, json.JSONDecodeError) as exc:
         raise cg.GatewayError("snapshot de preflight inválido", EXIT_PREFLIGHT_FAILED) from exc
     expected = payload.get("snapshot_sha256")
@@ -121,8 +122,8 @@ def preflight(
             "policy_sha256": sha256_file(policy_path.resolve()),
         }
         path = snapshot_path(policy, session_id)
-        write_snapshot(path, payload)
-        persisted = read_valid_snapshot(path)
+        write_snapshot(policy, path, payload)
+        persisted = read_valid_snapshot(policy, path)
         if persisted.get("target_state") != asdict(locked):
             raise cg.GatewayError("snapshot persistido diverge do estado capturado", EXIT_PREFLIGHT_FAILED)
         after = cg.git_state(target, True, policy)

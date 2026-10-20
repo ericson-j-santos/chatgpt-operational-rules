@@ -35,6 +35,28 @@ O perfil padrão autoriza somente:
 
 O namespace `C:\dev\chatgpt-workers\*` é o local preferencial para múltiplos chats/agentes. Cada frente deve usar diretório e branch próprios; não compartilhar o mesmo working tree entre workers.
 
+Em executores POSIX, usar `config/command-gateway.policy.posix.json`. O perfil
+exige `REQSYS_WORKSPACE_ROOT` e `REQSYS_GATEWAY_STATE_DIR` definidos como
+caminhos absolutos. O perfil atual vincula esses valores, respectivamente, a
+`/workspace` e `/workspace/.reqsys-command-gateway-posix` por meio de
+`required_path_environment`; o chamador não pode redirecioná-los. Somente os
+repositórios compartilhados enumerados na política e o namespace
+`${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers/*` são autorizados. Ele não autoriza
+`${REQSYS_WORKSPACE_ROOT}` inteiro. Um layout diferente exige outro perfil
+versionado e homologado. O perfil Windows continua em
+`config/command-gateway.policy.json`; uma política declarada para outra
+plataforma deve falhar antes da execução.
+
+Variáveis de caminho não resolvidas e caminhos relativos devem falhar fechados.
+Raízes de política e o diretório de estado devem ser canonizados uma vez e não
+podem conter symlink ou junction em componentes existentes. O diretório de
+execução deve ser resolvido para o alvo físico antes da validação. Em POSIX, o
+subprocesso deve receber um descritor herdado que permaneça ancorado nesse mesmo
+diretório; nas demais plataformas, recebe o caminho canônico. Assim, um link dentro de uma raiz
+permitida ou redirecionado depois do carregamento não amplia a autoridade.
+O diagnóstico read-only pode relatar uma variável ausente como não resolvida,
+mas isso não concede autorização de execução.
+
 Para OCR, quando o código estiver no ReqSys, usar um worker isolado do repositório ReqSys.
 
 ### Escopos distintos de Portal Portabilidade
@@ -119,6 +141,12 @@ O lock fica fora do repositório, no diretório operacional local configurado. T
 Além do lock, o gateway compara o estado imediatamente antes e depois da aquisição. Mudança concorrente nesse intervalo aborta a execução.
 
 Mudanças feitas por processos que ignorem o gateway não podem ser atribuídas com certeza ao executor. Se isso ocorrer, registrar bloqueio e não sobrescrever trabalho existente.
+
+### Integridade do diretório operacional
+
+Em POSIX, toda criação, abertura, substituição e remoção sob o diretório operacional usa componentes relativos a descritores de diretóio ancorados, com `O_NOFOLLOW`. Arquivos precisam ser regulares, pertencer à identidade efetiva e possuir um único hardlink antes de leitura ou escrita. Reservas e snapshots são persistidos por arquivo temporário aleatório e exclusivo, sincronização e substituição atômica no mesmo diretório.
+
+No Windows, a biblioteca padrão usada pelo gateway não oferece operações equivalentes relativas a `dir_fd`. O fallback rejeita symlinks e junctions estáveis antes e depois da abertura e valida a identidade do arquivo aberto, mas não promete resistência a uma troca concorrente feita por outro processo sob a mesma identidade. Portanto, o diretório operacional Windows deve ter ACL exclusiva para a identidade técnica do gateway, e processos não confiáveis não podem compartilhar essa identidade. Quando isso não puder ser garantido, a execução deve falhar de forma controlada ou usar uma implementação nativa baseada em handles Win32.
 
 ## Exclusões de estado não rastreado
 

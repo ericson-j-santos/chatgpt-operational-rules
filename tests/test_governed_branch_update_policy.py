@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -16,7 +17,11 @@ import command_gateway as cg
 
 class GovernedBranchPolicyTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.policy = cg.load_policy(ROOT / "config" / "command-gateway.policy.json")
+        self.policy = cg.load_policy(
+            ROOT / "config" / "command-gateway.policy.json",
+            enforce_platform=False,
+            validate_paths=False,
+        )
         self.record = dict(self.policy["governed_branch_updates"][0])
         self.record["script"] = str(ROOT / "scripts" / "update_branch_fast_forward_governed.py")
         self.policy["governed_branch_updates"] = [self.record]
@@ -56,6 +61,32 @@ class GovernedBranchPolicyTests(unittest.TestCase):
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(self.command, 2, self.policy, self.cwd / "different")
 
+    @unittest.skipIf(os.name == "nt", "retarget de symlink validado em POSIX")
+    def test_governed_script_cannot_be_retargeted_after_policy_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root / "repo"
+            repo.mkdir()
+            script = root / "update_branch_fast_forward_governed.py"
+            script.write_text("# reviewed helper\n", encoding="utf-8")
+            record = dict(self.record)
+            record["script"] = str(script)
+            record["repo_root"] = str(repo)
+            policy = copy.deepcopy(self.policy)
+            policy["governed_branch_updates"] = [record]
+            command = list(self.command)
+            command[1] = str(script)
+            command[command.index("--repo") + 1] = str(repo)
+            cg.validate_governed_branch_update(command, repo, policy)
+
+            reviewed = root / "reviewed-helper.py"
+            script.rename(reviewed)
+            malicious = root / "malicious-helper.py"
+            malicious.write_text("# substituted helper\n", encoding="utf-8")
+            script.symlink_to(malicious)
+            with self.assertRaisesRegex(cg.GatewayError, "symlink ou junction"):
+                cg.validate_governed_branch_update(command, repo, policy)
+
     def test_direct_push_and_risk3_remain_blocked(self) -> None:
         with self.assertRaises(cg.GatewayError):
             cg.validate_command(["git", "push"], 2, self.policy, self.cwd)
@@ -90,6 +121,8 @@ class GovernedBranchPolicyTests(unittest.TestCase):
         self.assertNotIn("public.ecr.aws/docker/library/postgres", workflow)
         self.assertIn(
             "run: python -m unittest -v tests/test_command_gateway.py "
+            "tests/test_command_gateway_posix_policy.py "
+            "tests/test_validate_rules_policy_profiles.py "
             "tests/test_governed_branch_update_policy.py "
             "tests/test_update_branch_fast_forward_governed.py",
             workflow,

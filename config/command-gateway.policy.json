@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "platform": "windows",
   "allowed_roots": [
     "C:\\dev\\reqsys-v2-enterprise-real",
     "C:\\dev\\wt-*",

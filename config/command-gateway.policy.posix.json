@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "platform": "posix",
+  "required_path_environment": {
+    "REQSYS_WORKSPACE_ROOT": "/workspace",
+    "REQSYS_GATEWAY_STATE_DIR": "/workspace/.reqsys-command-gateway-posix"
+  },
+  "allowed_roots": [
+    "${REQSYS_WORKSPACE_ROOT}/chatgpt-operational-rules",
+    "${REQSYS_WORKSPACE_ROOT}/reqsys-engineering-orchestrator",
+    "${REQSYS_WORKSPACE_ROOT}/engineering-worker-pool",
+    "${REQSYS_WORKSPACE_ROOT}/desktop-pc24x7-runtime",
+    "${REQSYS_WORKSPACE_ROOT}/e2e-platform",
+    "${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers/*"
+  ],
+  "denied_roots": [],
+  "denied_segments": [
+    ".ssh",
+    ".azure",
+    ".aws",
+    ".gnupg",
+    ".kube"
+  ],
+  "denied_names": [
+    ".env",
+    ".env.*",
+    "id_rsa",
+    "id_ed25519",
+    "*.pem",
+    "*.pfx",
+    "*.p12"
+  ],
+  "allowed_executables": [
+    "git",
+    "python",
+    "python3",
+    "pytest",
+    "node",
+    "npm",
+    "npx",
+    "dotnet",
+    "docker"
+  ],
+  "blocked_executables": [
+    "cmd",
+    "powershell",
+    "pwsh",
+    "bash",
+    "sh",
+    "wsl",
+    "ssh",
+    "scp",
+    "az",
+    "gh",
+    "fly",
+    "vercel",
+    "kubectl",
+    "terraform"
+  ],
+  "deny_inline_code": true,
+  "block_gui_input_automation": true,
+  "blocked_gui_input_markers": [
+    "keybd_event(",
+    "mouse_event(",
+    "pyautogui.write(",
+    "pyautogui.press(",
+    "keyboard.write(",
+    "keyboard.press(",
+    "SetClipboardText("
+  ],
+  "blocked_gui_context_markers": [
+    ".invoke(",
+    ".type_keys(",
+    ".click_input(",
+    "send_keys(",
+    "win32clipboard"
+  ],
+  "require_git_repo": true,
+  "risk2_requires_clean_tree": true,
+  "max_timeout_seconds": 900,
+  "git_state_timeout_seconds": 60,
+  "state_dir": "${REQSYS_GATEWAY_STATE_DIR}",
+  "git_untracked_excludes": [
+    ".tmp/**"
+  ],
+  "require_session_bootstrap": true,
+  "worktree_root": "${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers",
+  "worktree_prefix": "wt-chat-",
+  "rules_version": "1.6.12",
+  "require_preflight_snapshot": true,
+  "session_source_roots": [],
+  "governed_branch_updates": [],
+  "allowed_executable_specs": []
+}
