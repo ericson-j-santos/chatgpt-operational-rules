@@ -32,10 +32,16 @@ TODO22_TARGET = (
     "validate-rules.yml",
     "fix/todo22-installer-isolated-gate-20261019",
 )
+TODO22_MAIN_TARGET = (
+    "ericson-j-santos/chatgpt-operational-rules",
+    "validate-rules.yml",
+    "main",
+)
+TODO22_TARGETS = frozenset({TODO22_TARGET, TODO22_MAIN_TARGET})
 ALLOWED_TARGETS = frozenset(
     (REQSYS_REPO, workflow, ref)
     for workflow, ref in product(REQSYS_WORKFLOWS, REQSYS_REFS)
-) | {TODO22_TARGET}
+) | TODO22_TARGETS
 PR_BOUND_TARGETS = {
     TODO22_TARGET: {"base": "main", "head_owner": "ericson-j-santos"},
 }
@@ -159,7 +165,7 @@ def dispatch(
     pull_request = verify_remote_head(repo, workflow, ref, expected_head)
     expected_display_title = (
         f"Operational Rules / {correlation_id}"
-        if (repo, workflow, ref) == TODO22_TARGET
+        if (repo, workflow, ref) in TODO22_TARGETS
         else None
     )
     before = run("gh", "api", f"repos/{repo}/actions/workflows/{workflow}/runs?event=workflow_dispatch&per_page=10")
@@ -173,7 +179,7 @@ def dispatch(
         "-f",
         f"ref={ref}",
     ]
-    if (repo, workflow, ref) == TODO22_TARGET:
+    if (repo, workflow, ref) in TODO22_TARGETS:
         dispatch_args.extend(
             (
                 "-f",

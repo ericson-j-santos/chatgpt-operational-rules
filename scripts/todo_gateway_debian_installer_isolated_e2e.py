@@ -26,6 +26,8 @@ from urllib.request import urlopen
 REPOSITORY = "ericson-j-santos/chatgpt-operational-rules"
 APP_USER = "todo-global"
 TARGET_REF = "fix/todo22-installer-isolated-gate-20261019"
+OWNER = "ericson-j-santos"
+REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 DB_USER = "todo_global_bus_dev_user"
 DB_NAME = "todo_global_bus_dev"
 BASE = Path("/opt/todo-global")
@@ -111,8 +113,23 @@ def validate_execution_context(
         raise HomologationError("github_hosted_runner_required")
     if env.get("GITHUB_REPOSITORY") != REPOSITORY:
         raise HomologationError("repository_mismatch")
-    if env.get("GITHUB_REF_NAME") != TARGET_REF:
+    event_name = env.get("GITHUB_EVENT_NAME")
+    source_ref = env.get("TODO22_SOURCE_REF", "")
+    if not REF_RE.fullmatch(source_ref):
         raise HomologationError("ref_mismatch")
+    if event_name == "pull_request":
+        if env.get("TODO22_PR_HEAD_REPOSITORY") != REPOSITORY:
+            raise HomologationError("pull_request_repository_mismatch")
+        if env.get("TODO22_PR_AUTHOR") != OWNER:
+            raise HomologationError("pull_request_owner_mismatch")
+    elif event_name == "push":
+        if source_ref != "main":
+            raise HomologationError("ref_mismatch")
+    elif event_name == "workflow_dispatch":
+        if source_ref != "main" and env.get("TODO22_MANUAL_PR_VERIFIED") != "true":
+            raise HomologationError("ref_mismatch")
+    else:
+        raise HomologationError("github_event_not_allowed")
     if euid != 0:
         raise HomologationError("root_required")
     if pid1_name != "systemd" or in_container:
@@ -635,7 +652,7 @@ def homologate(
         "generated_at": datetime.now(UTC).isoformat(),
         "repository": REPOSITORY,
         "head_sha": expected_sha,
-        "ref": env.get("GITHUB_REF_NAME", ""),
+        "ref": env.get("TODO22_SOURCE_REF", ""),
         "correlation_id": correlation_id,
         "environment": "github-hosted-ubuntu-24.04-disposable",
         "pilot_runtime_mutated": False,
