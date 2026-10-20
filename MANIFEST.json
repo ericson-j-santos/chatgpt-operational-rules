@@ -1,6 +1,6 @@
 {
   "version": "1.6.12",
-  "generated_at": "2026-10-20T13:32:30.404641+00:00",
+  "generated_at": "2026-10-20T13:36:34.178074+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -744,8 +744,8 @@
     },
     {
       "path": "tests/test_command_gateway_posix_policy.py",
-      "sha256": "2763bb6bf974d16b40fb84a5865c42ab01fe323c3b95c3eabe8f375cef717e2b",
-      "size": 31446
+      "sha256": "add1afb146b373fef55a1a5a48077d70f15c9e5a1339a23768d80bdfdcfb1822",
+      "size": 31486
     },
     {
       "path": "tests/test_continuation_worker.py",

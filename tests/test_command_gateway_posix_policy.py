@@ -165,8 +165,8 @@ class PosixCommandGatewayPolicyTests(unittest.TestCase):
                 )
 
     def test_windows_short_name_alias_is_canonicalized_after_reparse_checks(self) -> None:
-        source = Path("/short/root/repository")
-        canonical = Path("/long/root/repository")
+        source = Path.cwd() / "short-root" / "repository"
+        canonical = Path.cwd() / "long-root" / "repository"
         with (
             mock.patch.object(cg, "current_platform", return_value="windows"),
             mock.patch.object(cg.Path, "resolve", return_value=canonical),
@@ -185,8 +185,8 @@ class PosixCommandGatewayPolicyTests(unittest.TestCase):
         )
 
     def test_windows_alias_still_fails_when_reparse_recheck_fails(self) -> None:
-        source = Path("/short/root/repository")
-        canonical = Path("/long/root/repository")
+        source = Path.cwd() / "short-root" / "repository"
+        canonical = Path.cwd() / "long-root" / "repository"
         with (
             mock.patch.object(cg, "current_platform", return_value="windows"),
             mock.patch.object(cg.Path, "resolve", return_value=canonical),
