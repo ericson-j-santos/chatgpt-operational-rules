@@ -156,13 +156,48 @@ class PosixCommandGatewayPolicyTests(unittest.TestCase):
                 policy = cg.load_policy(policy_path)
                 os.environ["REQSYS_TEST_ROOT"] = str(replacement)
                 self.assertEqual(
-                    policy["governed_branch_updates"][0]["repo_root"],
-                    str(trusted / "repository"),
+                    cg.norm(policy["governed_branch_updates"][0]["repo_root"]),
+                    cg.norm(trusted / "repository"),
                 )
                 self.assertEqual(
-                    policy["allowed_executable_specs"][0]["path"],
-                    str(trusted / "tools" / "helper"),
+                    cg.norm(policy["allowed_executable_specs"][0]["path"]),
+                    cg.norm(trusted / "tools" / "helper"),
                 )
+
+    def test_windows_short_name_alias_is_canonicalized_after_reparse_checks(self) -> None:
+        source = Path("/short/root/repository")
+        canonical = Path("/long/root/repository")
+        with (
+            mock.patch.object(cg, "current_platform", return_value="windows"),
+            mock.patch.object(cg.Path, "resolve", return_value=canonical),
+            mock.patch.object(cg, "assert_no_link_components") as guard,
+        ):
+            result = cg.canonicalize_policy_path(str(source), field="allowed_roots[0]", allow_glob=False)
+
+        self.assertEqual(result, str(canonical))
+        self.assertEqual(
+            guard.call_args_list,
+            [
+                mock.call(source, field="allowed_roots[0]"),
+                mock.call(source, field="allowed_roots[0]"),
+                mock.call(canonical, field="allowed_roots[0]"),
+            ],
+        )
+
+    def test_windows_alias_still_fails_when_reparse_recheck_fails(self) -> None:
+        source = Path("/short/root/repository")
+        canonical = Path("/long/root/repository")
+        with (
+            mock.patch.object(cg, "current_platform", return_value="windows"),
+            mock.patch.object(cg.Path, "resolve", return_value=canonical),
+            mock.patch.object(
+                cg,
+                "assert_no_link_components",
+                side_effect=[None, cg.GatewayError("reparse trocado")],
+            ),
+            self.assertRaisesRegex(cg.GatewayError, "reparse trocado"),
+        ):
+            cg.canonicalize_policy_path(str(source), field="allowed_roots[0]", allow_glob=False)
 
     def test_required_environment_covers_every_referenced_variable(self) -> None:
         policy = {
@@ -662,7 +697,10 @@ class PosixCommandGatewayPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with mock.patch.object(cg.Path, "home", return_value=root):
-                self.assertEqual(cg.state_dir({}), root / ".reqsys-command-gateway")
+                self.assertEqual(
+                    cg.norm(cg.state_dir({})),
+                    cg.norm(root / ".reqsys-command-gateway"),
+                )
 
     def test_state_dir_rejects_relative_and_unresolved_values(self) -> None:
         with self.assertRaisesRegex(cg.GatewayError, "caminho absoluto"):

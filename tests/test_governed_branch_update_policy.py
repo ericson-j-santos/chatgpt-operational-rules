@@ -135,6 +135,15 @@ class GovernedBranchPolicyTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
         self.assert_ci_contract(workflow)
 
+    def test_triage_e2e_uses_explicit_posix_policy_with_platform_check(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
+        script = (ROOT / "scripts" / "triage_reservation_e2e.py").read_text(encoding="utf-8")
+        self.assertIn("TRIAGE_GATEWAY_POLICY_PROFILE: posix", workflow)
+        self.assertIn('policy_profile != "posix" or os.name != "posix"', script)
+        self.assertIn("config/command-gateway.policy.posix.json", script)
+        self.assertIn('policy.get("platform") != policy_profile', script)
+        self.assertNotIn("enforce_platform=False", script)
+
     def test_ci_contract_detects_previous_registry_and_omitted_tests(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
         for broken in (

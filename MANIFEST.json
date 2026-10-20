@@ -1,6 +1,6 @@
 {
   "version": "1.6.12",
-  "generated_at": "2026-10-20T13:25:30.774687+00:00",
+  "generated_at": "2026-10-20T13:32:30.404641+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "18b8973e5fe75154dcd52885c44c117e563975d426a87a6e0c5a4bf760a87fdc",
-      "size": 16321
+      "sha256": "4698560c616778fffe3f794960ed7fca03ed3f1ac794b88dd32863cfe18e5460",
+      "size": 16368
     },
     {
       "path": ".gitignore",
@@ -279,8 +279,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "2ba1c7d50b8ec4f3c6a46ffcf5fd0683b4dae010aeff1987d1e6eace7a879416",
-      "size": 63717
+      "sha256": "14f1389a5c2447e0ec3ae707fd468c224e0f9f492fd7541de65906918c8ac4d1",
+      "size": 64252
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -619,8 +619,8 @@
     },
     {
       "path": "scripts/triage_reservation_e2e.py",
-      "sha256": "48cacb652296fb6bb26a6776279d0c7d576a737bf85b32cea6d2c798e027d27c",
-      "size": 4031
+      "sha256": "b0464b7998b196fabe38e4602b7194d2bdf0aee203b8cd6f69129e7333dc7b52",
+      "size": 4337
     },
     {
       "path": "scripts/update_branch_fast_forward_governed.py",
@@ -744,8 +744,8 @@
     },
     {
       "path": "tests/test_command_gateway_posix_policy.py",
-      "sha256": "0eaddcc1db318c95db6590f53a179d217bf03abca6bab3879ea96153a2478324",
-      "size": 29747
+      "sha256": "2763bb6bf974d16b40fb84a5865c42ab01fe323c3b95c3eabe8f375cef717e2b",
+      "size": 31446
     },
     {
       "path": "tests/test_continuation_worker.py",
@@ -794,8 +794,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "4bf00179da98d5b3f53492e13d5dbad2863994ee08ed31266e2737812382f20b",
-      "size": 7248
+      "sha256": "7a37409d030f18ec2a48bde7d24b4e8727a898a7ee367c0a9dd05b4488e60e22",
+      "size": 7892
     },
     {
       "path": "tests/test_host_bootstrap.py",

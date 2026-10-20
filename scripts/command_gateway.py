@@ -183,7 +183,15 @@ def canonicalize_policy_path(value: str, *, field: str, allow_glob: bool) -> str
     assert_no_link_components(static_path, field=field)
     canonical_static = static_path.resolve(strict=False)
     if lexical_norm(canonical_static) != lexical_norm(static_path):
-        raise GatewayError(f"{field} mudou ou contém redirecionamento de caminho")
+        if current_platform() != "windows":
+            raise GatewayError(f"{field} mudou ou contém redirecionamento de caminho")
+        # Windows may expand an 8.3 component (for example RUNNER~1) while
+        # resolving an otherwise direct path.  That spelling change is not a
+        # reparse-point redirect.  Re-check both spellings after resolution so
+        # symlinks and junctions remain fail-closed, then freeze the canonical
+        # long spelling returned by the filesystem.
+        assert_no_link_components(static_path, field=field)
+        assert_no_link_components(canonical_static, field=field)
     return str(canonical_static.joinpath(*suffix_parts))
 
 

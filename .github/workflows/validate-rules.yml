@@ -187,6 +187,7 @@ jobs:
       - name: Run shared triage reservation E2E with real PostgreSQL
         env:
           TRIAGE_TEST_DSN: host=127.0.0.1 port=${{ job.services.triage-postgres.ports[5432] }} dbname=todo_reservation_test user=postgres password=disposable-ci-only connect_timeout=5
+          TRIAGE_GATEWAY_POLICY_PROFILE: posix
         run: python scripts/triage_reservation_e2e.py
       - name: Preserve triage reservation evidence
         if: always()
