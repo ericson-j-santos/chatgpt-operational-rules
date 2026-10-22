@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.15 - 2026-10-22
+
+- A manutenção fast-forward de branches publicadas passa a selecionar exatamente uma capability revisada entre múltiplos registros, bloqueando ausência e ambiguidade sem liberar `git push` genérico.
+- Adicionada capability de uso único para atualizar `engineering-worker-pool/codex/windows-native-no-docker-20261022` de `8740def7e832916452b13c52a1f4bec2f5712df7` para `cd150974a094dcda240987d8a2283c709a714d36`, vinculada ao worktree e helper versionado exatos.
+- O helper continua recusando force-push, árvore suja, divergência remota, não ancestralidade e readback final incorreto; replays após uso falham fechados.
+
 ## 1.6.14 - 2026-10-20
 
 - Formalizada a Regra nº 1 global: custo adicional máximo de R$ 0,00, com decisão fail-closed quando custo, franquia ou proteção contra overage não estiverem comprovados.

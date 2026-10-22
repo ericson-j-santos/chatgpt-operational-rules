@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time, lease-checked fast-forward maintenance for PR72."""
+"""Reviewed, lease-checked fast-forward maintenance for exact branch updates."""
 from __future__ import annotations
 
 import argparse
@@ -18,6 +18,32 @@ EXPECTED_HEAD_SHA = "22b435ea287971e3e1ff0126d7cc3f096eae5747"
 EXPECTED_REPO_ROOT = (
     r"C:\dev\chatgpt-workers\wt-chat-rp23ogs-diag-desktop-rp23-20261015-110652-19cc"
 )
+WORKER_REPOSITORY = "ericson-j-santos/engineering-worker-pool"
+WORKER_BRANCH = "codex/windows-native-no-docker-20261022"
+WORKER_REMOTE_SHA = "8740def7e832916452b13c52a1f4bec2f5712df7"
+WORKER_HEAD_SHA = "cd150974a094dcda240987d8a2283c709a714d36"
+WORKER_REPO_ROOT = (
+    r"C:\dev\chatgpt-workers\wt-chat-engineering-worker-pool-base-20261022-a1"
+)
+
+
+def reviewed_operations() -> tuple[dict[str, str], ...]:
+    return (
+        {
+            "repository": EXPECTED_REPOSITORY,
+            "branch": EXPECTED_BRANCH,
+            "expected_remote": EXPECTED_REMOTE_SHA,
+            "expected_head": EXPECTED_HEAD_SHA,
+            "repo_root": EXPECTED_REPO_ROOT,
+        },
+        {
+            "repository": WORKER_REPOSITORY,
+            "branch": WORKER_BRANCH,
+            "expected_remote": WORKER_REMOTE_SHA,
+            "expected_head": WORKER_HEAD_SHA,
+            "repo_root": WORKER_REPO_ROOT,
+        },
+    )
 
 
 def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -52,17 +78,23 @@ def canonical_remote(value: str) -> str:
 
 def validate(repo: Path, remote: str, branch: str, expected_remote: str, expected_head: str) -> dict[str, str]:
     resolved = repo.resolve()
-    if str(resolved).casefold() != EXPECTED_REPO_ROOT.casefold():
-        raise RuntimeError("repository path is outside the reviewed PR72 scope")
-    if remote != "origin" or branch != EXPECTED_BRANCH:
-        raise RuntimeError("remote or branch is outside the reviewed PR72 scope")
-    if expected_remote != EXPECTED_REMOTE_SHA or expected_head != EXPECTED_HEAD_SHA:
-        raise RuntimeError("expected SHA pair is outside the reviewed PR72 scope")
     if not SHA_RE.fullmatch(expected_remote) or not SHA_RE.fullmatch(expected_head):
         raise RuntimeError("expected SHA must be complete")
+    matches = [
+        operation for operation in reviewed_operations()
+        if remote == "origin"
+        and branch == operation["branch"]
+        and expected_remote == operation["expected_remote"]
+        and expected_head == operation["expected_head"]
+    ]
+    if len(matches) != 1:
+        raise RuntimeError("arguments are outside the reviewed branch update scope")
+    operation = matches[0]
+    if str(resolved).casefold() != operation["repo_root"].casefold():
+        raise RuntimeError("repository path is outside the reviewed branch update scope")
 
     repository = canonical_remote(git(repo, "remote", "get-url", remote).stdout)
-    if repository != EXPECTED_REPOSITORY:
+    if repository != operation["repository"]:
         raise RuntimeError("origin is not the reviewed repository")
     if git(repo, "branch", "--show-current").stdout.strip() != branch:
         raise RuntimeError("local branch does not match the reviewed branch")
@@ -79,7 +111,7 @@ def validate(repo: Path, remote: str, branch: str, expected_remote: str, expecte
         raise RuntimeError("target is not a fast-forward descendant of expected remote")
 
     return {
-        "repository": EXPECTED_REPOSITORY,
+        "repository": operation["repository"],
         "branch": branch,
         "expected_remote": expected_remote,
         "expected_head": expected_head,

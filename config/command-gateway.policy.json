@@ -81,7 +81,7 @@
   "require_session_bootstrap": true,
   "worktree_root": "C:\\dev\\chatgpt-workers",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.6.14",
+  "rules_version": "1.6.15",
   "require_preflight_snapshot": true,
   "session_source_roots": [
     "%LOCALAPPDATA%\\ReqSys\\NoteriGitHubRunner\\_work\\reqsys-v2-enterprise-real\\reqsys-v2-enterprise-real"
@@ -95,6 +95,15 @@
       "branch": "fix/rp23ogs-host-label-isolation-draft-gating-20261015",
       "expected_remote": "3f88cd5c35c1ab85c3dc13a30ad0bc645a1ff6b5",
       "expected_head": "22b435ea287971e3e1ff0126d7cc3f096eae5747"
+    },
+    {
+      "script": "C:\\dev\\chatgpt-workers\\operational-rules-validation\\scripts\\update_branch_fast_forward_governed.py",
+      "repo_root": "C:\\dev\\chatgpt-workers\\wt-chat-engineering-worker-pool-base-20261022-a1",
+      "repository": "ericson-j-santos/engineering-worker-pool",
+      "remote": "origin",
+      "branch": "codex/windows-native-no-docker-20261022",
+      "expected_remote": "8740def7e832916452b13c52a1f4bec2f5712df7",
+      "expected_head": "cd150974a094dcda240987d8a2283c709a714d36"
     }
   ],
   "allowed_executable_specs": []
