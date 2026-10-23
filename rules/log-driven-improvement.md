@@ -13,19 +13,22 @@ Quando houver logs, falhas de CI, incidentes, retries, cancelamentos recorrentes
    - causa-raiz candidata;
    - efeito cascata de gate/dependência upstream;
    - ruído de orquestração, cancelamento ou concorrência;
-5. construir Pareto por frequência e blast radius, com score simples e explicável;
-6. atacar primeiro a maior causa-raiz comprovada que admita correção segura;
-7. reproduzir a falha anterior quando seguro e viável;
-8. corrigir a causa e a lacuna de prevenção;
-9. adicionar teste de regressão ou controle equivalente que detecte reincidência;
-10. revalidar no maior E2E autorizado;
-11. verificar na janela seguinte se o fingerprint deixou de reincidir;
-12. somente então avançar para a próxima causa do Pareto.
+5. deduplicar incidentes lógicos sem apagar reincidência real:
+   - em eventos ligados à mesma mudança (`push`, PR ou merge group), o mesmo repositório + SHA + fingerprint conta como um incidente;
+   - execuções agendadas/manuais distintas continuam separadas, mesmo no mesmo SHA;
+6. construir Pareto por incidentes lógicos, frequência e blast radius, com score simples e explicável;
+7. atacar primeiro a maior causa-raiz comprovada que admita correção segura;
+8. reproduzir a falha anterior quando seguro e viável;
+9. corrigir a causa e a lacuna de prevenção;
+10. adicionar teste de regressão ou controle equivalente que detecte reincidência;
+11. revalidar no maior E2E autorizado;
+12. verificar na janela seguinte se o fingerprint deixou de reincidir;
+13. somente então avançar para a próxima causa do Pareto.
 
 ## Regras contra falso positivo
 
 - Falhas derivadas como `ADMISSION_BLOCKED` ou gates downstream não contam como causas independentes quando houver erro upstream comprovado.
-- Cancelamento não é falha funcional por padrão; concentração de cancelamentos deve ser tratada como sinal de concorrência/event storm.
+- Cancelamento só pode ser classificado como ruído de concorrência quando houver evidência de sucessor/supersessão ou causa equivalente. Cancelamento sem sucessor comprovado permanece `unverified_cancellation` até diagnóstico.
 - `unclassified_failure` indica deficiência de observabilidade. Melhorar o diagnóstico sanitizado antes de inferir causa.
 - CI verde após correção não basta: exigir teste de regressão e efeito funcional aplicável.
 - O score nunca autoriza merge, deploy, produção, permissão administrativa, gasto ou ação destrutiva.
@@ -53,9 +56,11 @@ Toda análise deve registrar, quando aplicável:
 - janela analisada;
 - quantidade de execuções/falhas/cancelamentos;
 - top fingerprints;
+- incidentes lógicos e critério de deduplicação;
 - workflows/repositórios afetados;
 - evidência da causa-raiz;
 - cascatas descartadas como backlog independente;
+- cancelamentos sem sucessor ainda não classificados como ruído;
 - correção aplicada;
 - teste preventivo;
 - reincidência observada ou ausente na janela seguinte;

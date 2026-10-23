@@ -224,8 +224,8 @@
     },
     {
       "path": "rules/log-driven-improvement.md",
-      "sha256": "835563a7394c003e9060d57612dda5f19f63407cdce87262fda07f48fa3dcd15",
-      "size": 3325
+      "sha256": "1077ca2f53f629a12b119b810d379ae4da6e5c4b29f26faba9c98da3f2590a7e",
+      "size": 3847
     },
     {
       "path": "rules/pre-delivery-validation.md",
