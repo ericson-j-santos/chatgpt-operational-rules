@@ -1,6 +1,6 @@
 {
   "version": "1.6.16",
-  "generated_at": "2026-10-23T22:54:37.510984+00:00",
+  "generated_at": "2026-10-23T22:56:49.975882+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,13 +49,13 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "8e7eb9a19a3abbc29d0abb2fa91699e29811beda61aecd6679b5277248b79586",
-      "size": 2476
+      "sha256": "5b8eabf0d411124c2e0bb5dead6cd857bec0a3a4c08eaf619259a93cc5691e63",
+      "size": 2740
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "0ac356be6ebef6d5bc5f972e02b7fb604bb4f0736fc2fd75097f903270a80c24",
-      "size": 19279
+      "sha256": "96ccd5c3b186258ad749d033af70c764adfa2c78e8b943fe73f69c9d7720b6a7",
+      "size": 19879
     },
     {
       "path": "README.md",
@@ -64,12 +64,12 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "7f0f64f136175697a0a89ae156bccae5f171796d1b630942666b0682571a5090",
+      "sha256": "19702115c01d7e391cbf9a96ab75a8f40ed821bd71d7dc5b13db6cfade346450",
       "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "529af3d5987720c0cdc113d4392db59599339844bbaaa4ccd62b26f1cb09cd45",
+      "sha256": "1b8956bb140887687ee63f41a4f691ee6bfbe070ae735b03ce86a050ea4b5d5f",
       "size": 2058
     },
     {
