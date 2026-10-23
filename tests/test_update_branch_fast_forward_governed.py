@@ -15,25 +15,34 @@ module = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(module)
 
 
-def fake_git_factory(remote_values: list[str] | None = None, ancestor: int = 0, dirty: bool = False):
+def fake_git_factory(
+    remote_values: list[str] | None = None,
+    ancestor: int = 0,
+    dirty: bool = False,
+    *,
+    repository: str = module.EXPECTED_REPOSITORY,
+    branch: str = module.EXPECTED_BRANCH,
+    expected_remote: str = module.EXPECTED_REMOTE_SHA,
+    expected_head: str = module.EXPECTED_HEAD_SHA,
+):
     remote_values = list(remote_values if remote_values is not None else [
-        module.EXPECTED_REMOTE_SHA, module.EXPECTED_REMOTE_SHA, module.EXPECTED_HEAD_SHA,
+        expected_remote, expected_remote, expected_head,
     ])
     calls: list[tuple[str, ...]] = []
 
     def fake_git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         calls.append(args)
         if args == ("remote", "get-url", "origin"):
-            return subprocess.CompletedProcess(args, 0, "https://github.com/ericson-j-santos/desktop-pc24x7-runtime.git\n", "")
+            return subprocess.CompletedProcess(args, 0, f"https://github.com/{repository}.git\n", "")
         if args == ("branch", "--show-current"):
-            return subprocess.CompletedProcess(args, 0, module.EXPECTED_BRANCH + "\n", "")
+            return subprocess.CompletedProcess(args, 0, branch + "\n", "")
         if args == ("rev-parse", "HEAD"):
-            return subprocess.CompletedProcess(args, 0, module.EXPECTED_HEAD_SHA + "\n", "")
+            return subprocess.CompletedProcess(args, 0, expected_head + "\n", "")
         if args == ("status", "--porcelain"):
             return subprocess.CompletedProcess(args, 0, " M fixture.py\n" if dirty else "", "")
         if args[:3] == ("ls-remote", "--heads", "origin"):
             value = remote_values.pop(0)
-            return subprocess.CompletedProcess(args, 0, f"{value}\trefs/heads/{module.EXPECTED_BRANCH}\n", "")
+            return subprocess.CompletedProcess(args, 0, f"{value}\trefs/heads/{branch}\n", "")
         if args[:2] == ("merge-base", "--is-ancestor"):
             return subprocess.CompletedProcess(args, ancestor, "", "")
         if args[:1] == ("push",):
@@ -71,6 +80,41 @@ class GovernedUpdateTests(unittest.TestCase):
         self.assertEqual(1, sum(call[:1] == ("push",) for call in calls))
         self.assertIn(("push", "origin", f"HEAD:refs/heads/{module.EXPECTED_BRANCH}"), calls)
         self.assertTrue(all("force" not in token for call in calls for token in call))
+
+    def test_worker_pool_update_is_an_exact_reviewed_operation(self) -> None:
+        worker = next(
+            operation for operation in module.reviewed_operations()
+            if operation["repository"] == module.WORKER_REPOSITORY
+        )
+        self.assertEqual(worker, {
+            "repository": "ericson-j-santos/engineering-worker-pool",
+            "branch": "codex/windows-native-no-docker-20261022",
+            "expected_remote": "8740def7e832916452b13c52a1f4bec2f5712df7",
+            "expected_head": "cd150974a094dcda240987d8a2283c709a714d36",
+            "repo_root": r"C:\dev\chatgpt-workers\wt-chat-engineering-worker-pool-base-20261022-a1",
+        })
+
+        worker_root = self.base_args["repo"]
+        values = {
+            "repo": worker_root,
+            "remote": "origin",
+            "branch": module.WORKER_BRANCH,
+            "expected_remote": module.WORKER_REMOTE_SHA,
+            "expected_head": module.WORKER_HEAD_SHA,
+        }
+        fake_git, calls = fake_git_factory(
+            repository=module.WORKER_REPOSITORY,
+            branch=module.WORKER_BRANCH,
+            expected_remote=module.WORKER_REMOTE_SHA,
+            expected_head=module.WORKER_HEAD_SHA,
+        )
+        with (
+            patch.object(module, "WORKER_REPO_ROOT", str(worker_root)),
+            patch.object(module, "git", side_effect=fake_git),
+        ):
+            evidence = module.update(**values)
+        self.assertEqual(evidence["repository"], module.WORKER_REPOSITORY)
+        self.assertIn(("push", "origin", f"HEAD:refs/heads/{module.WORKER_BRANCH}"), calls)
 
     def test_update_aborts_if_remote_changes_between_checks(self) -> None:
         fake_git, calls = fake_git_factory([module.EXPECTED_REMOTE_SHA, "4" * 40])

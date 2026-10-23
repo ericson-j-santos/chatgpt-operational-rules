@@ -1,6 +1,6 @@
 {
-  "version": "1.6.14",
-  "generated_at": "2026-10-20T21:32:13+00:00",
+  "version": "1.6.15",
+  "generated_at": "2026-10-22T23:11:17.534574+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,22 +54,22 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "ad7d0c085dd9dcc59f7c5b3d5efea0ad629c0c8f71708005d9de6440b350d479",
-      "size": 18626
+      "sha256": "0ac356be6ebef6d5bc5f972e02b7fb604bb4f0736fc2fd75097f903270a80c24",
+      "size": 19279
     },
     {
       "path": "README.md",
-      "sha256": "47703c0e7cd5edb9c1d91ad5fe3d6bd20ab89a3e82dbd0086882fb0e13db0284",
+      "sha256": "16aca7082aff0df3ed015ff075a202c5bf96e55cfd444eb8d7b70a4eb953f28d",
       "size": 9003
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "16cee8a95a2475f1dcf86a5641060e775c43ecba96fd805eb7ce135f43556dda",
-      "size": 2342
+      "sha256": "7f0f64f136175697a0a89ae156bccae5f171796d1b630942666b0682571a5090",
+      "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "f4ea1ee79299df7055c2ffe6315b13f4b361d5501d3db8566abf446bd05c6918",
+      "sha256": "529af3d5987720c0cdc113d4392db59599339844bbaaa4ccd62b26f1cb09cd45",
       "size": 2058
     },
     {
@@ -174,8 +174,8 @@
     },
     {
       "path": "rules/branch-publication.md",
-      "sha256": "5613f3e2018fa2f8d2f361dbebd27673062f9b27072fcb31be2f4aea123182b5",
-      "size": 2876
+      "sha256": "a29dae69d136ca8cea056148e0f58d25d5f1e29a9cb884978e029674a8a881dc",
+      "size": 3000
     },
     {
       "path": "rules/chat-bootstrap.md",
@@ -284,8 +284,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "14f1389a5c2447e0ec3ae707fd468c224e0f9f492fd7541de65906918c8ac4d1",
-      "size": 64252
+      "sha256": "8cb5a97ebe5c0cbca13f2db788f76737499421a324fdf7671f77aa49775fb15b",
+      "size": 64222
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -629,8 +629,8 @@
     },
     {
       "path": "scripts/update_branch_fast_forward_governed.py",
-      "sha256": "ba27e8615558b66948dc0947514f79acf25406f9d4437882c320da896a483cab",
-      "size": 5623
+      "sha256": "8c87a89abeca48573e284734d379957cd37c99ca88485fc2f723fe1dbcbf3506",
+      "size": 6678
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -799,8 +799,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "7a37409d030f18ec2a48bde7d24b4e8727a898a7ee367c0a9dd05b4488e60e22",
-      "size": 7892
+      "sha256": "dc353d6bac6a7503473f00f529ce315a875f386a8bee4128d1173bb977c8108d",
+      "size": 9200
     },
     {
       "path": "tests/test_host_bootstrap.py",
@@ -1019,8 +1019,8 @@
     },
     {
       "path": "tests/test_update_branch_fast_forward_governed.py",
-      "sha256": "7f51d233fb5c52630b65703021ac91786af33150a6bd85b2baae234f0e5881f0",
-      "size": 6176
+      "sha256": "d717987a4973229cda8bfa9b49aa7cf237f22d0fe1bf44ac8312f64850b63690",
+      "size": 7888
     },
     {
       "path": "tests/test_update_command_gateway_host.py",

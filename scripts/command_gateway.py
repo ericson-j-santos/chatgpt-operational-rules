@@ -604,7 +604,7 @@ def python_script_path(args: Sequence[str], cwd: Path) -> Path | None:
 
 
 def validate_governed_branch_update(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:
-    """Allow only the reviewed, one-branch maintenance helper invocation."""
+    """Allow only one exact reviewed maintenance record for this invocation."""
     exe = Path(args[0]).name.casefold() if args else ""
     if exe.endswith(".exe"):
         exe = exe[:-4]
@@ -613,24 +613,6 @@ def validate_governed_branch_update(args: Sequence[str], cwd: Path, policy: dict
         return
     if script.name != "update_branch_fast_forward_governed.py":
         return
-    records = policy.get("governed_branch_updates", [])
-    if len(records) != 1:
-        raise GatewayError("governed branch update capability is not configured")
-    record = records[0]
-    frozen_script = Path(str(record.get("script", "")))
-    if lexical_norm(script) != lexical_norm(frozen_script):
-        raise GatewayError("governed branch update script is not allowlisted")
-    assert_no_link_components(frozen_script, field="governed branch update script")
-    try:
-        resolved_script = frozen_script.resolve(strict=True)
-    except OSError as exc:
-        raise GatewayError("governed branch update script is unavailable") from exc
-    if lexical_norm(resolved_script) != lexical_norm(frozen_script):
-        raise GatewayError("governed branch update script changed after policy validation")
-    frozen_repo = str(record.get("repo_root", ""))
-    if lexical_norm(cwd) != lexical_norm(frozen_repo):
-        raise GatewayError("governed branch update repository is not allowlisted")
-
     pairs: dict[str, str] = {}
     idx = 2
     allowed = {"--repo", "--remote", "--branch", "--expected-remote", "--expected-head", "--correlation-id"}
@@ -643,18 +625,42 @@ def validate_governed_branch_update(args: Sequence[str], cwd: Path, policy: dict
     required = allowed
     if set(pairs) != required:
         raise GatewayError("governed branch update requires the complete reviewed argument set")
-    if lexical_norm(pairs["--repo"]) != lexical_norm(frozen_repo):
-        raise GatewayError("governed branch update repo argument is not allowlisted")
-    for key, record_key in (
-        ("--remote", "remote"),
-        ("--branch", "branch"),
-        ("--expected-remote", "expected_remote"),
-        ("--expected-head", "expected_head"),
-    ):
-        if pairs[key].casefold() != str(record.get(record_key, "")).casefold():
-            raise GatewayError(f"governed branch update {key} is not allowlisted")
     if any(token.casefold() in {"--force", "-f", "--force-with-lease"} for token in args):
         raise GatewayError("force push is forbidden for governed branch maintenance")
+
+    records = policy.get("governed_branch_updates", [])
+    matches = []
+    for record in records:
+        frozen_script = Path(str(record.get("script", "")))
+        frozen_repo = str(record.get("repo_root", ""))
+        if lexical_norm(script) != lexical_norm(frozen_script):
+            continue
+        if lexical_norm(cwd) != lexical_norm(frozen_repo):
+            continue
+        if lexical_norm(pairs["--repo"]) != lexical_norm(frozen_repo):
+            continue
+        if any(
+            pairs[key].casefold() != str(record.get(record_key, "")).casefold()
+            for key, record_key in (
+                ("--remote", "remote"),
+                ("--branch", "branch"),
+                ("--expected-remote", "expected_remote"),
+                ("--expected-head", "expected_head"),
+            )
+        ):
+            continue
+        matches.append(record)
+    if len(matches) != 1:
+        raise GatewayError("governed branch update capability is not configured or is ambiguous")
+
+    frozen_script = Path(str(matches[0]["script"]))
+    assert_no_link_components(frozen_script, field="governed branch update script")
+    try:
+        resolved_script = frozen_script.resolve(strict=True)
+    except OSError as exc:
+        raise GatewayError("governed branch update script is unavailable") from exc
+    if lexical_norm(resolved_script) != lexical_norm(frozen_script):
+        raise GatewayError("governed branch update script changed after policy validation")
 
 
 def assert_safe_gui_automation(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:

@@ -31,7 +31,7 @@ A publicação está concluída somente quando o SHA remoto coincide com `expect
 
 ## Fast-forward maintenance (explicit allowlist)
 
-Updating an already published branch remains blocked by default. An exception requires a `governed_branch_updates` record in the loaded Command Gateway policy with exact repository, worktree, branch, `expected_remote`, `expected_head`, and versioned script values.
+Updating an already published branch remains blocked by default. An exception requires exactly one matching `governed_branch_updates` record in the loaded Command Gateway policy with exact repository, worktree, branch, `expected_remote`, `expected_head`, and versioned script values. Multiple independent records may coexist, but an invocation matching none or more than one fails closed.
 
 The maintenance helper must require a clean worktree, `HEAD == expected_head`, remote equal to `expected_remote`, fast-forward ancestry, an unprotected branch, Gateway locking, no `--force` or `--force-with-lease`, and an independent final SHA readback. Direct `git push` remains blocked.
 

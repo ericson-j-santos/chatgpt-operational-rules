@@ -42,6 +42,32 @@ class GovernedBranchPolicyTests(unittest.TestCase):
             cg.validate_command(self.command, 2, self.policy, self.cwd)
         self.assertEqual(before, self.policy)
 
+    def test_multiple_records_select_exactly_one_and_reject_ambiguity(self) -> None:
+        second = dict(self.record)
+        second.update({
+            "repo_root": r"C:\dev\chatgpt-workers\wt-chat-engineering-worker-pool-base-20261022-a1",
+            "repository": "ericson-j-santos/engineering-worker-pool",
+            "branch": "codex/windows-native-no-docker-20261022",
+            "expected_remote": "8740def7e832916452b13c52a1f4bec2f5712df7",
+            "expected_head": "cd150974a094dcda240987d8a2283c709a714d36",
+        })
+        policy = copy.deepcopy(self.policy)
+        policy["governed_branch_updates"] = [self.record, second]
+        command = [
+            "python", second["script"],
+            "--repo", second["repo_root"],
+            "--remote", second["remote"],
+            "--branch", second["branch"],
+            "--expected-remote", second["expected_remote"],
+            "--expected-head", second["expected_head"],
+            "--correlation-id", "worker-update-regression",
+        ]
+        cg.validate_command(command, 2, policy, Path(second["repo_root"]))
+
+        policy["governed_branch_updates"].append(dict(second))
+        with self.assertRaisesRegex(cg.GatewayError, "ambiguous"):
+            cg.validate_command(command, 2, policy, Path(second["repo_root"]))
+
     def test_branch_force_and_incomplete_invocations_are_blocked(self) -> None:
         changed_branch = list(self.command)
         changed_branch[changed_branch.index("--branch") + 1] = "main"
