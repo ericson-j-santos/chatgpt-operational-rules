@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.16 - 2026-10-23
+
+- Adicionada regra transversal de melhoria contínua orientada por logs e falhas: sanitização, fingerprint estável, separação de causa-raiz/cascata/ruído e priorização por Pareto.
+- Correções passam a exigir prevenção verificável e confirmação de não reincidência na janela seguinte antes de avançar para a próxima causa.
+- A análise não autoriza merge, deploy, mudança administrativa, gasto ou ação destrutiva; custo incremental permanece R$ 0,00 e a automação reutilizável do Observability Platform deve ser fixada por SHA integrado e validado.
+
+
 ## 1.6.15 - 2026-10-22
 
 - A manutenção fast-forward de branches publicadas passa a selecionar exatamente uma capability revisada entre múltiplos registros, bloqueando ausência e ambiguidade sem liberar `git push` genérico.
