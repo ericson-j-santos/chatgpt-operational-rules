@@ -1,6 +1,6 @@
 {
-  "version": "1.6.16",
-  "generated_at": "2026-10-24T16:27:00.197974+00:00",
+  "version": "1.6.17",
+  "generated_at": "2026-10-24T20:16:39.568Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,27 +49,27 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "5b8eabf0d411124c2e0bb5dead6cd857bec0a3a4c08eaf619259a93cc5691e63",
-      "size": 2740
+      "sha256": "bafab95c12db978df2946989b6f5b9482275109bd5b934267038216489814827",
+      "size": 2767
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "96ccd5c3b186258ad749d033af70c764adfa2c78e8b943fe73f69c9d7720b6a7",
-      "size": 19879
+      "sha256": "8e8ac584d028503f7fe57054270be50b85838250096e278ccef36a0f1925706a",
+      "size": 20346
     },
     {
       "path": "README.md",
-      "sha256": "cedd8115f6e4713ad2f794f6faa41e23dc0f1577f4d98b56a0c09ea65aab2d71",
-      "size": 9466
+      "sha256": "118effbff4def2787e514f5da3739efeedd28d8c62dda9a83e575155fa860f98",
+      "size": 9474
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "19702115c01d7e391cbf9a96ab75a8f40ed821bd71d7dc5b13db6cfade346450",
+      "sha256": "d61aca8d7ab506f428968a0dc75df0c5a2807c43c27bb5a5a8b26d6bcd104e48",
       "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "1b8956bb140887687ee63f41a4f691ee6bfbe070ae735b03ce86a050ea4b5d5f",
+      "sha256": "aad84e900cbff0cf5324368c990b772ed31d2e9acbb647018947ede62898808a",
       "size": 2058
     },
     {
@@ -229,8 +229,8 @@
     },
     {
       "path": "rules/log-driven-improvement.md",
-      "sha256": "1077ca2f53f629a12b119b810d379ae4da6e5c4b29f26faba9c98da3f2590a7e",
-      "size": 3847
+      "sha256": "da522463c4c194836436e792c94af2249905cc0e05c41fade555ad81f81ef908",
+      "size": 5250
     },
     {
       "path": "rules/pre-delivery-validation.md",
@@ -649,8 +649,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "b68b456435adee880353a7f9200cb8a96a008f7cae9f4d86fa65fbf5d4ca08ad",
-      "size": 14315
+      "sha256": "b9ed71e978eb8c464d11b5235f1f25b766cb56a1bbe2c1032be28588a52cad85",
+      "size": 14459
     },
     {
       "path": "services/__init__.py",

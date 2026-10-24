@@ -19,7 +19,7 @@ Antes de executar trabalho técnico:
 14. para recuperação/evolução de host com plano de controle já ativo, aplique `rules/control-plane-recovery.md`; use/extenda o plano de controle antes de qualquer launcher/GUI/manual, e trate bootstrap manual somente como migração única que instala auto-recovery permanente.
 
 15. Antes de enviar qualquer entrega técnica executável, aplicar `rules/pre-delivery-validation.md`: testar previamente, corrigir e retestar, vincular evidência à versão atual e declarar explicitamente quando o teste real estiver indisponível.
-16. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar causa-raiz/cascata/ruído, priorizar por Pareto, corrigir com prevenção e verificar reincidência.
+16. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar causa-raiz/controle/cascata/ruído, aplicar Pareto somente a causas ativas, corrigir com prevenção e verificar reincidência.
 
 Exceção única para host novo sem Gateway instalado: usar `scripts/install_command_gateway_host.py` com SHA completo aprovado e hash próprio esperado; exigir `HOST_BOOTSTRAP_OK` e então passar imediatamente ao `session_preflight.py`. Não usar essa exceção como terminal genérico.
 

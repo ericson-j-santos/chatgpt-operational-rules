@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.17 - 2026-10-24
+
+- A análise de falhas passa a classificar cada sinal como `root_cause`, `control`, `cascade` ou `noise`; controles governados não entram no Pareto nem autorizam bypass.
+- O Pareto considera somente causas ainda ativas, e reruns sem mudança material não contam como correção ou novo incidente.
+- Produtores devem expor contexto sanitizado e a prevenção só é longitudinalmente comprovada após uma janela posterior sem reincidência.
+
 ## 1.6.16 - 2026-10-23
 
 - Adicionada regra transversal de melhoria contínua orientada por logs e falhas: sanitização, fingerprint estável, separação de causa-raiz/cascata/ruído e priorização por Pareto.
