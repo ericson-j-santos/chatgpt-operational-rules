@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "scope_id": "reqsys-dev-pc-pool-v1",
+  "environment": "dev",
+  "source_contract": {
+    "repository": "ericson-j-santos/reqsys-v2-enterprise-real",
+    "merged_sha": "e07c31ba551adc2c99f2d1143391e3c71d622f86",
+    "path": "config/reqsys-dev-runner-pool.json"
+  },
+  "eligibility": {
+    "shared_label": "reqsys-dev-pool-v1",
+    "required_labels": ["self-hosted", "Windows", "X64", "reqsys-dev"],
+    "preflight_action": "./.github/actions/reqsys-dev-runner-preflight",
+    "identity_field": "runner_instance_id",
+    "based_on_capabilities": true,
+    "forbidden_hostname_affinity": ["DESKTOP-PDQK954"],
+    "forbid_fixed_runner_id": true
+  },
+  "boundaries": {
+    "allowed_environments": ["dev"],
+    "denied_environments": ["hml", "stg", "prod"],
+    "automatic_retry": false,
+    "deploy_authorized": false,
+    "production_touch_authorized": false
+  },
+  "onboarding": {
+    "script": "scripts/onboard_reqsys_dev_runner.ps1",
+    "physical_owner_authorization_required": true,
+    "github_runner_registration_performed_by_script": false,
+    "eligibility_requires_positive_preflight": true
+  },
+  "canary": {
+    "workflow": ".github/workflows/noteri-desktop-watchdog-recovery.yml",
+    "mode": "runner-pool-canary",
+    "gateway_command": "/reqsys run desktop-runner-pickup-canary",
+    "owner_authorization_required": true,
+    "single_attempt": true,
+    "automatic_retry": false
+  }
+}
