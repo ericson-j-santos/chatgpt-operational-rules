@@ -1,6 +1,6 @@
 {
-  "version": "1.6.15",
-  "generated_at": "2026-10-22T23:11:17.534574+00:00",
+  "version": "1.6.16",
+  "generated_at": "2026-10-24T00:23:24.740890+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -59,8 +59,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "16aca7082aff0df3ed015ff075a202c5bf96e55cfd444eb8d7b70a4eb953f28d",
-      "size": 9003
+      "sha256": "d420b862fffed2f62d69c40cf3b94f9400431de3d70e50014fdc0e43eefeaef1",
+      "size": 9246
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -216,6 +216,11 @@
       "path": "rules/evidence-validation.md",
       "sha256": "88ad702618877ee9e81b9cd55b4e717d95f77ee1170543e8b8a23b763865ec7d",
       "size": 842
+    },
+    {
+      "path": "rules/failure-intelligence.md",
+      "sha256": "4c2972f318f21e0fbf955777a0fd057b3ae8b2d8ffd4c0d258f23027c8a73e8b",
+      "size": 5457
     },
     {
       "path": "rules/github-workflow.md",
