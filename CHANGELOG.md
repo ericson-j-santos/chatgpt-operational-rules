@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.16 - 2026-10-23
+
+- Adicionada regra transversal de inteligência contínua de falhas: coleta, sanitização, classificação e Pareto de causas-raiz antes de novas correções.
+- Bloqueios governados como custo desconhecido, autorização humana ausente e gates equivalentes passam a ser tratados como `control`, fora do Pareto de bugs.
+- Cascatas e cancelamentos com sucessor comprovado deixam de multiplicar uma mesma causa; correções passam a exigir regressão, E2E e medição posterior de reincidência.
+
 ## 1.6.15 - 2026-10-22
 
 - A manutenção fast-forward de branches publicadas passa a selecionar exatamente uma capability revisada entre múltiplos registros, bloqueando ausência e ambiguidade sem liberar `git push` genérico.
