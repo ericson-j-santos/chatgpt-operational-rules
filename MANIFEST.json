@@ -1,6 +1,6 @@
 {
   "version": "1.6.16",
-  "generated_at": "2026-10-24T00:25:00+00:00",
+  "generated_at": "2026-10-24T00:27:05.173895+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,8 +54,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "0ac356be6ebef6d5bc5f972e02b7fb604bb4f0736fc2fd75097f903270a80c24",
-      "size": 19279
+      "sha256": "660bf33b25f83333fb0fc781ef49d9a4bfa2bedc895254b1a95eca911011865f",
+      "size": 19798
     },
     {
       "path": "README.md",
@@ -64,12 +64,12 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "7f0f64f136175697a0a89ae156bccae5f171796d1b630942666b0682571a5090",
+      "sha256": "19702115c01d7e391cbf9a96ab75a8f40ed821bd71d7dc5b13db6cfade346450",
       "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "529af3d5987720c0cdc113d4392db59599339844bbaaa4ccd62b26f1cb09cd45",
+      "sha256": "1b8956bb140887687ee63f41a4f691ee6bfbe070ae735b03ce86a050ea4b5d5f",
       "size": 2058
     },
     {
