@@ -106,6 +106,25 @@ O `config/host-readiness.json` define requisitos por perfil:
 O perfil é a **função**, não uma declaração de que todos os computadores usam
 o mesmo Windows, disco, instalador, serviço ou conjunto de aplicações.
 
+### Pool portátil ReqSys DEV
+
+O escopo operacional versionado em
+`config/reqsys-dev-runner-pool-scope.json` reconhece o pool
+`reqsys-dev-pc-pool-v1` exclusivamente em DEV. A fonte funcional permanece no
+ReqSys, pinada pelo repositório, SHA de merge e caminho do contrato.
+
+A elegibilidade é determinada por labels compartilhadas, manifesto local e
+preflight fail-closed de capacidades. Nome de computador, `runner_name` e
+`runner_id` não podem ser usados como afinidade ou prova de elegibilidade. O
+identificador opaco `runner_instance_id` serve para correlação de evidência,
+não para selecionar uma máquina fixa.
+
+O onboarding versionado não registra nem reconfigura o GitHub Runner. A
+atribuição da label compartilhada ocorre somente depois de autorização owner,
+preflight positivo e comprovação das salvaguardas DEV. O canário exige outra
+autorização owner, aceita uma única tentativa e proíbe retry automático. Esse
+escopo não autoriza deploy nem qualquer acesso a HML, STG ou PROD.
+
 ## Inventário Pareto + relatório de compatibilidade
 
 Instrumentos:
