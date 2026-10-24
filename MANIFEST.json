@@ -1,6 +1,6 @@
 {
-  "version": "1.6.16",
-  "generated_at": "2026-10-24T00:28:00+00:00",
+  "version": "1.6.17",
+  "generated_at": "2026-10-24T20:16:39.568Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,27 +49,27 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "8e7eb9a19a3abbc29d0abb2fa91699e29811beda61aecd6679b5277248b79586",
-      "size": 2476
+      "sha256": "bafab95c12db978df2946989b6f5b9482275109bd5b934267038216489814827",
+      "size": 2767
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "660bf33b25f83333fb0fc781ef49d9a4bfa2bedc895254b1a95eca911011865f",
-      "size": 19798
+      "sha256": "8e8ac584d028503f7fe57054270be50b85838250096e278ccef36a0f1925706a",
+      "size": 20346
     },
     {
       "path": "README.md",
-      "sha256": "d420b862fffed2f62d69c40cf3b94f9400431de3d70e50014fdc0e43eefeaef1",
-      "size": 9246
+      "sha256": "118effbff4def2787e514f5da3739efeedd28d8c62dda9a83e575155fa860f98",
+      "size": 9474
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "19702115c01d7e391cbf9a96ab75a8f40ed821bd71d7dc5b13db6cfade346450",
+      "sha256": "d61aca8d7ab506f428968a0dc75df0c5a2807c43c27bb5a5a8b26d6bcd104e48",
       "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "1b8956bb140887687ee63f41a4f691ee6bfbe070ae735b03ce86a050ea4b5d5f",
+      "sha256": "aad84e900cbff0cf5324368c990b772ed31d2e9acbb647018947ede62898808a",
       "size": 2058
     },
     {
@@ -86,6 +86,11 @@
       "path": "config/repository-governance-control-plane.json",
       "sha256": "5fb0fe8023dd7005c53f5f081d77918978aba287ab2ff1325795a0cb80d0ae3b",
       "size": 3976
+    },
+    {
+      "path": "config/reqsys-dev-runner-pool-scope.json",
+      "sha256": "b96ff0146ed7b34294d8d5c7f56c0288a105200d97030354b18ba131c98d8317",
+      "size": 1422
     },
     {
       "path": "docker-compose.pc24x7.yml",
@@ -114,8 +119,8 @@
     },
     {
       "path": "docs/new-computer-onboarding.md",
-      "sha256": "30ed3a36b2652ecd6c61536af328368402bb2ec29648ab15eb8c5b8231039b65",
-      "size": 11907
+      "sha256": "46f216458d5af3f53dd7e54e520e4e71d3e17e26d21cbed0566e98239c7aa4f8",
+      "size": 12918
     },
     {
       "path": "docs/sql-server-enterprise-validation-gate.md",
@@ -218,14 +223,14 @@
       "size": 842
     },
     {
-      "path": "rules/failure-intelligence.md",
-      "sha256": "4c2972f318f21e0fbf955777a0fd057b3ae8b2d8ffd4c0d258f23027c8a73e8b",
-      "size": 5457
-    },
-    {
       "path": "rules/github-workflow.md",
       "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
       "size": 975
+    },
+    {
+      "path": "rules/log-driven-improvement.md",
+      "sha256": "da522463c4c194836436e792c94af2249905cc0e05c41fade555ad81f81ef908",
+      "size": 5250
     },
     {
       "path": "rules/pre-delivery-validation.md",
@@ -644,8 +649,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "b68b456435adee880353a7f9200cb8a96a008f7cae9f4d86fa65fbf5d4ca08ad",
-      "size": 14315
+      "sha256": "b9ed71e978eb8c464d11b5235f1f25b766cb56a1bbe2c1032be28588a52cad85",
+      "size": 14459
     },
     {
       "path": "services/__init__.py",
@@ -931,6 +936,11 @@
       "path": "tests/test_repository_governance_remediation.py",
       "sha256": "a70ce104fbb683f89c226a7affcee9903d0927c4d240042a93d2eab0ee8ae9de",
       "size": 15453
+    },
+    {
+      "path": "tests/test_reqsys_dev_runner_pool_scope.py",
+      "sha256": "9937fdac0ff9267975e81fc117dfa94d2a52fc22df1c584d2be15f6868af012f",
+      "size": 2100
     },
     {
       "path": "tests/test_runner_version_preflight.py",

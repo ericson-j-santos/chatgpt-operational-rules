@@ -23,6 +23,7 @@ REQUIRED_PATHS = {
     "AGENTS.md", "CHANGELOG.md", "README.md", "config/command-gateway.policy.json",
     "config/command-gateway.policy.posix.json",
     "rules/command-gateway.md", "rules/e2e-validation.md", "rules/evidence-validation.md",
+    "rules/log-driven-improvement.md",
     "rules/session-bootstrap.md", "rules/terminal-execution.md", "scripts/command_gateway.py",
     "scripts/command_gateway_e2e.py", "scripts/generate_manifest.py", "scripts/host_bootstrap_e2e.py",
     "scripts/install_command_gateway_host.py", "scripts/update_command_gateway_host.py",
@@ -102,7 +103,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
         match = re.search(r"^Versão:\s*(\S+)\s*$", readme, re.MULTILINE)
         if not match or match.group(1) != version:
             errors.append("versão do README diverge do manifesto.")
-        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md"):
+        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md", "rules/log-driven-improvement.md"):
             if ref not in readme:
                 errors.append(f"README não referencia {ref}.")
         if "BOOTSTRAP_OK" not in readme:
@@ -111,7 +112,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             errors.append("README não define session_preflight.py como ponto de entrada obrigatório.")
     if agents_path.is_file():
         agents = agents_path.read_text(encoding="utf-8")
-        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md"):
+        for ref in ("rules/e2e-validation.md", "rules/command-gateway.md", "rules/session-bootstrap.md", "rules/control-plane-recovery.md", "rules/log-driven-improvement.md"):
             if ref not in agents:
                 errors.append(f"AGENTS.md não referencia {ref}.")
         for required_text in ("scripts/session_preflight.py", "scripts/install_command_gateway_host.py", "BOOTSTRAP_OK", "HOST_BOOTSTRAP_OK", "PowerShell", "fallback", "Remote Desktop Commander"):
@@ -232,7 +233,7 @@ def run_self_test(manifest: dict[str, Any]) -> list[str]:
     tampered["files"][0]["sha256"] = "0" * 64
     if not any("sha256 divergente" in item for item in validate(tampered)):
         errors.append("autoteste negativo falhou: hash incorreto não foi detectado.")
-    for required in ("rules/e2e-validation.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py", "scripts/session_preflight.py", "scripts/install_command_gateway_host.py"):
+    for required in ("rules/e2e-validation.md", "rules/log-driven-improvement.md", "scripts/command_gateway.py", "scripts/session_bootstrap.py", "scripts/session_preflight.py", "scripts/install_command_gateway_host.py"):
         missing = copy.deepcopy(manifest)
         missing["files"] = [item for item in missing["files"] if item.get("path") != required]
         if not any("paths obrigatórios ausentes" in item for item in validate(missing)):

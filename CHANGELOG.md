@@ -1,10 +1,17 @@
 # Changelog
 
+## 1.6.17 - 2026-10-24
+
+- A análise de falhas passa a classificar cada sinal como `root_cause`, `control`, `cascade` ou `noise`; controles governados não entram no Pareto nem autorizam bypass.
+- O Pareto considera somente causas ainda ativas, e reruns sem mudança material não contam como correção ou novo incidente.
+- Produtores devem expor contexto sanitizado e a prevenção só é longitudinalmente comprovada após uma janela posterior sem reincidência.
+
 ## 1.6.16 - 2026-10-23
 
-- Adicionada regra transversal de inteligência contínua de falhas: coleta, sanitização, classificação e Pareto de causas-raiz antes de novas correções.
-- Bloqueios governados como custo desconhecido, autorização humana ausente e gates equivalentes passam a ser tratados como `control`, fora do Pareto de bugs.
-- Cascatas e cancelamentos com sucessor comprovado deixam de multiplicar uma mesma causa; correções passam a exigir regressão, E2E e medição posterior de reincidência.
+- Adicionada regra transversal de melhoria contínua orientada por logs e falhas: sanitização, fingerprint estável, separação de causa-raiz/cascata/ruído e priorização por Pareto.
+- Correções passam a exigir prevenção verificável e confirmação de não reincidência na janela seguinte antes de avançar para a próxima causa.
+- A análise não autoriza merge, deploy, mudança administrativa, gasto ou ação destrutiva; custo incremental permanece R$ 0,00 e a automação reutilizável do Observability Platform deve ser fixada por SHA integrado e validado.
+
 
 ## 1.6.15 - 2026-10-22
 
