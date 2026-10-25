@@ -1,6 +1,6 @@
 {
-  "version": "1.6.17",
-  "generated_at": "2026-10-24T23:47:30.395Z",
+  "version": "1.6.18",
+  "generated_at": "2026-10-25T04:13:39.984Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,27 +54,27 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "bafab95c12db978df2946989b6f5b9482275109bd5b934267038216489814827",
-      "size": 2767
+      "sha256": "e6fdbf080f90e2d82e42ff1d4d233f109ea7c775a4deaccf30825104f07c8688",
+      "size": 3069
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8e8ac584d028503f7fe57054270be50b85838250096e278ccef36a0f1925706a",
-      "size": 20346
+      "sha256": "341b528f2b0546d7f26f99a4ae4925e99582844602cba8e9032cfe6fa2156460",
+      "size": 20686
     },
     {
       "path": "README.md",
-      "sha256": "118effbff4def2787e514f5da3739efeedd28d8c62dda9a83e575155fa860f98",
-      "size": 9474
+      "sha256": "5b1054cbf2ec9388cacbf63f5d8a0c9b8e69199783b6cb21eddee0726fa8d519",
+      "size": 10266
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "d61aca8d7ab506f428968a0dc75df0c5a2807c43c27bb5a5a8b26d6bcd104e48",
+      "sha256": "3a5354a44cc4ca4f363c33dfe44af53cbae43846c27d5a459ce553164b090f78",
       "size": 2859
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "aad84e900cbff0cf5324368c990b772ed31d2e9acbb647018947ede62898808a",
+      "sha256": "88faa801ff4be3554ef8c2de837c9b642bde2619c82563510e89bdf276f1d95a",
       "size": 2058
     },
     {
@@ -219,8 +219,8 @@
     },
     {
       "path": "rules/e2e-validation.md",
-      "sha256": "233348fa5dba0939f82e8033b28aa04c95d5c23f0f2883abe8230fa843662564",
-      "size": 6759
+      "sha256": "318dcebdafb3ea2b77403daf8ef67316701915c7983cf18c06440d2b72a9c20c",
+      "size": 7945
     },
     {
       "path": "rules/evidence-validation.md",
@@ -239,8 +239,8 @@
     },
     {
       "path": "rules/pre-delivery-validation.md",
-      "sha256": "e90f0791810bae7fee175bd10a424278a5a38461666b04b128a8d38fd7d0da47",
-      "size": 5824
+      "sha256": "8cb949174738ec5222cf8bcbb9a875f24227de438109ff69b912937974e46538",
+      "size": 6386
     },
     {
       "path": "rules/progress-watchdog.md",
@@ -1054,8 +1054,8 @@
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
-      "sha256": "8e9054569a2c6b771f212b351af962c18201144805312111ea5aabaa0fd42f5e",
-      "size": 4159
+      "sha256": "d719aef24cf06a1657ab637a0a7aef208324a26c93bdcd9006d6baaa620e9622",
+      "size": 5447
     }
   ]
 }

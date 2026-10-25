@@ -106,5 +106,35 @@ class ValidateRulesPolicyProfilesTests(unittest.TestCase):
         )
 
 
+class UniversalAcceptancePolicyTests(unittest.TestCase):
+    """Prevent loss of the global acceptance gate across repositories."""
+
+    @staticmethod
+    def has_required_controls(content: str) -> bool:
+        words = (
+            "100% dos gates obrigatórios aplicáveis",
+            "skipped",
+            "neutral",
+            "não aplicável",
+            "leitura independente",
+            "100% de disponibilidade",
+        )
+        return all(word in content for word in words)
+
+    def test_e2e_rule_retains_all_controls(self) -> None:
+        content = (ROOT / "rules/e2e-validation.md").read_text(encoding="utf-8")
+        self.assertTrue(self.has_required_controls(content))
+
+    def test_entrypoints_require_full_evidence(self) -> None:
+        for path in ("README.md", "AGENTS.md", "rules/pre-delivery-validation.md"):
+            content = (ROOT / path).read_text(encoding="utf-8")
+            self.assertIn("100% dos gates obrigatórios aplicáveis", content)
+
+    def test_missing_control_fails_closed(self) -> None:
+        content = (ROOT / "rules/e2e-validation.md").read_text(encoding="utf-8")
+        for term in ("skipped", "não aplicável", "100% de disponibilidade"):
+            self.assertFalse(self.has_required_controls(content.replace(term, "")))
+
+
 if __name__ == "__main__":
     unittest.main()

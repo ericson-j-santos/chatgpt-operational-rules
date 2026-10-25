@@ -1,11 +1,19 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.17
+Versão: 1.6.18
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
 ## Regra nº 1 — custo adicional zero
 Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-governance.md`. O custo adicional máximo autorizado é **R$ 0,00**; custo desconhecido, overage não bloqueado ou qualquer custo incremental maior que zero deve falhar fechado. Cartão cadastrado e autorização técnica genérica não autorizam gasto.
+
+## Regra nº 2 — 100% dos gates obrigatórios aplicáveis
+
+Em todos os projetos, somente declarar `CONCLUÍDO` após **100% dos gates obrigatórios aplicáveis** comprovados no SHA e ambiente atuais. Aplique `rules/e2e-validation.md` e `rules/pre-delivery-validation.md`: E2E real e leitura independente quando aplicáveis, controles negativos e idempotência.
+
+Checks `skipped`, `neutral`, `pending`, `cancelled`, falhos ou sem evidência não aprovam; `não aplicável` exige justificativa objetiva antes da execução. Sem a prova exigida, manter `PARCIAL` ou `BLOQUEADO` e impedir integração/deploy indevidos.
+
+**100% de validação não garante 100% de disponibilidade**. Disponibilidade contínua deve ser expressa por SLO, medições e recuperação, nunca por promessa absoluta.
 
 ## Ordem de precedência
 1. Instrução explícita do usuário no chat atual.
