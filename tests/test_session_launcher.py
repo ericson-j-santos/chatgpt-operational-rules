@@ -134,7 +134,7 @@ class SessionLauncherTests(unittest.TestCase):
             worktrees = root / "sessions"
             policy = {
                 "worktree_root": str(worktrees),
-                "allowed_roots": [str(root)],
+                "allowed_roots": [cg.norm(root)],
                 "git_state_timeout_seconds": 30,
             }
 
