@@ -10,6 +10,18 @@ Esta regra define a validação mínima obrigatória para incrementos técnicos 
 - Se uma dependência externa impedir a validação ponta a ponta, registrar o bloqueio e manter o estado como não validado; não declarar conclusão funcional.
 - Mudanças exclusivamente documentais podem ser validadas por consistência estrutural, links, esquema, lint e evidência equivalente, sem simular um fluxo funcional inexistente.
 
+## Gate universal — 100% dos gates obrigatórios aplicáveis
+
+Antes de agir, registre uma matriz de critérios por mudança, ambiente e SHA, com condição de aplicabilidade, caso positivo/negativo, idempotência, E2E e fonte independente.
+
+- `passed` com evidência atual aprova o gate. `skipped`, `neutral`, `pending`, `cancelled`, erro ou ausência de recibo não aprovam.
+- Marque `não aplicável` apenas por justificativa objetiva e revisável, sem esconder critérios obrigatórios; não manipule o denominador para anunciar 100%.
+- Exija leitura independente no destino e revalide após cada novo commit, avanço da base ou mudança de ambiente. Mocks e CI verde isolados não provam efeito externo.
+- Para failover, comprove dois hosts reais distintos, checkpoint durável, sessão e posse exclusivas, retomada idempotente e readback; dois jobs no mesmo host não provam alternância.
+- Sem **100% dos gates obrigatórios aplicáveis**, classifique `PARCIAL` ou `BLOQUEADO`, não anuncie pronto e preserve gates de merge/deploy.
+
+O gate não é garantia de **100% de disponibilidade**: confiabilidade operacional depende de SLO, monitoramento, redundância e recuperação.
+
 ## Controles obrigatórios contra falso positivo
 
 1. Confirmar pré-condições e estado anterior antes do teste.
