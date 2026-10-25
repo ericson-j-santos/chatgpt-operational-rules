@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts.dispatch_workflow_governed import (
+    NOTERI_EVENTLOG_TARGET,
     REQSYS_REFS,
     REQSYS_REPO,
     REQSYS_WORKFLOWS,
@@ -87,6 +88,57 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
         for target in rejected:
             with self.subTest(target=target), self.assertRaisesRegex(ValueError, "allowlist"):
                 validate(*target, SHA)
+
+    def test_accepts_only_exact_noteri_eventlog_target(self):
+        self.assertEqual(
+            validate(*NOTERI_EVENTLOG_TARGET, SHA),
+            (*NOTERI_EVENTLOG_TARGET, SHA),
+        )
+        repo, workflow, ref = NOTERI_EVENTLOG_TARGET
+        rejected = [
+            ("other/noteri-runtime", workflow, ref),
+            (repo, "other-workflow.yml", ref),
+            (repo, workflow, "feature/not-main"),
+            (repo, workflow, "refs/heads/main"),
+        ]
+        for target in rejected:
+            with self.subTest(target=target), self.assertRaisesRegex(
+                ValueError, "allowlist"
+            ):
+                validate(*target, SHA)
+
+    def test_noteri_eventlog_dispatch_has_no_inputs_and_binds_exact_main_head(self):
+        before = _runs(_run_item(40))
+        after = _runs(_run_item(41), _run_item(40))
+        outputs = iter([_remote_ref(), before, "", after])
+        calls = []
+
+        def fake_run(*args):
+            calls.append(args)
+            return next(outputs)
+
+        with patch(
+            "scripts.dispatch_workflow_governed.run", side_effect=fake_run
+        ):
+            result = dispatch(
+                *NOTERI_EVENTLOG_TARGET,
+                "noteri-eventlog-corr",
+                SHA,
+            )
+
+        post = next(args for args in calls if "--method" in args and "POST" in args)
+        self.assertEqual(
+            post,
+            (
+                "gh", "api", "--method", "POST",
+                "repos/ericson-j-santos/noteri-runtime/actions/workflows/"
+                "noteri-sql-application-eventlog.yml/dispatches",
+                "-f", "ref=main",
+            ),
+        )
+        self.assertFalse(any("inputs[" in arg for arg in post))
+        self.assertEqual(result["head_sha"], SHA)
+        self.assertEqual(result["run_id"], 41)
 
     def test_rejects_invalid_expected_head(self):
         with self.assertRaisesRegex(ValueError, "HEAD"):
