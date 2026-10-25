@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import subprocess
+import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -123,6 +124,65 @@ class SessionLauncherTests(unittest.TestCase):
                 ("origin", "main", "https://github.com/example/repo.git"),
             )
         self.assertEqual(captured.call_count, 3)
+
+    def test_isolated_local_clone_uses_pinned_commit_without_network_fetch(self) -> None:
+        """Live Git fixture: no second fetch, correct SHA, clean reuse."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            worktrees = root / "sessions"
+            policy = {
+                "worktree_root": str(worktrees),
+                "allowed_roots": [str(worktrees / "*")],
+                "git_state_timeout_seconds": 30,
+            }
+
+            def git(cwd: Path, *args: str) -> str:
+                completed = subprocess.run(
+                    ["git", *args], cwd=cwd, text=True, capture_output=True,
+                    timeout=20, check=True,
+                )
+                return completed.stdout.strip()
+
+            git(source, "init", "-q")
+            git(source, "config", "user.name", "Session Launcher CI")
+            git(source, "config", "user.email", "session-launcher@example.invalid")
+            (source / "marker.txt").write_text("pinned immutable content\n", encoding="utf-8")
+            git(source, "add", "marker.txt")
+            git(source, "commit", "-qm", "fixture: pinned source")
+            expected = git(source, "rev-parse", "HEAD")
+            remote_url = "https://github.invalid/example/repo.git"
+
+            capture = cg.run_capture
+
+            def no_second_network_fetch(args, cwd, timeout=15):
+                if list(args[:2]) == ["git", "fetch"]:
+                    return subprocess.CompletedProcess(args, 128, "", "network forbidden")
+                return capture(args, cwd, timeout=timeout)
+
+            with mock.patch.object(sl.cg, "run_capture", side_effect=no_second_network_fetch):
+                isolated = sl._prepare_isolated_base(
+                    source, policy, expected, "origin", "main", remote_url, "sha-valid"
+                )
+                self.assertEqual(isolated, sl._prepare_isolated_base(
+                    source, policy, expected, "origin", "main", remote_url, "sha-valid"
+                ))
+                self.assertEqual(git(isolated, "rev-parse", "HEAD"), expected)
+                self.assertEqual(git(isolated, "remote", "get-url", "origin"), remote_url)
+                self.assertEqual(
+                    (isolated / "marker.txt").read_text(encoding="utf-8"),
+                    "pinned immutable content\n",
+                )
+
+                # A missing commit must fail closed even though local clone succeeds.
+                with self.assertRaises(cg.GatewayError) as blocked:
+                    sl._prepare_isolated_base(
+                        source, policy, "f" * 40, "origin", "main",
+                        remote_url, "sha-absent",
+                    )
+                self.assertEqual(blocked.exception.exit_code, cg.EXIT_STATE_CHANGED)
+                self.assertIn("base isolada sem commit SHA", str(blocked.exception))
 
     def test_runner_version_preflight_is_fail_closed(self) -> None:
         installed = sl.rvp.RunnerVersion.parse("2.337.0")
