@@ -38,10 +38,15 @@ TODO22_MAIN_TARGET = (
     "main",
 )
 TODO22_TARGETS = frozenset({TODO22_TARGET, TODO22_MAIN_TARGET})
+NOTERI_EVENTLOG_TARGET = (
+    "ericson-j-santos/noteri-runtime",
+    "noteri-sql-application-eventlog.yml",
+    "main",
+)
 ALLOWED_TARGETS = frozenset(
     (REQSYS_REPO, workflow, ref)
     for workflow, ref in product(REQSYS_WORKFLOWS, REQSYS_REFS)
-) | TODO22_TARGETS
+) | TODO22_TARGETS | frozenset({NOTERI_EVENTLOG_TARGET})
 PR_BOUND_TARGETS = {
     TODO22_TARGET: {"base": "main", "head_owner": "ericson-j-santos"},
 }

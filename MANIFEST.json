@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-25T18:37:56.775759+00:00",
+  "generated_at": "2026-10-25T22:57:03.707491+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -234,8 +234,8 @@
     },
     {
       "path": "rules/github-workflow.md",
-      "sha256": "4df58f55627e99150a19f0751983bb7ce78b021c5cdabc1b36636b53438154de",
-      "size": 975
+      "sha256": "e8489365a8d305b707d39aa500b62e1f55b8e84e50005bcf791575a84bebfbd9",
+      "size": 1560
     },
     {
       "path": "rules/log-driven-improvement.md",
@@ -334,8 +334,8 @@
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
-      "sha256": "0518cdd4a3d41f4a7a7e7a1a5d2c1c41bc3319f9e2e5406a459eb5d881ee439d",
-      "size": 8688
+      "sha256": "35f0bcbe100feaf34a41144ae0a024ca5b04f602f86da7bfd6a944ffa8c9f99d",
+      "size": 8849
     },
     {
       "path": "scripts/dual_host_preflight.py",
@@ -789,8 +789,8 @@
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
-      "sha256": "759b56c2e1e2eb1f49bb8f272108a302b22d9cd4fbce75a037b816238068c710",
-      "size": 11810
+      "sha256": "7cd65afb3e688d4508f07db8086fe5ad21d2fa4cbef49000899cc6adc330043b",
+      "size": 13668
     },
     {
       "path": "tests/test_dual_host_preflight.py",
