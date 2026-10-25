@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.18
+Versão: 1.6.19
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -49,6 +49,8 @@ Checks `skipped`, `neutral`, `pending`, `cancelled`, falhos ou sem evidência n�
 25. Em GitHub Actions, o checkout transitório do workflow pode ser aceito como fonte de sessão somente quando for exatamente o `GITHUB_WORKSPACE` corrente, `GITHUB_ACTIONS=true`, `GITHUB_SHA` for válido e o remoto `origin` corresponder a `GITHUB_REPOSITORY`; ainda são obrigatórios `expected_head`, `sync_ref`, árvore rastreada limpa e materialização isolada antes de qualquer comando via Gateway.
 26. Antes de entregar código, comandos, configurações, scripts, automações e artefatos executáveis, aplicar `rules/pre-delivery-validation.md`: testar o que for tecnicamente possível, corrigir e revalidar no estado atual, declarar os limites dos testes e nunca apresentar resultado não comprovado como concluído.
 27. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar `root_cause`/`control`/`cascade`/`noise`, aplicar Pareto somente a causas ativas, corrigir com prevenção e verificar reincidência antes de avançar.
+
+28. Para alterações de código feitas por agentes, aplicar `rules/agent-durable-pr-gate.md`: evidenciar reparo real, CAS/SHA, Validator independente, uma PR draft e readback sem duplicação antes de declarar 100% funcional.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 

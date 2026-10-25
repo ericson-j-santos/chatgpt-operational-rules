@@ -86,7 +86,7 @@
   "require_session_bootstrap": true,
   "worktree_root": "${REQSYS_WORKSPACE_ROOT}/.chatgpt-workers",
   "worktree_prefix": "wt-chat-",
-  "rules_version": "1.6.18",
+  "rules_version": "1.6.19",
   "require_preflight_snapshot": true,
   "session_source_roots": [],
   "governed_branch_updates": [],

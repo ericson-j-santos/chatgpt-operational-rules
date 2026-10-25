@@ -23,6 +23,8 @@ Antes de executar trabalho técnico:
 
 17. Para todas as frentes, exija 100% dos gates obrigatórios aplicáveis com E2E real, readback, SHA e ambiente comprovados. `skipped`/`neutral` não são sucesso, e `não aplicável` precisa de justificativa. Validação completa não equivale a 100% de disponibilidade (`rules/e2e-validation.md`).
 
+18. Para alterações por agentes destinadas a PR, aplicar `rules/agent-durable-pr-gate.md`: CAS persistido e relido, Validator independente, PR draft única e idempotência.
+
 Exceção única para host novo sem Gateway instalado: usar `scripts/install_command_gateway_host.py` com SHA completo aprovado e hash próprio esperado; exigir `HOST_BOOTSTRAP_OK` e então passar imediatamente ao `session_preflight.py`. Não usar essa exceção como terminal genérico.
 
 Se bootstrap, gateway, política, reserva ou validação falhar, interrompa a execução e reporte o bloqueio. Não contorne o controle.

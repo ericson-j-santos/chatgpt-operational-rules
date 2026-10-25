@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.19 - 2026-10-25
+
+- Adicionado o contrato global para reparo real de agentes: patch persistido no CAS, validação independente, uma PR draft e readback/replay idempotente.
+- Preservado integralmente o gate universal de 100% de controles aplicáveis da versão 1.6.18.
+
 ## 1.6.18 - 2026-10-25
 
 - Critério universal de 100% dos gates obrigatórios aplicáveis, com matriz por SHA/ambiente e N/A justificado.
