@@ -164,6 +164,8 @@ jobs:
         run: python -m unittest -v tests/test_host_onboarding_report.py
       - name: Validate native host capacity probe and negative controls
         run: python -m unittest -v tests/test_native_host_capacity_probe.py
+      - name: Validate Lenovo governed bootstrap inventory workflow
+        run: python -m unittest -v tests/test_lenovo_command_gateway_bootstrap_inventory_workflow.py
       - name: Run TodoEvent unit tests
         run: python -m unittest -v tests/test_todo_event_bus.py
       - name: Run TodoEvent E2E

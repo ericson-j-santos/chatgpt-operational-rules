@@ -1,6 +1,6 @@
 {
   "version": "1.6.17",
-  "generated_at": "2026-10-24T20:16:39.568Z",
+  "generated_at": "2026-10-24T23:47:30.395Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,6 +11,11 @@
       "path": ".github/workflows/data-analytics-weekly-radar.yml",
       "sha256": "ef96a78bfc4077127e791a368a37ffa943f479872623868451c9ce1779e0a9ef",
       "size": 4148
+    },
+    {
+      "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
+      "sha256": "6d383b09af5f04d5cdcf1b805a90dd66ea0a493ff457412076041f152d8789a5",
+      "size": 14806
     },
     {
       "path": ".github/workflows/powerplatform-alm-official-monitor.yml",
@@ -39,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "6cbb12ce155834deb96cfca4b503d1995637b94843180e32cc672d4b2fdc059c",
-      "size": 16524
+      "sha256": "6b5822d9abf02f41565f031fe5e9a82bc7049b7ffff182b608ac91daf644f9d1",
+      "size": 16693
     },
     {
       "path": ".gitignore",
@@ -836,6 +841,11 @@
       "path": "tests/test_host_readiness.py",
       "sha256": "36365e8b80a3803af3d1363c11fd18e7b3892391413bc2850c1f9e8eb18a5065",
       "size": 1958
+    },
+    {
+      "path": "tests/test_lenovo_command_gateway_bootstrap_inventory_workflow.py",
+      "sha256": "082e2043126f8fcd7366c4338693901780f4944b9aafc0479e62e7ca5764f02e",
+      "size": 3779
     },
     {
       "path": "tests/test_native_host_capacity_probe.py",

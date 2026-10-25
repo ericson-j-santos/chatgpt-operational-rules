@@ -1,0 +1,318 @@
+name: TODO-22 Lenovo governed bootstrap and inventory
+
+on:
+  pull_request:
+    types: [edited]
+    branches: [main]
+    paths:
+      - .github/workflows/lenovo-command-gateway-bootstrap-inventory.yml
+      - tests/test_lenovo_command_gateway_bootstrap_inventory_workflow.py
+      - .github/workflows/validate-rules.yml
+      - MANIFEST.json
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: todo22-lenovo-gateway-bootstrap-inventory
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    name: Lenovo bootstrap immutable admission
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'edited' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/lenovo-gateway-bootstrap-inventory-20261024' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.draft == true &&
+      contains(github.event.pull_request.body, 'TODO22_LENOVO_GATEWAY_BOOTSTRAP_ONCE_20261024') &&
+      !contains(github.event.changes.body.from, 'TODO22_LENOVO_GATEWAY_BOOTSTRAP_ONCE_20261024')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      INSTALLER_SHA256: 73ef3c091a16a261dfe71fa0ac7bb2e2c6a7f07bdfa3bc592c44855751c92329
+    steps:
+      - name: Checkout exact authorized revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - name: Verify current draft PR, base and completed CI
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = process.env.EXPECTED_HEAD;
+            const pr = (await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            })).data;
+            if (pr.state !== 'open' || !pr.draft ||
+                pr.head.sha !== expected ||
+                pr.head.ref !== 'feat/lenovo-gateway-bootstrap-inventory-20261024' ||
+                pr.base.ref !== 'main') {
+              core.setFailed('PR_CURRENT_STATE_CHANGED');
+              return;
+            }
+            const main = await github.rest.repos.getBranch({
+              owner: context.repo.owner, repo: context.repo.repo, branch: 'main'
+            });
+            if (main.data.commit.sha !== pr.base.sha) {
+              core.setFailed('PR_MAIN_SHA_CHANGED');
+              return;
+            }
+            const checks = await github.rest.checks.listForRef({
+              owner: context.repo.owner, repo: context.repo.repo,
+              ref: expected, per_page: 100
+            });
+            const required = [
+              'Rules, Gateway, Session Bootstrap and E2E gate',
+              'Command Gateway Windows policy compatibility',
+              'Debian installer isolated systemd homologation'
+            ];
+            for (const name of required) {
+              const ok = checks.data.check_runs.some(x =>
+                x.name === name && x.head_sha === expected &&
+                x.status === 'completed' && x.conclusion === 'success' &&
+                x.started_at && x.completed_at
+              );
+              if (!ok) {
+                core.setFailed('REQUIRED_CHECK_NOT_EXECUTED_' + name);
+                return;
+              }
+            }
+            core.info('TODO22_LENOVO_ADMISSION_OK head=' + expected);
+      - name: Verify pinned installer bytes against manifest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const crypto = require('crypto');
+            const expected = process.env.EXPECTED_HEAD;
+            async function content(path) {
+              const response = await github.rest.repos.getContent({
+                owner: context.repo.owner, repo: context.repo.repo,
+                path, ref: expected
+              });
+              if (Array.isArray(response.data) || response.data.type !== 'file') {
+                throw new Error('EXPECTED_FILE_MISSING');
+              }
+              return Buffer.from(response.data.content, 'base64');
+            }
+            const manifest = JSON.parse((await content('MANIFEST.json')).toString('utf8'));
+            const installer = await content('scripts/install_command_gateway_host.py');
+            const actual = crypto.createHash('sha256').update(installer).digest('hex');
+            const entry = manifest.files.find(x => x.path === 'scripts/install_command_gateway_host.py');
+            if (!entry || actual !== process.env.INSTALLER_SHA256 ||
+                entry.sha256 !== process.env.INSTALLER_SHA256 ||
+                entry.size !== installer.length) {
+              core.setFailed('INSTALLER_PIN_MISMATCH');
+              return;
+            }
+            core.info('INSTALLER_PIN_VERIFIED sha256=' + actual);
+
+  bootstrap_inventory:
+    name: Bootstrap Command Gateway and collect Lenovo capacity
+    needs: admission
+    if: needs.admission.result == 'success'
+    runs-on: [self-hosted, Windows, X64, pc24x7, desktop-runtime, runtime-dev, desktop-rp23ogs]
+    timeout-minutes: 12
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      INSTALLER_SHA256: 73ef3c091a16a261dfe71fa0ac7bb2e2c6a7f07bdfa3bc592c44855751c92329
+      CORRELATION_ID: todo22-lenovo-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout exact authorized revision without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - name: Install governed control plane and collect read-only capacity
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidencePath = Join-Path $env:RUNNER_TEMP 'todo22-lenovo-bootstrap-inventory-evidence.json'
+          @{
+            schema_version = 1
+            result = 'TODO22_LENOVO_BOOTSTRAP_STARTED'
+            host = 'DESKTOP-RP23OGS'
+            runner = 'DESKTOP-RP23OGS-runtime'
+            source_sha = $env:EXPECTED_HEAD
+            correlation_id = $env:CORRELATION_ID
+          } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $evidencePath
+          if ($env:COMPUTERNAME -ne 'DESKTOP-RP23OGS') { throw 'TARGET_HOST_MISMATCH' }
+          if ($env:RUNNER_NAME -ne 'DESKTOP-RP23OGS-runtime') { throw 'TARGET_RUNNER_MISMATCH' }
+          $pythonCandidates = @(
+            (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'),
+            'C:\Users\User\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe',
+            'C:\Users\Windows\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe',
+            'python'
+          )
+          $python = $pythonCandidates | Where-Object {
+            if ($_ -eq 'python') { return $null -ne (Get-Command python -ErrorAction SilentlyContinue) }
+            Test-Path $_
+          } | Select-Object -First 1
+          if (-not $python) { throw 'PYTHON_RUNTIME_NOT_FOUND' }
+          $installer = Join-Path $env:GITHUB_WORKSPACE 'scripts\install_command_gateway_host.py'
+          $bootstrapError = Join-Path $env:RUNNER_TEMP 'todo22-bootstrap-stderr.txt'
+          $bootstrapArgs = @('--commit', $env:EXPECTED_HEAD, '--expected-self-sha256', $env:INSTALLER_SHA256)
+          $bootstrapText = & $python $installer @bootstrapArgs 2> $bootstrapError
+          if ($LASTEXITCODE -ne 0) { throw 'HOST_BOOTSTRAP_BLOCKED' }
+          $bootstrap = $bootstrapText | ConvertFrom-Json
+          if ($bootstrap.result -ne 'HOST_BOOTSTRAP_OK' -or
+              $bootstrap.source_commit -ne $env:EXPECTED_HEAD -or
+              $bootstrap.validation_head -ne $env:EXPECTED_HEAD -or
+              $bootstrap.host -ne 'DESKTOP-RP23OGS') {
+            throw 'HOST_BOOTSTRAP_READBACK_MISMATCH'
+          }
+          $root = Join-Path $env:LOCALAPPDATA 'ReqSys\CommandGateway'
+          $launcher = Join-Path $root 'bin\session_launcher.py'
+          $gateway = Join-Path $root 'bin\command_gateway.py'
+          $policy = Join-Path $root 'config\policy.json'
+          $sessionError = Join-Path $env:RUNNER_TEMP 'todo22-session-stderr.txt'
+          $sessionArgs = @(
+            '--policy', $policy,
+            '--repo', $env:GITHUB_WORKSPACE,
+            '--session-prefix', 'todo22-lenovo-inventory',
+            '--correlation-id', $env:CORRELATION_ID,
+            '--expected-head', $env:EXPECTED_HEAD,
+            '--sync-ref', "origin/$env:PR_HEAD_REF",
+            '--require-runner-version-preflight'
+          )
+          $sessionText = & $python $launcher @sessionArgs 2> $sessionError
+          if ($LASTEXITCODE -ne 0) { throw 'SESSION_LAUNCH_BLOCKED' }
+          $session = $sessionText | ConvertFrom-Json
+          if ($session.result -ne 'SESSION_LAUNCH_OK' -or -not $session.state_validated) {
+            throw 'SESSION_LAUNCH_READBACK_MISMATCH'
+          }
+          $gatewayError = Join-Path $env:RUNNER_TEMP 'todo22-gateway-stderr.txt'
+          $gatewayArgs = @(
+            '--policy', $policy,
+            '--correlation-id', $env:CORRELATION_ID,
+            'run',
+            '--cwd', $session.target_path,
+            '--session-id', $session.session_id,
+            '--risk', '1',
+            '--timeout', '30',
+            '--expected-head', $env:EXPECTED_HEAD,
+            '--',
+            'python', 'scripts/native_host_capacity_probe.py',
+            '--source-sha', $env:EXPECTED_HEAD,
+            '--sample-seconds', '0.5'
+          )
+          $gatewayText = & $python $gateway @gatewayArgs 2> $gatewayError
+          if ($LASTEXITCODE -ne 0) { throw 'CAPACITY_PROBE_BLOCKED' }
+          $audit = $gatewayText | ConvertFrom-Json
+          if ($audit.gateway_exit_code -ne 0 -or $audit.command_exit_code -ne 0 -or
+              $audit.state_changed -ne $false) {
+            throw 'CAPACITY_GATEWAY_READBACK_MISMATCH'
+          }
+          $capacity = $audit.stdout.Trim() | ConvertFrom-Json
+          if ($capacity.type -ne 'native_host_capacity_sample' -or
+              $capacity.hostname -ne 'DESKTOP-RP23OGS' -or
+              $capacity.source_sha_claim -ne $env:EXPECTED_HEAD -or
+              $capacity.capacity_sample_complete -ne $true -or
+              $capacity.ready_for_migration -ne $false) {
+            throw 'CAPACITY_RESULT_INVALID'
+          }
+          $installedFiles = @{}
+          foreach ($property in $bootstrap.files.PSObject.Properties) {
+            $installedFiles[$property.Name] = @{
+              sha256 = $property.Value.sha256
+              size = $property.Value.size
+            }
+          }
+          @{
+            schema_version = 1
+            result = 'TODO22_LENOVO_BOOTSTRAP_INVENTORY_OK'
+            host = $capacity.hostname
+            runner = $env:RUNNER_NAME
+            source_sha = $env:EXPECTED_HEAD
+            installer_sha256 = $env:INSTALLER_SHA256
+            correlation_id = $env:CORRELATION_ID
+            bootstrap = @{
+              result = $bootstrap.result
+              rules_version = $bootstrap.rules_version
+              validation_head = $bootstrap.validation_head
+              git_source = $bootstrap.git_source
+              files = $installedFiles
+            }
+            session = @{
+              result = $session.result
+              state_validated = $session.state_validated
+            }
+            capacity = @{
+              captured_at_utc = $capacity.captured_at_utc
+              os = $capacity.os
+              architecture = $capacity.architecture
+              logical_cpus = $capacity.logical_cpus
+              cpu_sample_seconds = $capacity.cpu_sample_seconds
+              cpu_usage_percent = $capacity.cpu_usage_percent
+              memory_total_gib = $capacity.memory_total_gib
+              memory_available_gib = $capacity.memory_available_gib
+              disk_total_gib = $capacity.disk_total_gib
+              disk_free_gib = $capacity.disk_free_gib
+              capacity_sample_complete = $capacity.capacity_sample_complete
+              ready_for_migration = $capacity.ready_for_migration
+              decision_reason = $capacity.decision_reason
+            }
+            constraints = @{
+              todo_gateway_installed = $false
+              services_restarted = $false
+              rebooted = $false
+              reformatted = $false
+              incremental_cost = 0
+            }
+          } | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 $evidencePath
+      - name: Preserve sanitized bootstrap and capacity evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: todo22-lenovo-bootstrap-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/todo22-lenovo-bootstrap-inventory-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
+  physical_runner_watchdog:
+    name: Lenovo physical runner queue watchdog
+    needs: admission
+    if: needs.admission.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Require physical pickup within 300 seconds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const target = 'Bootstrap Command Gateway and collect Lenovo capacity';
+            const deadline = Date.now() + 300000;
+            while (Date.now() < deadline) {
+              const jobs = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner, repo: context.repo.repo,
+                run_id: context.runId, per_page: 100
+              });
+              const job = jobs.data.jobs.find(x => x.name === target);
+              if (job && (job.status === 'in_progress' || job.status === 'completed')) {
+                core.info('PHYSICAL_PICKUP_OBSERVED job_id=' + job.id +
+                          ' status=' + job.status + ' runner=' + (job.runner_name || 'unknown'));
+                return;
+              }
+              await new Promise(resolve => setTimeout(resolve, 15000));
+            }
+            core.warning('SELF_HOSTED_RUNNER_UNAVAILABLE:300s');
+            await github.rest.actions.cancelWorkflowRun({
+              owner: context.repo.owner, repo: context.repo.repo,
+              run_id: context.runId
+            });
+            core.setFailed('LENOVO_PHYSICAL_PICKUP_TIMEOUT');
