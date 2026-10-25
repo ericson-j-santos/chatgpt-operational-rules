@@ -1,6 +1,6 @@
 {
-  "version": "1.6.17",
-  "generated_at": "2026-10-24T23:47:30.395Z",
+  "version": "1.6.18",
+  "generated_at": "2026-10-25T03:58:50.803574+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,8 +54,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "bafab95c12db978df2946989b6f5b9482275109bd5b934267038216489814827",
-      "size": 2767
+      "sha256": "d8113a012ab50b7360dadda7653d35e62174b9af6d2d6dc87d97e4f795a1eb10",
+      "size": 3019
     },
     {
       "path": "CHANGELOG.md",
@@ -64,8 +64,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "118effbff4def2787e514f5da3739efeedd28d8c62dda9a83e575155fa860f98",
-      "size": 9474
+      "sha256": "97472bc18c0528878f0a27db7f3d3c7bc6be67e5d1dd8ba30891500b19e9b250",
+      "size": 9837
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -176,6 +176,11 @@
       "path": "render.yaml",
       "sha256": "0f57bcb00b655912558544aba02dad5449ce5564ae053c1ce057d7bee14a3346",
       "size": 983
+    },
+    {
+      "path": "rules/agent-durable-pr-gate.md",
+      "sha256": "bd25d60fa8a4baccd73d80632b20a2ec423dc94b021c29503a0ad273eb6fb13f",
+      "size": 6407
     },
     {
       "path": "rules/artifact-storage.md",
