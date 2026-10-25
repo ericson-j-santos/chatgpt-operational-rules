@@ -168,11 +168,13 @@ def dispatch(
     if not CORRELATION_RE.fullmatch(correlation_id):
         raise ValueError("identificador de correlação inválido")
     pull_request = verify_remote_head(repo, workflow, ref, expected_head)
-    expected_display_title = (
-        f"Operational Rules / {correlation_id}"
-        if (repo, workflow, ref) in TODO22_TARGETS
-        else None
-    )
+    target = (repo, workflow, ref)
+    if target in TODO22_TARGETS:
+        expected_display_title = f"Operational Rules / {correlation_id}"
+    elif target == NOTERI_EVENTLOG_TARGET:
+        expected_display_title = f"Noteri SQL EventLog / {correlation_id}"
+    else:
+        expected_display_title = None
     before = run("gh", "api", f"repos/{repo}/actions/workflows/{workflow}/runs?event=workflow_dispatch&per_page=10")
     before_ids = {r["id"] for r in _workflow_runs(before)}
     dispatch_args = [
@@ -184,7 +186,7 @@ def dispatch(
         "-f",
         f"ref={ref}",
     ]
-    if (repo, workflow, ref) in TODO22_TARGETS:
+    if target in TODO22_TARGETS or target == NOTERI_EVENTLOG_TARGET:
         dispatch_args.extend(
             (
                 "-f",
