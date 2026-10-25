@@ -551,11 +551,22 @@ def _prepare_isolated_base(
                 cg.EXIT_STATE_CHANGED,
             )
 
-    fetched = cg.run_capture(["git", "fetch", "--no-tags", remote, branch], target, timeout=60)
-    if fetched.returncode != 0:
-        detail = cg.redact((fetched.stderr or fetched.stdout).strip())[-300:]
+    # _fetch_and_verify_remote already fetched and SHA-checked the source
+    # branch before this isolated clone. --local copies those Git objects.
+    # A second network fetch here is redundant and can fail after the first
+    # attestation (for example, on Windows with a transient socket failure).
+    # Prove that the pinned *commit object* exists in the isolated object
+    # database before checkout; never silently accept a missing SHA.
+    pinned = cg.run_capture(
+        ["git", "rev-parse", "--verify", f"{expected}^{{commit}}"], target
+    )
+    if (
+        pinned.returncode != 0
+        or pinned.stderr.strip()
+        or pinned.stdout.strip().lower() != expected
+    ):
         raise cg.GatewayError(
-            f"sincronização recusada: fetch da base isolada falhou: {detail}",
+            "sincronização recusada: base isolada sem commit SHA validado",
             cg.EXIT_STATE_CHANGED,
         )
 
