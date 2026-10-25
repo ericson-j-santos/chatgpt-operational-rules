@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.17
+Versão: 1.6.18
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -41,6 +41,8 @@ Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-gove
 25. Em GitHub Actions, o checkout transitório do workflow pode ser aceito como fonte de sessão somente quando for exatamente o `GITHUB_WORKSPACE` corrente, `GITHUB_ACTIONS=true`, `GITHUB_SHA` for válido e o remoto `origin` corresponder a `GITHUB_REPOSITORY`; ainda são obrigatórios `expected_head`, `sync_ref`, árvore rastreada limpa e materialização isolada antes de qualquer comando via Gateway.
 26. Antes de entregar código, comandos, configurações, scripts, automações e artefatos executáveis, aplicar `rules/pre-delivery-validation.md`: testar o que for tecnicamente possível, corrigir e revalidar no estado atual, declarar os limites dos testes e nunca apresentar resultado não comprovado como concluído.
 27. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar `root_cause`/`control`/`cascade`/`noise`, aplicar Pareto somente a causas ativas, corrigir com prevenção e verificar reincidência antes de avançar.
+
+28. Para tarefas de mudança de código por agentes com saída em PR, aplicar `rules/agent-durable-pr-gate.md`: exigir patch real, CAS/SHA durável e relido, `base_sha != produced_sha`, Validator independente, `READY_FOR_PR`, uma PR draft e readback independente. Replay não duplica efeitos; ausência de qualquer elo bloqueia a declaração de 100% funcional.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 

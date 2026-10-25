@@ -21,6 +21,8 @@ Antes de executar trabalho técnico:
 15. Antes de enviar qualquer entrega técnica executável, aplicar `rules/pre-delivery-validation.md`: testar previamente, corrigir e retestar, vincular evidência à versão atual e declarar explicitamente quando o teste real estiver indisponível.
 16. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar causa-raiz/controle/cascata/ruído, aplicar Pareto somente a causas ativas, corrigir com prevenção e verificar reincidência.
 
+17. Para qualquer agente/modelo que altere código rumo a PR, aplicar `rules/agent-durable-pr-gate.md`: patch e commit reais, CAS verificável, validação independente, exatamente uma PR draft e leitura independente; bloquear aceitação incompleta.
+
 Exceção única para host novo sem Gateway instalado: usar `scripts/install_command_gateway_host.py` com SHA completo aprovado e hash próprio esperado; exigir `HOST_BOOTSTRAP_OK` e então passar imediatamente ao `session_preflight.py`. Não usar essa exceção como terminal genérico.
 
 Se bootstrap, gateway, política, reserva ou validação falhar, interrompa a execução e reporte o bloqueio. Não contorne o controle.
