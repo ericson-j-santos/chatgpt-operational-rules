@@ -1,11 +1,19 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.18
+Versão: 1.6.19
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
 ## Regra nº 1 — custo adicional zero
 Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-governance.md`. O custo adicional máximo autorizado é **R$ 0,00**; custo desconhecido, overage não bloqueado ou qualquer custo incremental maior que zero deve falhar fechado. Cartão cadastrado e autorização técnica genérica não autorizam gasto.
+
+## Regra nº 2 — 100% dos gates obrigatórios aplicáveis
+
+Em todos os projetos, somente declarar `CONCLUÍDO` após **100% dos gates obrigatórios aplicáveis** comprovados no SHA e ambiente atuais. Aplique `rules/e2e-validation.md` e `rules/pre-delivery-validation.md`: E2E real e leitura independente quando aplicáveis, controles negativos e idempotência.
+
+Checks `skipped`, `neutral`, `pending`, `cancelled`, falhos ou sem evidência não aprovam; `não aplicável` exige justificativa objetiva antes da execução. Sem a prova exigida, manter `PARCIAL` ou `BLOQUEADO` e impedir integração/deploy indevidos.
+
+**100% de validação não garante 100% de disponibilidade**. Disponibilidade contínua deve ser expressa por SLO, medições e recuperação, nunca por promessa absoluta.
 
 ## Ordem de precedência
 1. Instrução explícita do usuário no chat atual.
@@ -42,7 +50,7 @@ Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-gove
 26. Antes de entregar código, comandos, configurações, scripts, automações e artefatos executáveis, aplicar `rules/pre-delivery-validation.md`: testar o que for tecnicamente possível, corrigir e revalidar no estado atual, declarar os limites dos testes e nunca apresentar resultado não comprovado como concluído.
 27. Quando houver logs, falhas, incidentes ou cancelamentos recorrentes, aplicar `rules/log-driven-improvement.md`: sanitizar, deduplicar por fingerprint, separar `root_cause`/`control`/`cascade`/`noise`, aplicar Pareto somente a causas ativas, corrigir com prevenção e verificar reincidência antes de avançar.
 
-28. Para tarefas de mudança de código por agentes com saída em PR, aplicar `rules/agent-durable-pr-gate.md`: exigir patch real, CAS/SHA durável e relido, `base_sha != produced_sha`, Validator independente, `READY_FOR_PR`, uma PR draft e readback independente. Replay não duplica efeitos; ausência de qualquer elo bloqueia a declaração de 100% funcional.
+28. Para alterações de código feitas por agentes, aplicar `rules/agent-durable-pr-gate.md`: evidenciar reparo real, CAS/SHA, Validator independente, uma PR draft e readback sem duplicação antes de declarar 100% funcional.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
 

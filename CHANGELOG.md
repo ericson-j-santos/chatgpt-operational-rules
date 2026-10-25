@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.19 - 2026-10-25
+
+- Adicionado o contrato global para reparo real de agentes: patch persistido no CAS, validação independente, uma PR draft e readback/replay idempotente.
+- Preservado integralmente o gate universal de 100% de controles aplicáveis da versão 1.6.18.
+
+## 1.6.18 - 2026-10-25
+
+- Critério universal de 100% dos gates obrigatórios aplicáveis, com matriz por SHA/ambiente e N/A justificado.
+- Controles contra falso positivo e ressalva explícita de que validação completa não garante 100% de disponibilidade contínua.
+- Teste de regressão para preservar o contrato em todas as frentes.
+
 ## 1.6.17 - 2026-10-24
 
 - A análise de falhas passa a classificar cada sinal como `root_cause`, `control`, `cascade` ou `noise`; controles governados não entram no Pareto nem autorizam bypass.

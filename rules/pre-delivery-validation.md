@@ -2,6 +2,12 @@
 
 Toda resposta que contenha código, comandos, scripts, configuração, automação, mudança técnica ou artefato executável deve passar por validação antes de ser apresentada ao usuário como pronta. Esta regra complementa `rules/e2e-validation.md` e não substitui as regras de sessão, risco, segurança ou projeto.
 
+## Aceite universal — 100% dos gates obrigatórios aplicáveis
+
+Todos os projetos exigem matriz verificável e **100% dos gates obrigatórios aplicáveis** antes de `CONCLUÍDO`. `skipped`, `neutral`, falha, ausência de readback ou E2E físico aplicável significam bloqueio; `não aplicável` precisa de justificativa prévia, não um ajuste depois do resultado.
+
+Separar `IMPLEMENTADO`, `VALIDADO_EM_CI`, `E2E_COMPROVADO` e `OPERACIONALMENTE_COMPROVADO`. Disponibilidade/SLO é medida ao longo do tempo e não significa 100% de disponibilidade permanente.
+
 ## Fluxo mínimo (fail-closed)
 
 1. Identificar o objetivo, o critério de aceite, a fonte oficial, o ambiente, as dependências e a versão/HEAD aplicável.
