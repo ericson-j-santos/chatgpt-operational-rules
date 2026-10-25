@@ -116,6 +116,107 @@ class GovernedUpdateTests(unittest.TestCase):
         self.assertEqual(evidence["repository"], module.WORKER_REPOSITORY)
         self.assertIn(("push", "origin", f"HEAD:refs/heads/{module.WORKER_BRANCH}"), calls)
 
+    def test_noteri_temporary_updates_are_exact_reviewed_operations(self) -> None:
+        cases = (
+            {
+                "root_name": "NOTERI_REPO_ROOT",
+                "repository": module.NOTERI_REPOSITORY,
+                "branch": module.NOTERI_BRANCH,
+                "expected_remote": module.NOTERI_REMOTE_SHA,
+                "expected_head": module.NOTERI_HEAD_SHA,
+                "repo_root": (
+                    r"C:\dev\chatgpt-workers\wt-chat-noteri-eventlog-reconcile-gs-20261025-r2"
+                ),
+            },
+            {
+                "root_name": "RULES_REPO_ROOT",
+                "repository": module.RULES_REPOSITORY,
+                "branch": module.RULES_BRANCH,
+                "expected_remote": module.RULES_REMOTE_SHA,
+                "expected_head": module.RULES_HEAD_SHA,
+                "repo_root": (
+                    r"C:\dev\chatgpt-workers\wt-chat-noteri-eventlog-rules-reconcile-gs-20261025-r2"
+                ),
+            },
+        )
+        operations = module.reviewed_operations()
+        temporary = [
+            operation
+            for operation in operations
+            if operation["repository"]
+            in {module.NOTERI_REPOSITORY, module.RULES_REPOSITORY}
+        ]
+        self.assertEqual(len(temporary), 2)
+
+        for case in cases:
+            with self.subTest(repository=case["repository"]):
+                operation = next(
+                    item
+                    for item in temporary
+                    if item["repository"] == case["repository"]
+                )
+                self.assertEqual(
+                    operation,
+                    {
+                        key: case[key]
+                        for key in (
+                            "repository",
+                            "branch",
+                            "expected_remote",
+                            "expected_head",
+                            "repo_root",
+                        )
+                    },
+                )
+                root = self.base_args["repo"]
+                values = {
+                    "repo": root,
+                    "remote": "origin",
+                    "branch": case["branch"],
+                    "expected_remote": case["expected_remote"],
+                    "expected_head": case["expected_head"],
+                }
+                fake_git, calls = fake_git_factory(
+                    repository=case["repository"],
+                    branch=case["branch"],
+                    expected_remote=case["expected_remote"],
+                    expected_head=case["expected_head"],
+                )
+                with (
+                    patch.object(module, case["root_name"], str(root)),
+                    patch.object(module, "git", side_effect=fake_git),
+                ):
+                    evidence = module.update(**values)
+                self.assertEqual(evidence["repository"], case["repository"])
+                self.assertEqual(evidence["remote_compare_atomic"], "false")
+                self.assertIn(
+                    ("push", "origin", f"HEAD:refs/heads/{case['branch']}"),
+                    calls,
+                )
+
+    def test_noteri_temporary_updates_reject_mixed_sha_pairs(self) -> None:
+        invalid = (
+            (module.NOTERI_BRANCH, module.NOTERI_REMOTE_SHA, module.RULES_HEAD_SHA),
+            (module.RULES_BRANCH, module.NOTERI_REMOTE_SHA, module.RULES_HEAD_SHA),
+            (module.NOTERI_BRANCH, module.RULES_REMOTE_SHA, module.NOTERI_HEAD_SHA),
+        )
+        for branch, expected_remote, expected_head in invalid:
+            with self.subTest(
+                branch=branch,
+                expected_remote=expected_remote,
+                expected_head=expected_head,
+            ):
+                with patch.object(module, "git") as git:
+                    with self.assertRaisesRegex(RuntimeError, "reviewed branch"):
+                        module.validate(
+                            self.base_args["repo"],
+                            "origin",
+                            branch,
+                            expected_remote,
+                            expected_head,
+                        )
+                git.assert_not_called()
+
     def test_update_aborts_if_remote_changes_between_checks(self) -> None:
         fake_git, calls = fake_git_factory([module.EXPECTED_REMOTE_SHA, "4" * 40])
         with patch.object(module, "git", side_effect=fake_git):
