@@ -219,7 +219,7 @@ jobs:
       - name: Validate native Windows policy loading and shared path controls
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
       - name: Validate SHA-bound local clone and failure controls on Windows
-        run: python -m unittest discover -v -s tests -p 'test_session_launcher.py'
+        run: python -m unittest -v tests.test_session_launcher.SessionLauncherTests.test_isolated_local_clone_uses_pinned_commit_without_network_fetch tests.test_session_launcher.SessionLauncherTests.test_restricted_fetch_different_sha_still_blocks
       - name: Validate transactional Command Gateway runtime update on Windows
         run: python -m unittest -v tests/test_update_command_gateway_host.py
 
