@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "2c7068bfd44fd165b66abbf2db40c6e2c57b685b57ec9c28326b924217699aa9",
-      "size": 17019
+      "sha256": "78308addfadf10d815fcaddd95d9d481d05b2ee835b43360cb8a44251c335a10",
+      "size": 17321
     },
     {
       "path": ".gitignore",
@@ -204,8 +204,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "2d40b3ec5c358259e778602f46b67828094c7dca6e79cefad041377d3f576195",
-      "size": 11148
+      "sha256": "4e5a1f0168690cea29297c33331d942359e2d4581b4e9f6fbcada9cffc8666f6",
+      "size": 13222
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -304,8 +304,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "8cb5a97ebe5c0cbca13f2db788f76737499421a324fdf7671f77aa49775fb15b",
-      "size": 64222
+      "sha256": "3a3441539bfc5a8a73dc932613064906b904098ccfdc75e5786c41f1657304b7",
+      "size": 65314
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -426,6 +426,11 @@
       "path": "scripts/native_host_capacity_probe.py",
       "sha256": "0e3e500b359960ac1c4dfc4971a3f38c4b19d59be57a9cdccb126665de28685f",
       "size": 6892
+    },
+    {
+      "path": "scripts/noteri_wsl_running_status.py",
+      "sha256": "ea54a52e7ba25044e480f41ade6e68dfcde50cce949f5270ea47727fd3a3e516",
+      "size": 6210
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -856,6 +861,11 @@
       "path": "tests/test_native_host_capacity_probe.py",
       "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
       "size": 4572
+    },
+    {
+      "path": "tests/test_noteri_wsl_running_status.py",
+      "sha256": "5da19e033c9713eedb4bba22208a5e0232065dc3f09ba0ebc20ac2ad54cb8305",
+      "size": 9354
     },
     {
       "path": "tests/test_notion_sink_integrity.py",
