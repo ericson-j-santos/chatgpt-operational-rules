@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import stat
 import sys
 import tempfile
@@ -17,6 +18,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import noteri_gateway_legacy_v1_rebaseline as legacy
+import update_command_gateway_host as updater
 
 
 def digest(data: bytes) -> str:
@@ -218,6 +220,109 @@ class LegacyNoteriRecoveryTests(unittest.TestCase):
             "os.system(", "setfacl", "icacls", "StartServiceW", "shutdown",
         ):
             self.assertNotIn(forbidden, code)
+
+
+    def _update_argv(self, commit: str, *, receipt=None, manifest=None):
+        return [
+            "update_command_gateway_host.py", "--commit", commit,
+            "--expected-self-sha256", updater.sha256_file(Path(updater.__file__).resolve()),
+            "--install-root", str(self.root),
+            "--work-root", str(Path(self.temp.name) / "workers"),
+            "--noteri-legacy-v1-rebaseline",
+            "--expected-legacy-receipt-sha256", receipt or self.pin_receipt,
+            "--expected-legacy-manifest-sha256", manifest or self.pin_manifest,
+        ]
+
+    def _fake_verified_bundle(self, commit: str):
+        def download(observed: str, destination: Path):
+            self.assertEqual(observed, commit)
+            (destination / "MANIFEST.json").write_bytes((ROOT / "MANIFEST.json").read_bytes())
+            for src in legacy.bootstrap.RUNTIME_MAP:
+                dst = destination / src
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / src, dst)
+        return download
+
+    def test_v1_rebaseline_stages_authentic_v2_then_denies_locked_target(self):
+        old_receipt = self.receipt_path.read_bytes()
+        old_manifest = self.manifest_path.read_bytes()
+        old_files = dict(self.expected)
+        commit = "d" * 40
+        with (
+            mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                              return_value={"result": "LEGACY_CURRENT_STATE_VERIFIED"}) as gate,
+            mock.patch.object(updater.bootstrap, "download_bundle",
+                              side_effect=self._fake_verified_bundle(commit)),
+            mock.patch.object(updater, "preflight_runtime_replaceability",
+                              side_effect=updater.RuntimeReplaceabilityError(
+                                  "bin/session_launcher.py", "delete_access_os_error",
+                                  "simulated access denied",
+                              )) as denied,
+            mock.patch.object(sys, "argv", self._update_argv(commit)),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        gate.assert_called_once()
+        denied.assert_called_once()
+        new_receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(new_receipt["phase"], "replaceability_preflight")
+        self.assertFalse(new_receipt["mutation_started"])
+        self.assertFalse(new_receipt["rollback_attempted"])
+        self.assertFalse(new_receipt["rollback_succeeded"] is True)
+        self.assertTrue(new_receipt["legacy_v1_rebaseline"]["admitted"])
+        self.assertTrue(new_receipt["legacy_v1_rebaseline"]["original_receipt_archived"])
+        self.assertFalse(new_receipt["legacy_v1_rebaseline"]["historical_metadata_verified"])
+        fresh = Path(new_receipt["backup_dir"])
+        self.assertNotEqual(fresh, self.backup)
+        self.assertEqual((fresh / "legacy-update-receipt.json").read_bytes(), old_receipt)
+        snapshot = legacy.bootstrap._load_runtime_rollback(self.root, fresh)
+        self.assertEqual(snapshot["version"], legacy.bootstrap.ROLLBACK_MANIFEST_VERSION)
+        self.assertEqual(snapshot["metadata_contract"],
+                         (legacy.bootstrap.WINDOWS_ROLLBACK_METADATA_CONTRACT
+                          if legacy.bootstrap._windows_metadata_required()
+                          else legacy.bootstrap.POSIX_ROLLBACK_METADATA_CONTRACT))
+        self.assertEqual(self.manifest_path.read_bytes(), old_manifest)
+        for name, value in old_files.items():
+            self.assertEqual((self.root / name).read_bytes(), value)
+        self.assertFalse((self.root / "bin/runner_version_preflight.py").exists())
+
+    def test_invalid_legacy_pin_never_overwrites_original_failed_receipt(self):
+        before = self.receipt_path.read_bytes()
+        commit = "d" * 40
+        with (
+            mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                              side_effect=legacy.LegacyBlocked("LEGACY_RECEIPT_DRIFT")),
+            mock.patch.object(updater.bootstrap, "download_bundle") as download,
+            mock.patch.object(sys, "argv", self._update_argv(commit)),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        download.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), before)
+
+    def test_incomplete_legacy_rebaseline_pins_fail_before_update_lock(self):
+        before = self.receipt_path.read_bytes()
+        argv = self._update_argv("d" * 40)[:-2]
+        with (
+            mock.patch.object(updater, "acquire_update_lock") as lock,
+            mock.patch.object(sys, "argv", argv),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        lock.assert_not_called()
+        self.assertEqual(before, self.receipt_path.read_bytes())
+
+    def test_legacy_opt_in_rejected_when_latest_receipt_is_not_blocked(self):
+        self.receipt["result"] = "HOST_UPDATE_OK"
+        self.write()
+        original = self.receipt_path.read_bytes()
+        with (
+            mock.patch.object(legacy, "verify_legacy_v1_current_state") as gate,
+            mock.patch.object(updater.bootstrap, "download_bundle") as downloader,
+            mock.patch.object(sys, "argv", self._update_argv("d" * 40)),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        gate.assert_not_called()
+        downloader.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), original)
+
 
 
 if __name__ == "__main__":
