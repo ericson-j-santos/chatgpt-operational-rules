@@ -629,12 +629,75 @@ def _persist_blocked_receipt(
     return fallback
 
 
+
+def readback_existing_legacy_v2_stage(
+    install_root: Path, *, source_commit: str,
+    legacy_receipt_sha256: str, legacy_manifest_sha256: str,
+) -> dict[str, Any] | None:
+    """Idempotent, read-only verification of a previously completed stage.
+
+    A partial or divergent stage blocks, rather than silently creating more
+    snapshots under the same historical receipt.
+    """
+    if not install_root.is_dir() or install_root.is_symlink():
+        raise bootstrap.HostBootstrapError("raiz de stage legado inválida")
+    candidates = [
+        p for p in install_root.iterdir()
+        if p.name.startswith("backup-") and (
+            (p / "legacy-stage-receipt.json").exists()
+            or (p / "legacy-update-receipt.json").exists()
+        )
+    ]
+    if len(candidates) > 16:
+        raise bootstrap.HostBootstrapError("histórico de stages legados ambíguo")
+    verified: list[dict[str, Any]] = []
+    for folder in candidates:
+        if folder.is_symlink() or not folder.is_dir():
+            raise bootstrap.HostBootstrapError("diretório de stage legado inválido")
+        stage_file = folder / "legacy-stage-receipt.json"
+        archive = folder / "legacy-update-receipt.json"
+        if stage_file.is_symlink() or archive.is_symlink():
+            raise bootstrap.HostBootstrapError("recibo de stage legado é reparse")
+        if not stage_file.is_file() or not archive.is_file():
+            raise bootstrap.HostBootstrapError("stage legado incompleto")
+        receipt = _read_receipt(stage_file)
+        if (
+            receipt is None
+            or receipt.get("result") != "HOST_LEGACY_V2_STAGED_ONLY"
+            or receipt.get("source_commit") != source_commit
+            or receipt.get("legacy_receipt_sha256") != legacy_receipt_sha256
+            or receipt.get("legacy_manifest_sha256") != legacy_manifest_sha256
+            or receipt.get("backup_dir") != str(folder)
+            or receipt.get("historical_windows_metadata_verified") is not False
+            or receipt.get("current_windows_metadata_snapshotted") is not True
+            or receipt.get("installation_performed") is not False
+            or receipt.get("managed_runtime_changed") is not False
+            or receipt.get("old_receipt_archived") is not True
+            or sha256_file(archive) != legacy_receipt_sha256
+            or sha256_file(folder / "rollback-manifest.json")
+                != receipt.get("v2_manifest_sha256")
+        ):
+            raise bootstrap.HostBootstrapError("stage legado divergente")
+        snapshot = bootstrap._load_runtime_rollback(install_root, folder)
+        if snapshot.get("version") != bootstrap.ROLLBACK_MANIFEST_VERSION:
+            raise bootstrap.HostBootstrapError("stage legado não contém v2 íntegro")
+        if not reconcile_runtime(install_root, folder)["previous_state"]:
+            raise bootstrap.HostBootstrapError("stage legado divergiu do host atual")
+        verified.append(receipt)
+    if len(verified) > 1:
+        raise bootstrap.HostBootstrapError("mais de um stage legado confirmado")
+    return verified[0] if verified else None
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Atualização governada do runtime Command Gateway")
     parser.add_argument("--commit", required=True, help="SHA completo aprovado do repositório canônico")
     parser.add_argument("--expected-self-sha256", required=True, help="SHA-256 esperado deste updater")
     parser.add_argument("--install-root", type=Path, default=None)
     parser.add_argument("--work-root", type=Path, default=Path(r"C:\dev\chatgpt-workers"))
+    parser.add_argument("--noteri-legacy-v1-rebaseline", action="store_true")
+    parser.add_argument("--noteri-legacy-v1-stage-only", action="store_true")
+    parser.add_argument("--expected-legacy-receipt-sha256")
+    parser.add_argument("--expected-legacy-manifest-sha256")
     ns = parser.parse_args()
 
     install_root = ns.install_root or bootstrap.default_install_root()
@@ -651,7 +714,21 @@ def main() -> int:
     rollback_error: str | None = None
     reconciliation: dict[str, Any] | None = None
     journal_recovered = False
+    legacy_readback = None
+    legacy_receipt_archived = False
     try:
+        legacy_requested = ns.noteri_legacy_v1_rebaseline
+        if ns.noteri_legacy_v1_stage_only and not legacy_requested:
+            raise bootstrap.HostBootstrapError(
+                "snapshot v2 stage-only exige rebaseline Noteri explicitamente autorizado"
+            )
+        legacy_pins = (ns.expected_legacy_receipt_sha256,
+                       ns.expected_legacy_manifest_sha256)
+        if (legacy_requested and any(value is None for value in legacy_pins)
+                or not legacy_requested and any(value is not None for value in legacy_pins)):
+            raise bootstrap.HostBootstrapError(
+                "rebaseline Noteri exige flag explícita e dois hashes completos"
+            )
         expected = ns.expected_self_sha256.strip().lower()
         actual = sha256_file(Path(__file__).resolve())
         if len(expected) != 64 or actual != expected:
@@ -663,6 +740,10 @@ def main() -> int:
         phase = "recover_transaction_journal"
         journal = _read_transaction_journal(journal_path)
         if journal is not None:
+            if legacy_requested:
+                raise bootstrap.HostBootstrapError(
+                    "rebaseline legado recusado com journal ainda presente"
+                )
             journal_recovered = True
             backup_dir = Path(journal["backup_dir"])
             reconciliation = reconcile_runtime(install_root, backup_dir)
@@ -688,34 +769,68 @@ def main() -> int:
 
         phase = "read_previous_receipt"
         previous_receipt = _read_receipt(receipt_path)
-        if (
-            not journal_recovered
-            and previous_receipt
-            and previous_receipt.get("result") == "HOST_UPDATE_BLOCKED"
-        ):
-            previous_backup = previous_receipt.get("backup_dir")
-            previous_mutation = previous_receipt.get("mutation_started")
-            if previous_backup and previous_mutation is not False:
-                phase = "replay_reconciliation"
-                backup_dir = Path(str(previous_backup))
-                reconciliation = reconcile_runtime(install_root, backup_dir)
-                if not reconciliation["previous_state"]:
-                    rollback_attempted = True
-                    try:
-                        restore_backup(install_root, backup_dir)
-                    except Exception as exc:
-                        rollback_error = str(exc)
-                    reconciliation = reconcile_runtime(install_root, backup_dir)
-                    rollback_succeeded = reconciliation["previous_state"]
-                    if not rollback_succeeded:
-                        raise bootstrap.HostBootstrapError(
-                            "replay não conseguiu reconciliar a tentativa anterior"
-                        )
-                backup_dir = None
-            elif previous_mutation is not False:
+        if legacy_requested:
+            if (journal_recovered or not previous_receipt
+                    or previous_receipt.get("result") != "HOST_UPDATE_BLOCKED"):
                 raise bootstrap.HostBootstrapError(
-                    "tentativa anterior mutou o runtime sem snapshot recuperável"
+                    "rebaseline legado exige recibo bloqueado sem journal"
                 )
+            # Only for exact Noteri Win32 + pinned original v1 receipt/manifest.
+            # The historical v1 is NEVER treated as Windows metadata evidence.
+            import noteri_gateway_legacy_v1_rebaseline as legacy
+            phase = "verify_legacy_v1_live_state"
+            legacy_readback = legacy.verify_legacy_v1_current_state(
+                install_root,
+                expected_receipt_sha256=ns.expected_legacy_receipt_sha256,
+                expected_manifest_sha256=ns.expected_legacy_manifest_sha256,
+            )
+        else:
+            if (
+                not journal_recovered
+                and previous_receipt
+                and previous_receipt.get("result") == "HOST_UPDATE_BLOCKED"
+            ):
+                previous_backup = previous_receipt.get("backup_dir")
+                previous_mutation = previous_receipt.get("mutation_started")
+                if previous_backup and previous_mutation is not False:
+                    phase = "replay_reconciliation"
+                    backup_dir = Path(str(previous_backup))
+                    reconciliation = reconcile_runtime(install_root, backup_dir)
+                    if not reconciliation["previous_state"]:
+                        rollback_attempted = True
+                        try:
+                            restore_backup(install_root, backup_dir)
+                        except Exception as exc:
+                            rollback_error = str(exc)
+                        reconciliation = reconcile_runtime(install_root, backup_dir)
+                        rollback_succeeded = reconciliation["previous_state"]
+                        if not rollback_succeeded:
+                            raise bootstrap.HostBootstrapError(
+                                "replay não conseguiu reconciliar a tentativa anterior"
+                            )
+                    backup_dir = None
+                elif previous_mutation is not False:
+                    raise bootstrap.HostBootstrapError(
+                        "tentativa anterior mutou o runtime sem snapshot recuperável"
+                    )
+
+        if ns.noteri_legacy_v1_stage_only:
+            phase = "legacy_v2_existing_stage_readback"
+            existing_stage = readback_existing_legacy_v2_stage(
+                install_root, source_commit=commit,
+                legacy_receipt_sha256=ns.expected_legacy_receipt_sha256,
+                legacy_manifest_sha256=ns.expected_legacy_manifest_sha256,
+            )
+            if existing_stage is not None:
+                print(json.dumps({
+                    "result": "HOST_LEGACY_V2_ALREADY_STAGED_VERIFIED",
+                    "v2_manifest_sha256": existing_stage["v2_manifest_sha256"],
+                    "replacement_preflight": existing_stage["replacement_preflight"],
+                    "replaceability_proved": existing_stage["replaceability_proved"],
+                    "installation_performed": False,
+                    "managed_runtime_changed": False,
+                }, sort_keys=True))
+                return 0
 
         with tempfile.TemporaryDirectory(prefix="reqsys-host-update-") as tmp:
             bundle = Path(tmp)
@@ -762,6 +877,89 @@ def main() -> int:
 
             phase = "prepare_snapshot"
             backup_dir = bootstrap.prepare_runtime_rollback(bundle, install_root)
+            if legacy_readback is not None:
+                # This is a NEW v2 baseline of the current host, not a forged
+                # v2 version of the legacy backup. Preserve the old receipt
+                # exactly before any write to the managed runtime.
+                phase = "verify_new_v2_snapshot"
+                snapshot = bootstrap._load_runtime_rollback(install_root, backup_dir)
+                if snapshot.get("version") != bootstrap.ROLLBACK_MANIFEST_VERSION:
+                    raise bootstrap.HostBootstrapError(
+                        "novo snapshot v2 de rollback não foi comprovado"
+                    )
+                phase = "archive_original_legacy_receipt"
+                original = receipt_path.read_bytes()
+                if hashlib.sha256(original).hexdigest() != ns.expected_legacy_receipt_sha256:
+                    raise bootstrap.HostBootstrapError(
+                        "recibo histórico mudou antes de ser preservado"
+                    )
+                archive = backup_dir / "legacy-update-receipt.json"
+                _exclusive_write(archive, original)
+                if sha256_file(archive) != ns.expected_legacy_receipt_sha256:
+                    raise bootstrap.HostBootstrapError(
+                        "readback da cópia histórica falhou"
+                    )
+                legacy_receipt_archived = True
+            if ns.noteri_legacy_v1_stage_only:
+                phase = "legacy_v2_stage_only_preflight"
+                replace_category = "ok"
+                try:
+                    preflight_runtime_replaceability(install_root, backup_dir)
+                except RuntimeReplaceabilityError as exc:
+                    # The original six managed files remain unchanged;
+                    # retain the authentic v2 baseline but do not install.
+                    replace_category = exc.category
+                current_state = reconcile_runtime(install_root, backup_dir)
+                if not current_state["previous_state"]:
+                    raise bootstrap.HostBootstrapError(
+                        "snapshot v2 divergiu após qualificação de substituição"
+                    )
+                if sha256_file(receipt_path) != ns.expected_legacy_receipt_sha256:
+                    raise bootstrap.HostBootstrapError(
+                        "recibo histórico divergiu antes da etapa somente backup"
+                    )
+                staged = {
+                    "result": "HOST_LEGACY_V2_STAGED_ONLY",
+                    "source_commit": commit,
+                    "source_head": commit,
+                    "legacy_receipt_sha256": ns.expected_legacy_receipt_sha256,
+                    "legacy_manifest_sha256": ns.expected_legacy_manifest_sha256,
+                    "v2_manifest_sha256": sha256_file(
+                        backup_dir / "rollback-manifest.json"
+                    ),
+                    "backup_dir": str(backup_dir),
+                    "managed_file_count": len(current_state["entries"]),
+                    "historical_windows_metadata_verified": False,
+                    "current_windows_metadata_snapshotted": True,
+                    "old_receipt_archived": True,
+                    "replacement_preflight": replace_category,
+                    "replaceability_proved": replace_category == "ok",
+                    "managed_runtime_changed": False,
+                    "installation_performed": False,
+                    "wsl_invoked": False,
+                }
+                phase = "persist_stage_only_receipt"
+                _durable_atomic_json(
+                    backup_dir / "legacy-stage-receipt.json", staged
+                )
+                reread = _read_receipt(backup_dir / "legacy-stage-receipt.json")
+                if reread != staged:
+                    raise bootstrap.HostBootstrapError(
+                        "recibo de stage-only não foi confirmado independentemente"
+                    )
+                # No managed files or update-receipt mutation. Replays verify
+                # this exact stage by independent snapshot, metadata and
+                # archived historical-receipt readback.
+                print(json.dumps({
+                    "result": staged["result"],
+                    "v2_manifest_sha256": staged["v2_manifest_sha256"],
+                    "legacy_receipt_sha256": staged["legacy_receipt_sha256"],
+                    "replacement_preflight": staged["replacement_preflight"],
+                    "replaceability_proved": staged["replaceability_proved"],
+                    "installation_performed": False,
+                    "managed_runtime_changed": False,
+                }, sort_keys=True))
+                return 0
             phase = "replaceability_preflight"
             preflight_runtime_replaceability(install_root, backup_dir)
             reconciliation = reconcile_runtime(install_root, backup_dir)
@@ -818,6 +1016,11 @@ def main() -> int:
             "files": result.get("files", {}),
             "mutation_started": True,
             "reconciliation": reconciliation,
+            "legacy_v1_rebaseline": (
+                {"admitted": True, "historical_metadata_verified": False,
+                 "original_receipt_archived": legacy_receipt_archived}
+                if legacy_readback is not None else None
+            ),
         }
         phase = "write_success_receipt"
         atomic_json(receipt_path, receipt)
@@ -856,7 +1059,26 @@ def main() -> int:
             "rollback_succeeded": rollback_succeeded,
             "rollback_error": rollback_error,
             "reconciliation": reconciliation,
+            "legacy_v1_rebaseline": (
+                {"admitted": True, "historical_metadata_verified": False,
+                 "original_receipt_archived": legacy_receipt_archived}
+                if legacy_readback is not None else None
+            ),
         }
+        if ns.noteri_legacy_v1_stage_only:
+            # Stage-only is never allowed to overwrite the historical receipt,
+            # even if an error happens after the new snapshot is created.
+            blocked["result"] = "HOST_LEGACY_V2_STAGE_ONLY_BLOCKED"
+            blocked["original_receipt_not_overwritten"] = True
+            print(json.dumps(blocked, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+            return EXIT_HOST_UPDATE
+        if ns.noteri_legacy_v1_rebaseline and not legacy_receipt_archived:
+            # Never clobber the only historical failed receipt when the
+            # qualifying readback or full Windows v2 snapshot was not proved.
+            blocked["result"] = "HOST_UPDATE_LEGACY_PREFLIGHT_BLOCKED"
+            blocked["original_receipt_not_overwritten"] = True
+            print(json.dumps(blocked, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+            return EXIT_HOST_UPDATE
         persisted = _persist_blocked_receipt(
             receipt_path,
             install_root,

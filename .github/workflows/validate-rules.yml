@@ -126,6 +126,8 @@ jobs:
         run: python -m unittest -v tests/test_command_gateway.py tests/test_command_gateway_posix_policy.py tests/test_validate_rules_policy_profiles.py tests/test_governed_branch_update_policy.py tests/test_update_branch_fast_forward_governed.py
       - name: Validate exact Noteri WSL running-only gate (Linux contract)
         run: python -m unittest -v tests/test_noteri_wsl_running_status.py
+      - name: Gate legacy Noteri Gateway read-only recovery (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_gateway_legacy_v1_rebaseline.py
       - name: Run dormant Render PostgreSQL preservation safety tests
         run: python -m unittest -v tests/test_render_postgres_preservation.py
       - name: Run restricted host health unit tests
@@ -222,6 +224,8 @@ jobs:
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
       - name: Validate exact Noteri WSL running-only gate (Windows contract)
         run: python -m unittest -v tests/test_noteri_wsl_running_status.py
+      - name: Gate legacy Noteri Gateway read-only recovery (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_gateway_legacy_v1_rebaseline.py
       - name: Validate SHA-bound local clone and failure controls on Windows
         run: python -m unittest -v tests.test_session_launcher.SessionLauncherTests.test_isolated_local_clone_uses_pinned_commit_without_network_fetch tests.test_session_launcher.SessionLauncherTests.test_restricted_fetch_different_sha_still_blocks
       - name: Validate transactional Command Gateway runtime update on Windows
