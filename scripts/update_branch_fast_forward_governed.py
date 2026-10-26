@@ -25,6 +25,20 @@ WORKER_HEAD_SHA = "cd150974a094dcda240987d8a2283c709a714d36"
 WORKER_REPO_ROOT = (
     r"C:\dev\chatgpt-workers\wt-chat-engineering-worker-pool-base-20261022-a1"
 )
+NOTERI_REPOSITORY = "ericson-j-santos/noteri-runtime"
+NOTERI_BRANCH = "feat/noteri-sql-app-eventlog-readonly-gs-20261025-r1"
+NOTERI_REMOTE_SHA = "0c83b07a8d9e69758ddd2c25eb40833539ef1889"
+NOTERI_HEAD_SHA = "d8f058d66f46f8fcccf52a178d082fcb1d9b5222"
+NOTERI_REPO_ROOT = (
+    r"C:\dev\chatgpt-workers\wt-chat-noteri-eventlog-reconcile-gs-20261025-r2"
+)
+RULES_REPOSITORY = "ericson-j-santos/chatgpt-operational-rules"
+RULES_BRANCH = "feat/noteri-sql-eventlog-dispatch-allowlist-20261025"
+RULES_REMOTE_SHA = "546b2b2ded661576b9553f0fec62864ae798fdb6"
+RULES_HEAD_SHA = "2eb124bf457b9e121141eaca7dd124865374eaeb"
+RULES_REPO_ROOT = (
+    r"C:\dev\chatgpt-workers\wt-chat-noteri-eventlog-rules-reconcile-gs-20261025-r2"
+)
 
 
 def reviewed_operations() -> tuple[dict[str, str], ...]:
@@ -42,6 +56,20 @@ def reviewed_operations() -> tuple[dict[str, str], ...]:
             "expected_remote": WORKER_REMOTE_SHA,
             "expected_head": WORKER_HEAD_SHA,
             "repo_root": WORKER_REPO_ROOT,
+        },
+        {
+            "repository": NOTERI_REPOSITORY,
+            "branch": NOTERI_BRANCH,
+            "expected_remote": NOTERI_REMOTE_SHA,
+            "expected_head": NOTERI_HEAD_SHA,
+            "repo_root": NOTERI_REPO_ROOT,
+        },
+        {
+            "repository": RULES_REPOSITORY,
+            "branch": RULES_BRANCH,
+            "expected_remote": RULES_REMOTE_SHA,
+            "expected_head": RULES_HEAD_SHA,
+            "repo_root": RULES_REPO_ROOT,
         },
     )
 

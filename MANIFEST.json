@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-25T22:57:03.707491+00:00",
+  "generated_at": "2026-10-25T23:34:26.864049+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -649,8 +649,8 @@
     },
     {
       "path": "scripts/update_branch_fast_forward_governed.py",
-      "sha256": "8c87a89abeca48573e284734d379957cd37c99ca88485fc2f723fe1dbcbf3506",
-      "size": 6678
+      "sha256": "0a2051052b3d3d53db47c44e7e0aeb49e324ba08dc57dbcd716562319dace3f3",
+      "size": 7871
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -1049,8 +1049,8 @@
     },
     {
       "path": "tests/test_update_branch_fast_forward_governed.py",
-      "sha256": "d717987a4973229cda8bfa9b49aa7cf237f22d0fe1bf44ac8312f64850b63690",
-      "size": 7888
+      "sha256": "928f791f78598106e489826b0a5c49ae33f04e17885fcc4d11db0453696b5370",
+      "size": 12120
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
