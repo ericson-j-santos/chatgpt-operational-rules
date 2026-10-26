@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
+import noteri_wsl_running_status as nwr
+
 EXIT_POLICY = 20
 EXIT_LOCKED = 21
 EXIT_COMMAND = 22
@@ -293,6 +295,9 @@ def validate_policy(data: object, *, enforce_platform: bool = True) -> dict[str,
     for field in ("state_dir", "worktree_root", "worktree_prefix", "rules_version"):
         if field in data and (not isinstance(data[field], str) or not data[field].strip()):
             raise GatewayError(f"{field} deve ser string não vazia")
+    if ("noteri_wsl_running_inventory" in data
+            and type(data["noteri_wsl_running_inventory"]) is not bool):
+        raise GatewayError("noteri_wsl_running_inventory deve ser booleano")
     required_environment = data.get("required_path_environment")
     if required_environment is not None:
         if not isinstance(required_environment, dict):
@@ -567,6 +572,14 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any], cwd
         raise GatewayError("comando ausente")
     if sensitive_reference(args, policy):
         raise GatewayError("referência potencialmente sensível bloqueada")
+    # Explicitly reviewed read-only management query, NOT a general WSL bypass.
+    # Every other wsl.exe invocation remains blocked by blocked_executables.
+    if nwr.is_wsl_command(args):
+        try:
+            nwr.validate_request(args, risk, policy)
+        except nwr.StatusBlocked as exc:
+            raise GatewayError(str(exc)) from None
+        return
     exe = assert_allowed_executable(args[0], policy)
     if any(meta in arg for arg in args for meta in SHELL_META):
         raise GatewayError("composição/redirecionamento de shell bloqueado")
@@ -1363,6 +1376,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
     cwd = canonical_existing_directory(cwd)
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy, cwd)
+    wsl_running_status = nwr.is_wsl_command(args)
     assert_safe_gui_automation(args, cwd, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
     if timeout < 1 or timeout > max_timeout:
@@ -1389,11 +1403,19 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             )
         with anchored_subprocess_cwd(spawn_cwd) as (anchored_cwd, spawn_options):
             try:
-                completed = subprocess.run(
-                    list(args), cwd=anchored_cwd, text=True, capture_output=True,
-                    encoding="utf-8", errors="replace", shell=False, timeout=timeout, check=False,
-                    **spawn_options,
-                )
+                if wsl_running_status:
+                    # The trusted helper only executes --list --running --quiet,
+                    # never starts Ubuntu or passes through untrusted output.
+                    completed = nwr.run_fixed(
+                        args, risk, policy, cwd=anchored_cwd,
+                        timeout=timeout, spawn_options=spawn_options,
+                    )
+                else:
+                    completed = subprocess.run(
+                        list(args), cwd=anchored_cwd, text=True, capture_output=True,
+                        encoding="utf-8", errors="replace", shell=False, timeout=timeout,
+                        check=False, **spawn_options,
+                    )
             except subprocess.TimeoutExpired as exc:
                 event = {
                     "timestamp": utc_now(), "correlation_id": correlation_id,
