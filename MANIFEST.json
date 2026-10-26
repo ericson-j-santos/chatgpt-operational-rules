@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-26T18:20:00.076225+00:00",
+  "generated_at": "2026-10-26T21:02:51.333Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "78308addfadf10d815fcaddd95d9d481d05b2ee835b43360cb8a44251c335a10",
-      "size": 17321
+      "sha256": "170513fd4a6888676e75619e882b33c916384cb48fca28c418d39c57bb7d349d",
+      "size": 17649
     },
     {
       "path": ".gitignore",
@@ -426,6 +426,11 @@
       "path": "scripts/native_host_capacity_probe.py",
       "sha256": "0e3e500b359960ac1c4dfc4971a3f38c4b19d59be57a9cdccb126665de28685f",
       "size": 6892
+    },
+    {
+      "path": "scripts/noteri_gateway_legacy_v1_rebaseline.py",
+      "sha256": "b792692d6c86bccccfba9037596d3a7cbd4996e7d560f257194efa020357bef4",
+      "size": 9657
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -856,6 +861,11 @@
       "path": "tests/test_native_host_capacity_probe.py",
       "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
       "size": 4572
+    },
+    {
+      "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
+      "sha256": "a12d695b8f8dc6c28aad20b9796d5d75ee0612b9bc10745ce278195318bf3d6b",
+      "size": 9990
     },
     {
       "path": "tests/test_noteri_wsl_running_status.py",
