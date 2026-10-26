@@ -325,5 +325,84 @@ class LegacyNoteriRecoveryTests(unittest.TestCase):
 
 
 
+    def test_stage_only_v2_is_idempotent_and_does_not_install(self):
+        original = self.receipt_path.read_bytes()
+        commit = "d" * 40
+        argv = self._update_argv(commit) + ["--noteri-legacy-v1-stage-only"]
+        readback_ok = {"result": "LEGACY_CURRENT_STATE_VERIFIED"}
+        with (
+            mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                              return_value=readback_ok) as verify,
+            mock.patch.object(updater.bootstrap, "download_bundle",
+                              side_effect=self._fake_verified_bundle(commit)) as download,
+            mock.patch.object(updater, "preflight_runtime_replaceability",
+                              side_effect=updater.RuntimeReplaceabilityError(
+                                  "bin/session_launcher.py", "delete_access_os_error",
+                                  "simulated WinError 5",
+                              )),
+            mock.patch.object(updater.bootstrap, "install_bundle") as installer,
+            mock.patch.object(sys, "argv", argv),
+        ):
+            self.assertEqual(updater.main(), 0)
+            stages = list(self.root.glob("backup-*/legacy-stage-receipt.json"))
+            self.assertEqual(len(stages), 1)
+            self.assertEqual(self.receipt_path.read_bytes(), original)
+            receipt = json.loads(stages[0].read_text(encoding="utf-8"))
+            self.assertEqual(receipt["result"], "HOST_LEGACY_V2_STAGED_ONLY")
+            self.assertEqual(receipt["replacement_preflight"], "delete_access_os_error")
+            self.assertFalse(receipt["replaceability_proved"])
+            self.assertFalse(receipt["installation_performed"])
+            self.assertEqual((stages[0].parent / "legacy-update-receipt.json").read_bytes(),
+                             original)
+            self.assertEqual(updater.main(), 0)
+            self.assertEqual(list(self.root.glob("backup-*/legacy-stage-receipt.json")),
+                             stages)
+        self.assertEqual(verify.call_count, 2)
+        download.assert_called_once()
+        installer.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), original)
+        for name, payload in self.expected.items():
+            self.assertEqual((self.root / name).read_bytes(), payload)
+
+    def test_stage_only_denies_divergent_replay_without_overwriting_v1(self):
+        commit = "d" * 40
+        argv = self._update_argv(commit) + ["--noteri-legacy-v1-stage-only"]
+        before = self.receipt_path.read_bytes()
+        with (
+            mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                              return_value={"result": "LEGACY_CURRENT_STATE_VERIFIED"}),
+            mock.patch.object(updater.bootstrap, "download_bundle",
+                              side_effect=self._fake_verified_bundle(commit)),
+            mock.patch.object(updater, "preflight_runtime_replaceability",
+                              side_effect=updater.RuntimeReplaceabilityError(
+                                  "bin/session_launcher.py", "delete_access_os_error",
+                                  "simulated denial")),
+            mock.patch.object(sys, "argv", argv),
+        ):
+            self.assertEqual(updater.main(), 0)
+            stage = next(self.root.glob("backup-*/legacy-stage-receipt.json"))
+            data = json.loads(stage.read_text(encoding="utf-8"))
+            data["v2_manifest_sha256"] = "0" * 64
+            stage.write_text(json.dumps(data), encoding="utf-8")
+            with mock.patch.object(updater.bootstrap, "download_bundle") as download:
+                self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+                download.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), before)
+
+    def test_stage_only_flag_without_explicit_rebaseline_is_denied(self):
+        before = self.receipt_path.read_bytes()
+        argv = self._update_argv("d" * 40)
+        argv.remove("--noteri-legacy-v1-rebaseline")
+        argv.append("--noteri-legacy-v1-stage-only")
+        with (
+            mock.patch.object(updater, "acquire_update_lock") as lock,
+            mock.patch.object(sys, "argv", argv),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        lock.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), before)
+
+
+
 if __name__ == "__main__":
     unittest.main()
