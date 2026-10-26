@@ -191,7 +191,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
                 EXACT, 0, json.dumps({"result": "NOTERI_WSL_RUNNING_STATUS_READONLY",
                                     "ready_for_pr": False}), "",
             )
-            with mock.patch.object(wsl, "run_fixed", return_value=fixed_output) as run:
+            with mock.patch.object(wsl, "wsl_run_fixed", return_value=fixed_output) as run:
                 result = cg.execute(
                     root, config, EXACT, 1, 15, sha, False, False,
                     "noteri-wsl-status-test",
