@@ -137,7 +137,7 @@ def run_fixed(
         return subprocess.CompletedProcess(
             list(args), 0, json.dumps(observed, sort_keys=True), "",
         )
-    except (StatusBlocked, OSError, subprocess.TimeoutExpired) as exc:
+    except (StatusBlocked, OSError, subprocess.TimeoutExpired, ValueError, TypeError) as exc:
         reason = str(exc) if isinstance(exc, StatusBlocked) else "WSL_PROBE_UNAVAILABLE"
         if reason not in {
             "WSL_PROBE_FAILED", "WSL_PROBE_OUTPUT_INVALID",
