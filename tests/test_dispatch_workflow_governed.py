@@ -107,9 +107,10 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
             ):
                 validate(*target, SHA)
 
-    def test_noteri_eventlog_dispatch_has_no_inputs_and_binds_exact_main_head(self):
+    def test_noteri_eventlog_dispatch_has_only_controlled_inputs_and_exact_head(self):
+        title = "Noteri SQL EventLog / noteri-eventlog-corr"
         before = _runs(_run_item(40))
-        after = _runs(_run_item(41), _run_item(40))
+        after = _runs(_run_item(41, display_title=title), _run_item(40))
         outputs = iter([_remote_ref(), before, "", after])
         calls = []
 
@@ -134,11 +135,40 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
                 "repos/ericson-j-santos/noteri-runtime/actions/workflows/"
                 "noteri-sql-application-eventlog.yml/dispatches",
                 "-f", "ref=main",
+                "-f", f"inputs[expected_sha]={SHA}",
+                "-f", "inputs[correlation_id]=noteri-eventlog-corr",
             ),
         )
-        self.assertFalse(any("inputs[" in arg for arg in post))
         self.assertEqual(result["head_sha"], SHA)
         self.assertEqual(result["run_id"], 41)
+
+    def test_noteri_eventlog_correlation_mismatch_fails_closed(self):
+        before = _runs(_run_item(50))
+        wrong_title = _runs(
+            _run_item(51, display_title="Noteri SQL EventLog / other-correlation"),
+            _run_item(50),
+        )
+        outputs = iter([_remote_ref(), before, "", wrong_title])
+        calls = []
+
+        def fake_run(*args):
+            calls.append(args)
+            return next(outputs)
+
+        with patch(
+            "scripts.dispatch_workflow_governed.DISPATCH_CONFIRM_ATTEMPTS", 1
+        ), patch(
+            "scripts.dispatch_workflow_governed.run", side_effect=fake_run
+        ):
+            with self.assertRaisesRegex(RuntimeError, "retentativas limitadas"):
+                dispatch(
+                    *NOTERI_EVENTLOG_TARGET,
+                    "noteri-eventlog-corr",
+                    SHA,
+                )
+
+        post_calls = [args for args in calls if "--method" in args and "POST" in args]
+        self.assertEqual(len(post_calls), 1)
 
     def test_rejects_invalid_expected_head(self):
         with self.assertRaisesRegex(ValueError, "HEAD"):
@@ -165,6 +195,7 @@ class DispatchWorkflowGovernedTests(unittest.TestCase):
 
         post_calls = [args for args in calls if "--method" in args and "POST" in args]
         self.assertEqual(len(post_calls), 1)
+        self.assertFalse(any("inputs[" in arg for arg in post_calls[0]))
         self.assertEqual(result["result"], "DISPATCHED")
         self.assertEqual(result["run_id"], 11)
         self.assertEqual(result["head_sha"], SHA)

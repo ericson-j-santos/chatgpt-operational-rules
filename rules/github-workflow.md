@@ -18,7 +18,10 @@ O publicador governado de `workflow_dispatch` admite somente a tupla exata:
 - workflow `noteri-sql-application-eventlog.yml`;
 - ref `main`.
 
-A chamada exige o SHA remoto completo de `main`, não aceita nem encaminha inputs
-livres e deve confirmar exatamente um novo run ligado ao mesmo SHA. Qualquer outro
-repositório, workflow, ref ou conjunto de inputs exige mudança versionada e revisada.
+A chamada exige o SHA remoto completo de `main` e encaminha somente os metadados
+controlados `expected_sha` e `correlation_id`, derivados dos argumentos já validados.
+O workflow bloqueia o job quando `github.sha` diverge de `expected_sha`, e o readback
+exige o mesmo SHA e `run-name` correlacionado. Inputs livres ou de comando são
+proibidos. Qualquer outro repositório, workflow, ref ou conjunto de inputs exige
+mudança versionada e revisada.
 A presença da tupla na allowlist não autoriza, por si só, merge ou dispatch.
