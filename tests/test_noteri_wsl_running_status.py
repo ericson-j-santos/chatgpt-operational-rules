@@ -185,7 +185,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
                            check=True, capture_output=True)
             sha = cg.git_state(root).head
             config = policy(state_dir=str(state),
-                            allowed_roots=[str(root)],
+                            allowed_roots=[cg.norm(root)],
                             require_git_repo=True)
             fixed_output = subprocess.CompletedProcess(
                 EXACT, 0, json.dumps({"result": "NOTERI_WSL_RUNNING_STATUS_READONLY",
