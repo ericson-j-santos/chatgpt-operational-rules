@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-26T21:02:51.333Z",
+  "generated_at": "2026-10-26T21:06:51.049209+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -659,8 +659,8 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "98eca3305acf0d0537521bc2e12f17a0bef5be9903683516b6102e5bd8838f37",
-      "size": 33223
+      "sha256": "2d41519f46dd85cecab2498b62d69c8d7ef9ff687ef318d375796e06fff11b1b",
+      "size": 37509
     },
     {
       "path": "scripts/validate_rules.py",
