@@ -112,6 +112,37 @@ O gateway deve bloquear:
 - O worktree deve terminar limpo e no SHA reservado.
 - Alterações de risco 2 devem ocorrer no worktree da sessão, nunca diretamente na árvore base.
 
+## Gate específico Noteri: consultar WSL em execução (sem iniciar Ubuntu)
+
+A operação `wsl.exe --list --running --quiet` é a única exceção de leitura
+revisada para o Noteri. A Microsoft documenta que `--running` lista apenas
+as distribuições **já em execução**; a operação não executa comandos Linux.
+Esse comportamento precisa ser confirmado no host antes de atribuir prontidão.
+
+- A chave de política `noteri_wsl_running_inventory` deve ser booleano **true**
+  em um perfil explicitamente admitido para o Noteri; o padrão é ausente/false.
+  A política Windows global continua com `wsl` em `blocked_executables`.
+- Exigir `os.name=nt`, hostname exato `Noteri`, política `platform=windows`,
+  sessão existente, Gateway `risk=1`, lock, HEAD SHA e cwd isolado.
+- O executável deve ser exatamente o `wsl.exe` do diretório Win32 System32,
+  resolvido pela API do Windows, não `PATH`, um alias nem um caminho fornecido
+  por texto externo. Apenas os argumentos `--list --running --quiet` nessa ordem
+  são permitidos. `--exec`, `--distribution`, `--install`, `--shutdown`,
+  shell e qualquer opção adicional permanecem negados.
+- A resposta é analisada com limite de bytes/entradas, emitindo apenas número
+  de distribuições e indicador de **candidato** Ubuntu já executando; nunca
+  nomes arbitrários, stderr bruto, credenciais ou caminhos privados.
+- `ubuntu_running_candidate=true` não autoriza executar `wsl.exe --exec`.
+  A distribuição pode parar após a leitura (TOCTOU); o acesso POSIX separado
+  precisa de transporte e Session Launcher/Gateway **dentro** do guest,
+  previamente homologados. O helper jamais testa systemd/psql por conta própria.
+- Implementação: rotinas internas em `scripts/command_gateway.py`, sem
+  dependência de módulo auxiliar no pacote instalado. Testes positivos, negativos, SHA/lock,
+  replay e Windows: `tests/test_noteri_wsl_running_status.py`.
+
+Não ativar o perfil na máquina nem iniciar distribuições sem gate operacional
+específico. Nenhum Docker, Neon, serviço, CAS ou permissão nova é exigido.
+
 ## Risco 1
 
 Para uma operação declarada como risco 1:

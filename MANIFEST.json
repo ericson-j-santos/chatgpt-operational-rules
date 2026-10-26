@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-26T15:06:32.414482+00:00",
+  "generated_at": "2026-10-26T18:20:00.076225+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "2c7068bfd44fd165b66abbf2db40c6e2c57b685b57ec9c28326b924217699aa9",
-      "size": 17019
+      "sha256": "78308addfadf10d815fcaddd95d9d481d05b2ee835b43360cb8a44251c335a10",
+      "size": 17321
     },
     {
       "path": ".gitignore",
@@ -204,8 +204,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "2d40b3ec5c358259e778602f46b67828094c7dca6e79cefad041377d3f576195",
-      "size": 11148
+      "sha256": "0b470c248c5afc6f1ceb38e985fde2ccc9ce71c9e12d2c2d58c4c29c69353989",
+      "size": 13233
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -304,8 +304,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "8cb5a97ebe5c0cbca13f2db788f76737499421a324fdf7671f77aa49775fb15b",
-      "size": 64222
+      "sha256": "db7d9404c82b5116f1904162a45cfd25cdd0db1942814e5653d5aee89e4601d8",
+      "size": 71429
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -856,6 +856,11 @@
       "path": "tests/test_native_host_capacity_probe.py",
       "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
       "size": 4572
+    },
+    {
+      "path": "tests/test_noteri_wsl_running_status.py",
+      "sha256": "e7638a739466f7563862bc40a7ce9e5e477f9cfa0cd2b0c584c904ab1dd5ebdc",
+      "size": 9433
     },
     {
       "path": "tests/test_notion_sink_integrity.py",
