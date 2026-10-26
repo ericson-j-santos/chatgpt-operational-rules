@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import ntpath
 import fnmatch
 import hashlib
 import json
@@ -22,7 +24,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
-import noteri_wsl_running_status as nwr
 
 EXIT_POLICY = 20
 EXIT_LOCKED = 21
@@ -77,6 +78,146 @@ class GatewayError(RuntimeError):
     def __init__(self, message: str, exit_code: int = EXIT_POLICY) -> None:
         super().__init__(message)
         self.exit_code = exit_code
+
+
+# Trusted, self-contained Windows-only management probe.  Keep this logic in
+# the Gateway itself: installed Gateway/Session Launcher bundles copy this
+# module, not auxiliary scripts.  No import or child-script fallback is used.
+WSL_EXACT_FLAGS = ("--list", "--running", "--quiet")
+WSL_POLICY_FLAG = "noteri_wsl_running_inventory"
+WSL_DISTRO_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
+WSL_UBUNTU_PATTERN = re.compile(r"Ubuntu(?:-[0-9]{2}\.[0-9]{2})?\Z", re.IGNORECASE)
+WSL_MAX_BYTES = 4096
+WSL_MAX_DISTROS = 16
+
+
+class WslStatusBlocked(ValueError):
+    """Constant reason codes only. Never include WSL output or names."""
+
+
+def wsl_is_command(args: Sequence[str]) -> bool:
+    return bool(args and isinstance(args[0], str)
+                and ntpath.basename(args[0]).casefold() == "wsl.exe")
+
+
+def wsl_host_context() -> tuple[str, str]:
+    return os.name, socket.gethostname()
+
+
+def wsl_system_path() -> str:
+    """Resolve the actual Win32 system directory, never PATH or a caller path."""
+    if os.name != "nt":
+        raise WslStatusBlocked("WSL_WINDOWS_REQUIRED")
+    try:
+        library = ctypes.WinDLL("kernel32", use_last_error=True)
+        method = library.GetSystemDirectoryW
+        method.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32]
+        method.restype = ctypes.c_uint32
+        buffer = ctypes.create_unicode_buffer(32768)
+        written = method(buffer, len(buffer))
+        if not 3 <= written < len(buffer):
+            raise WslStatusBlocked("WSL_SYSTEM_BINARY_UNVERIFIED")
+        return ntpath.join(buffer.value, "wsl.exe")
+    except (OSError, AttributeError, ValueError, TypeError):
+        raise WslStatusBlocked("WSL_SYSTEM_BINARY_UNVERIFIED") from None
+
+
+def wsl_validate_request(args: Sequence[str], risk: int, policy: dict[str, Any]) -> None:
+    """Permit exactly one Windows WSL management query under explicit opt-in."""
+    if not wsl_is_command(args):
+        raise WslStatusBlocked("WSL_COMMAND_INVALID")
+    platform, host = wsl_host_context()
+    if (platform != "nt" or host.casefold() != "noteri"
+            or policy.get("platform") != "windows"
+            or policy.get(WSL_POLICY_FLAG) is not True):
+        raise WslStatusBlocked("WSL_PROBE_NOT_AUTHORIZED")
+    if risk != 1:
+        raise WslStatusBlocked("WSL_PROBE_RISK_INVALID")
+    if len(args) != 4 or tuple(args[1:]) != WSL_EXACT_FLAGS:
+        raise WslStatusBlocked("WSL_PROBE_ARGUMENTS_DENIED")
+    original = args[0]
+    approved = wsl_system_path()
+    if (not ntpath.isabs(original)
+            or ntpath.normcase(ntpath.normpath(original)) !=
+               ntpath.normcase(ntpath.normpath(approved))):
+        raise WslStatusBlocked("WSL_PROBE_BINARY_UNTRUSTED")
+
+
+def wsl_decode(output: bytes) -> str:
+    if type(output) is not bytes or len(output) > WSL_MAX_BYTES:
+        raise WslStatusBlocked("WSL_PROBE_OUTPUT_INVALID")
+    try:
+        if output.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return output.decode("utf-16")
+        if b"\x00" in output:
+            return output.decode("utf-16le")
+        return output.decode("utf-8-sig")
+    except UnicodeError:
+        raise WslStatusBlocked("WSL_PROBE_OUTPUT_INVALID") from None
+
+
+def wsl_sanitize_output(returncode: int, stdout: bytes, stderr: bytes) -> dict[str, Any]:
+    if type(returncode) is not int or returncode != 0:
+        raise WslStatusBlocked("WSL_PROBE_FAILED")
+    if type(stderr) is not bytes or len(stderr) > WSL_MAX_BYTES:
+        raise WslStatusBlocked("WSL_PROBE_OUTPUT_INVALID")
+    if wsl_decode(stderr).strip():
+        raise WslStatusBlocked("WSL_PROBE_STDERR_UNEXPECTED")
+    lines = [value.strip() for value in wsl_decode(stdout).splitlines() if value.strip()]
+    if len(lines) > WSL_MAX_DISTROS or any(
+        WSL_DISTRO_NAME_PATTERN.fullmatch(name) is None for name in lines
+    ) or len(set(name.casefold() for name in lines)) != len(lines):
+        raise WslStatusBlocked("WSL_PROBE_OUTPUT_INVALID")
+    ubuntu_count = sum(WSL_UBUNTU_PATTERN.fullmatch(name) is not None for name in lines)
+    return {
+        "result": "NOTERI_WSL_RUNNING_STATUS_READONLY",
+        "scope": "current_windows_token_running_distributions",
+        "running_count": len(lines),
+        "ubuntu_running_candidate": ubuntu_count == 1,
+        "ubuntu_running_count": ubuntu_count,
+        "distro_names_logged": False,
+        "linux_command_executed": False,
+        "linux_service_started": False,
+        "gateway_posix_verified": False,
+        "systemd_verified": False,
+        "postgresql_service_verified": False,
+        "postgresql_tls_verified": False,
+        "authority_ready": False,
+        "ready_for_pr": False,
+    }
+
+
+def wsl_run_fixed(
+    args: Sequence[str], risk: int, policy: dict[str, Any], *,
+    cwd: str, timeout: int, spawn_options: dict[str, Any] | None = None,
+    runner=None,
+) -> subprocess.CompletedProcess[str]:
+    """Called ONLY inside Gateway's session enforcement, repo lock and SHA gate."""
+    wsl_validate_request(args, risk, policy)
+    method = subprocess.run if runner is None else runner
+    try:
+        outcome = method(
+            list(args), cwd=cwd, capture_output=True, check=False,
+            shell=False, timeout=min(timeout, 12),
+            **(spawn_options or {}),
+        )
+        observed = wsl_sanitize_output(outcome.returncode, outcome.stdout, outcome.stderr)
+        return subprocess.CompletedProcess(
+            list(args), 0, json.dumps(observed, sort_keys=True), "",
+        )
+    except (WslStatusBlocked, OSError, subprocess.TimeoutExpired, ValueError, TypeError) as exc:
+        reason = str(exc) if isinstance(exc, WslStatusBlocked) else "WSL_PROBE_UNAVAILABLE"
+        if reason not in {
+            "WSL_PROBE_FAILED", "WSL_PROBE_OUTPUT_INVALID",
+            "WSL_PROBE_STDERR_UNEXPECTED", "WSL_PROBE_UNAVAILABLE",
+        }:
+            reason = "WSL_PROBE_UNAVAILABLE"
+        return subprocess.CompletedProcess(
+            list(args), 22,
+            json.dumps({"result": "NOTERI_WSL_RUNNING_STATUS_BLOCKED",
+                        "reason": reason, "ready_for_pr": False},
+                       sort_keys=True), "",
+        )
 
 
 @dataclass(frozen=True)
@@ -574,10 +715,10 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any], cwd
         raise GatewayError("referência potencialmente sensível bloqueada")
     # Explicitly reviewed read-only management query, NOT a general WSL bypass.
     # Every other wsl.exe invocation remains blocked by blocked_executables.
-    if nwr.is_wsl_command(args):
+    if wsl_is_command(args):
         try:
-            nwr.validate_request(args, risk, policy)
-        except nwr.StatusBlocked as exc:
+            wsl_validate_request(args, risk, policy)
+        except WslStatusBlocked as exc:
             raise GatewayError(str(exc)) from None
         return
     exe = assert_allowed_executable(args[0], policy)
@@ -1376,7 +1517,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
     cwd = canonical_existing_directory(cwd)
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy, cwd)
-    wsl_running_status = nwr.is_wsl_command(args)
+    wsl_running_status = wsl_is_command(args)
     assert_safe_gui_automation(args, cwd, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
     if timeout < 1 or timeout > max_timeout:
@@ -1406,7 +1547,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
                 if wsl_running_status:
                     # The trusted helper only executes --list --running --quiet,
                     # never starts Ubuntu or passes through untrusted output.
-                    completed = nwr.run_fixed(
+                    completed = wsl_run_fixed(
                         args, risk, policy, cwd=anchored_cwd,
                         timeout=timeout, spawn_options=spawn_options,
                     )
