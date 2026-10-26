@@ -629,6 +629,65 @@ def _persist_blocked_receipt(
     return fallback
 
 
+
+def readback_existing_legacy_v2_stage(
+    install_root: Path, *, source_commit: str,
+    legacy_receipt_sha256: str, legacy_manifest_sha256: str,
+) -> dict[str, Any] | None:
+    """Idempotent, read-only verification of a previously completed stage.
+
+    A partial or divergent stage blocks, rather than silently creating more
+    snapshots under the same historical receipt.
+    """
+    if not install_root.is_dir() or install_root.is_symlink():
+        raise bootstrap.HostBootstrapError("raiz de stage legado inválida")
+    candidates = [
+        p for p in install_root.iterdir()
+        if p.name.startswith("backup-") and (
+            (p / "legacy-stage-receipt.json").exists()
+            or (p / "legacy-update-receipt.json").exists()
+        )
+    ]
+    if len(candidates) > 16:
+        raise bootstrap.HostBootstrapError("histórico de stages legados ambíguo")
+    verified: list[dict[str, Any]] = []
+    for folder in candidates:
+        if folder.is_symlink() or not folder.is_dir():
+            raise bootstrap.HostBootstrapError("diretório de stage legado inválido")
+        stage_file = folder / "legacy-stage-receipt.json"
+        archive = folder / "legacy-update-receipt.json"
+        if stage_file.is_symlink() or archive.is_symlink():
+            raise bootstrap.HostBootstrapError("recibo de stage legado é reparse")
+        if not stage_file.is_file() or not archive.is_file():
+            raise bootstrap.HostBootstrapError("stage legado incompleto")
+        receipt = _read_receipt(stage_file)
+        if (
+            receipt is None
+            or receipt.get("result") != "HOST_LEGACY_V2_STAGED_ONLY"
+            or receipt.get("source_commit") != source_commit
+            or receipt.get("legacy_receipt_sha256") != legacy_receipt_sha256
+            or receipt.get("legacy_manifest_sha256") != legacy_manifest_sha256
+            or receipt.get("backup_dir") != str(folder)
+            or receipt.get("historical_windows_metadata_verified") is not False
+            or receipt.get("current_windows_metadata_snapshotted") is not True
+            or receipt.get("installation_performed") is not False
+            or receipt.get("managed_runtime_changed") is not False
+            or receipt.get("old_receipt_archived") is not True
+            or sha256_file(archive) != legacy_receipt_sha256
+            or sha256_file(folder / "rollback-manifest.json")
+                != receipt.get("v2_manifest_sha256")
+        ):
+            raise bootstrap.HostBootstrapError("stage legado divergente")
+        snapshot = bootstrap._load_runtime_rollback(install_root, folder)
+        if snapshot.get("version") != bootstrap.ROLLBACK_MANIFEST_VERSION:
+            raise bootstrap.HostBootstrapError("stage legado não contém v2 íntegro")
+        if not reconcile_runtime(install_root, folder)["previous_state"]:
+            raise bootstrap.HostBootstrapError("stage legado divergiu do host atual")
+        verified.append(receipt)
+    if len(verified) > 1:
+        raise bootstrap.HostBootstrapError("mais de um stage legado confirmado")
+    return verified[0] if verified else None
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Atualização governada do runtime Command Gateway")
     parser.add_argument("--commit", required=True, help="SHA completo aprovado do repositório canônico")
@@ -755,6 +814,24 @@ def main() -> int:
                         "tentativa anterior mutou o runtime sem snapshot recuperável"
                     )
 
+        if ns.noteri_legacy_v1_stage_only:
+            phase = "legacy_v2_existing_stage_readback"
+            existing_stage = readback_existing_legacy_v2_stage(
+                install_root, source_commit=commit,
+                legacy_receipt_sha256=ns.expected_legacy_receipt_sha256,
+                legacy_manifest_sha256=ns.expected_legacy_manifest_sha256,
+            )
+            if existing_stage is not None:
+                print(json.dumps({
+                    "result": "HOST_LEGACY_V2_ALREADY_STAGED_VERIFIED",
+                    "v2_manifest_sha256": existing_stage["v2_manifest_sha256"],
+                    "replacement_preflight": existing_stage["replacement_preflight"],
+                    "replaceability_proved": existing_stage["replaceability_proved"],
+                    "installation_performed": False,
+                    "managed_runtime_changed": False,
+                }, sort_keys=True))
+                return 0
+
         with tempfile.TemporaryDirectory(prefix="reqsys-host-update-") as tmp:
             bundle = Path(tmp)
             phase = "download_bundle"
@@ -870,9 +947,9 @@ def main() -> int:
                     raise bootstrap.HostBootstrapError(
                         "recibo de stage-only não foi confirmado independentemente"
                     )
-                # Host update journal, installer and update-receipt are NOT
-                # touched by this mode. A second identical request fails
-                # closed until an existing snapshot is explicitly reconciled.
+                # No managed files or update-receipt mutation. Replays verify
+                # this exact stage by independent snapshot, metadata and
+                # archived historical-receipt readback.
                 print(json.dumps({
                     "result": staged["result"],
                     "v2_manifest_sha256": staged["v2_manifest_sha256"],
