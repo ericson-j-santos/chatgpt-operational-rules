@@ -172,7 +172,9 @@ class NoteriWslRunningGateTests(unittest.TestCase):
 
     def test_existing_risk1_gateway_git_sha_and_lock_wrap_fixed_probe(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp) / "repo"
+            root.mkdir()
+            state = Path(tmp) / "gateway-state"
             subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Fixture"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.email", "fixture@example.invalid"],
@@ -182,7 +184,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
             subprocess.run(["git", "commit", "-m", "base"], cwd=root,
                            check=True, capture_output=True)
             sha = cg.git_state(root).head
-            config = policy(state_dir=str(root / "state"),
+            config = policy(state_dir=str(state),
                             allowed_roots=[str(root)],
                             require_git_repo=True)
             fixed_output = subprocess.CompletedProcess(
@@ -196,7 +198,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
                 )
             self.assertEqual(result, 0)
             self.assertEqual(run.call_count, 1)
-            events = (root / "state" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+            events = (state / "events.jsonl").read_text(encoding="utf-8").splitlines()
             audit = json.loads(events[-1])
             self.assertEqual(audit["result"], "ok")
             self.assertEqual(audit["before"]["head"], audit["after"]["head"])
