@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-26T18:19:14.969322+00:00",
+  "generated_at": "2026-10-26T18:20:00.076225+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -864,8 +864,8 @@
     },
     {
       "path": "tests/test_noteri_wsl_running_status.py",
-      "sha256": "251cdc5a5286fe0a5833e877b01492ec2bc87eb48ad763d706c6bf9ed36ad565",
-      "size": 9358
+      "sha256": "df49bacc620162db7717c1bcdbd0f5c38cb49ee8d0c62b163937c8e7fa503880",
+      "size": 9429
     },
     {
       "path": "tests/test_notion_sink_integrity.py",
