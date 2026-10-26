@@ -136,8 +136,8 @@ Esse comportamento precisa ser confirmado no host antes de atribuir prontidão.
   A distribuição pode parar após a leitura (TOCTOU); o acesso POSIX separado
   precisa de transporte e Session Launcher/Gateway **dentro** do guest,
   previamente homologados. O helper jamais testa systemd/psql por conta própria.
-- Implementação: `scripts/noteri_wsl_running_status.py`, integrada ao caminho
-  `run` do Command Gateway existente. Testes positivos, negativos, SHA/lock,
+- Implementação: rotinas internas em `scripts/command_gateway.py`, sem
+  dependência de módulo auxiliar no pacote instalado. Testes positivos, negativos, SHA/lock,
   replay e Windows: `tests/test_noteri_wsl_running_status.py`.
 
 Não ativar o perfil na máquina nem iniciar distribuições sem gate operacional
