@@ -204,8 +204,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "4e5a1f0168690cea29297c33331d942359e2d4581b4e9f6fbcada9cffc8666f6",
-      "size": 13222
+      "sha256": "0b470c248c5afc6f1ceb38e985fde2ccc9ce71c9e12d2c2d58c4c29c69353989",
+      "size": 13233
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -426,11 +426,6 @@
       "path": "scripts/native_host_capacity_probe.py",
       "sha256": "0e3e500b359960ac1c4dfc4971a3f38c4b19d59be57a9cdccb126665de28685f",
       "size": 6892
-    },
-    {
-      "path": "scripts/noteri_wsl_running_status.py",
-      "sha256": "ea54a52e7ba25044e480f41ade6e68dfcde50cce949f5270ea47727fd3a3e516",
-      "size": 6210
     },
     {
       "path": "scripts/owner_host_power_once.py",
