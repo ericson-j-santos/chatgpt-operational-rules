@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import command_gateway as cg
-import noteri_wsl_running_status as wsl
+wsl = cg  # Self-contained installed Gateway, not a sibling runtime dependency.
 
 WSL_EXE = r"C:\Windows\System32\wsl.exe"
 EXACT = [WSL_EXE, "--list", "--running", "--quiet"]
@@ -37,10 +37,10 @@ def policy(**extra):
 class NoteriWslRunningGateTests(unittest.TestCase):
     def setUp(self):
         self.host = mock.patch.object(
-            wsl, "host_context", return_value=("nt", "Noteri"),
+            wsl, "wsl_host_context", return_value=("nt", "Noteri"),
         )
         self.sysbinary = mock.patch.object(
-            wsl, "system_wsl_path", return_value=WSL_EXE,
+            wsl, "wsl_system_path", return_value=WSL_EXE,
         )
         self.host.start()
         self.sysbinary.start()
@@ -49,8 +49,8 @@ class NoteriWslRunningGateTests(unittest.TestCase):
 
     def test_command_gateway_admits_only_one_fixed_status_command(self):
         cg.validate_command(EXACT, 1, policy())
-        self.assertTrue(wsl.is_wsl_command(EXACT))
-        self.assertFalse(wsl.is_wsl_command(["python", "-B", "approved.py"]))
+        self.assertTrue(wsl.wsl_is_command(EXACT))
+        self.assertFalse(wsl.wsl_is_command(["python", "-B", "approved.py"]))
         self.assertIn("wsl", policy()["blocked_executables"])
 
     def test_no_policy_opt_in_or_non_boolean_policy_is_blocked(self):
@@ -93,7 +93,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
                  ("nt", "Noteri-renamed")]
         for platform, host in cases:
             with self.subTest(host=host), mock.patch.object(
-                wsl, "host_context", return_value=(platform, host),
+                wsl, "wsl_host_context", return_value=(platform, host),
             ), self.assertRaises(cg.GatewayError):
                 cg.validate_command(EXACT, 1, policy())
         with self.assertRaises(cg.GatewayError):
@@ -105,7 +105,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
             "Ubuntu-24.04\nPrivateDevDistro\n".encode("utf-8"),
             b"\xff\xfe" + "Ubuntu-24.04\r\n".encode("utf-16le"),
         ]:
-            report = wsl.sanitize_output(0, raw, b"")
+            report = wsl.wsl_sanitize_output(0, raw, b"")
             self.assertEqual(report["result"], "NOTERI_WSL_RUNNING_STATUS_READONLY")
             self.assertTrue(report["ubuntu_running_candidate"])
             self.assertEqual(report["ready_for_pr"], False)
@@ -116,7 +116,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
             self.assertNotIn("PrivateDevDistro", json.dumps(report))
 
     def test_empty_output_is_not_a_linux_launch(self):
-        report = wsl.sanitize_output(0, b"", b"")
+        report = wsl.wsl_sanitize_output(0, b"", b"")
         self.assertEqual(report["running_count"], 0)
         self.assertFalse(report["ubuntu_running_candidate"])
         self.assertFalse(report["linux_service_started"])
@@ -133,8 +133,8 @@ class NoteriWslRunningGateTests(unittest.TestCase):
         ]
         for rc, out, err in cases:
             with self.subTest(rc=rc, bytes=len(out)):
-                with self.assertRaises(wsl.StatusBlocked):
-                    wsl.sanitize_output(rc, out, err)
+                with self.assertRaises(wsl.WslStatusBlocked):
+                    wsl.wsl_sanitize_output(rc, out, err)
 
     def test_fixed_runner_has_static_argv_short_timeout_and_no_raw_output(self):
         observed = []
@@ -143,7 +143,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
             return subprocess.CompletedProcess(args, 0,
                 "Ubuntu-24.04\nPrivateDevDistro\n".encode(), b"")
         for _ in range(2):
-            out = wsl.run_fixed(
+            out = wsl.wsl_run_fixed(
                 EXACT, 1, policy(), cwd=r"C:\dev\chatgpt-workers\wt-chat-test",
                 timeout=60, runner=runner,
             )
@@ -164,7 +164,7 @@ class NoteriWslRunningGateTests(unittest.TestCase):
     def test_runner_os_error_is_fail_closed_and_non_leaking(self):
         def denied(*_args, **_kw):
             raise OSError("PRIVATE_DRIVE_TOKEN_PATH_MUST_NOT_LEAK")
-        out = wsl.run_fixed(EXACT, 1, policy(), cwd="C:\\dev", timeout=12, runner=denied)
+        out = wsl.wsl_run_fixed(EXACT, 1, policy(), cwd="C:\\dev", timeout=12, runner=denied)
         self.assertEqual(out.returncode, cg.EXIT_COMMAND)
         self.assertNotIn("PRIVATE_DRIVE", out.stdout + out.stderr)
         self.assertEqual(json.loads(out.stdout)["result"],
