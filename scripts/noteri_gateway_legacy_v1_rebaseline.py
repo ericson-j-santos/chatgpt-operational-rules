@@ -11,12 +11,14 @@ exclusive lock, replaceability preflight and rollback.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
 import re
 import socket
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -199,3 +201,31 @@ def verify_legacy_v1_current_state(
         "managed_runtime_changed": False,
         "installation_authorized": False,
     }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Noteri legacy Gateway recovery preflight only")
+    parser.add_argument("--expected-receipt-sha256", required=True)
+    parser.add_argument("--expected-manifest-sha256", required=True)
+    ns = parser.parse_args()
+    try:
+        report = verify_legacy_v1_current_state(
+            INSTALL_ROOT,
+            expected_receipt_sha256=ns.expected_receipt_sha256,
+            expected_manifest_sha256=ns.expected_manifest_sha256,
+        )
+    except (LegacyBlocked, OSError, ValueError):
+        # No raw ACL, SID, path, ADS, credentials or OS error in this receipt.
+        print(json.dumps({
+            "result": "LEGACY_RECOVERY_PREFLIGHT_BLOCKED",
+            "new_v2_snapshot_created": False,
+            "managed_runtime_changed": False,
+            "installation_authorized": False,
+        }, sort_keys=True))
+        return 2
+    print(json.dumps(report, sort_keys=True, separators=(",", ":")))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
