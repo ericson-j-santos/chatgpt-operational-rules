@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-26T21:18:24.070Z",
+  "generated_at": "2026-10-27T19:33:14.353728+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -131,6 +131,11 @@
       "path": "docs/sql-server-enterprise-validation-gate.md",
       "sha256": "e841ca1bcae8fbff581b0161ffad1e6898ac2a05aa9bca0bf2bc91db045dac63",
       "size": 5556
+    },
+    {
+      "path": "docs/todo-gateway-local-inventory.md",
+      "sha256": "1f047c196e0511e7514b08db81bc1c9651c27769c380de79b92aa68c845e4262",
+      "size": 2545
     },
     {
       "path": "docs/triage-pipeline.md",
@@ -623,6 +628,11 @@
       "size": 2913
     },
     {
+      "path": "scripts/todo_gateway_local_inventory.py",
+      "sha256": "b37f9dd742f828cb95981e8ef8b9f080dbdd4e08fb997ba454bcef232663413f",
+      "size": 22581
+    },
+    {
       "path": "scripts/todo_gateway_pc24x7.py",
       "sha256": "d7b0c59477f1962b78c229b2968018136380aad2c8bd2bf926d11dbbc3250079",
       "size": 8559
@@ -1021,6 +1031,11 @@
       "path": "tests/test_todo_gateway_debian_systemd.py",
       "sha256": "62c9b73ac4109e0b2343ec81e389df80d51fa8cab5140da20c6740f445786cad",
       "size": 41039
+    },
+    {
+      "path": "tests/test_todo_gateway_local_inventory.py",
+      "sha256": "d30c39ac406b0e1608a9a6efed0f8e124a6cb440e3170c7a8078ee3bab96b943",
+      "size": 10599
     },
     {
       "path": "tests/test_todo_gateway_pc24x7.py",
