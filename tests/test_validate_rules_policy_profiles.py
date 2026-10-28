@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -104,6 +108,113 @@ class ValidateRulesPolicyProfilesTests(unittest.TestCase):
             "Command Gateway POSIX não vincula o ambiente aos caminhos confiáveis.",
             errors,
         )
+
+    def test_manifest_generator_bootstraps_sibling_import_under_isolation(self) -> None:
+        script_dir = ROOT / "scripts"
+        generator_path = script_dir / "generate_manifest.py"
+        original_path = list(sys.path)
+        original_dont_write_bytecode = sys.dont_write_bytecode
+        original_validator = sys.modules.pop("validate_rules", None)
+        module_name = "_generate_manifest_isolated_import_test"
+        sys.modules.pop(module_name, None)
+        try:
+            sys.path[:] = [
+                entry
+                for entry in original_path
+                if Path(entry or ".").resolve() != script_dir.resolve()
+            ]
+            spec = importlib.util.spec_from_file_location(module_name, generator_path)
+            self.assertIsNotNone(spec)
+            self.assertIsNotNone(spec.loader)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertEqual(module.SCRIPT_DIR, script_dir)
+            self.assertEqual(sys.path[0], str(script_dir))
+            self.assertIn(".github/workflows/validate-rules.yml", module.REQUIRED_PATHS)
+        finally:
+            sys.modules.pop(module_name, None)
+            sys.path[:] = original_path
+            sys.dont_write_bytecode = original_dont_write_bytecode
+            if original_validator is None:
+                sys.modules.pop("validate_rules", None)
+            else:
+                sys.modules["validate_rules"] = original_validator
+
+    def test_manifest_generator_entrypoint_runs_under_isolated_python(self) -> None:
+        generator_path = ROOT / "scripts" / "generate_manifest.py"
+        manifest_path = ROOT / "MANIFEST.json"
+        generator_source = generator_path.read_text(encoding="utf-8")
+        manifest_source = manifest_path.read_bytes()
+        bootstrap = (
+            "SCRIPT_DIR = Path(__file__).resolve().parent\n"
+            "if str(SCRIPT_DIR) not in sys.path:\n"
+            "    sys.path.insert(0, str(SCRIPT_DIR))\n\n"
+        )
+        self.assertIn(bootstrap, generator_source)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture_root = Path(tmp) / "repository"
+            listed = subprocess.run(
+                ["git", "-C", str(ROOT), "ls-files", "-z"],
+                capture_output=True,
+                check=True,
+            )
+            for raw_path in listed.stdout.split(b"\0"):
+                if not raw_path:
+                    continue
+                relative = Path(raw_path.decode("utf-8"))
+                destination = fixture_root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / relative, destination)
+
+            subprocess.run(["git", "init", "--quiet", str(fixture_root)], check=True)
+            subprocess.run(
+                ["git", "-C", str(fixture_root), "add", "--all"],
+                check=True,
+            )
+            fixture_generator = fixture_root / "scripts" / "generate_manifest.py"
+            fixture_generator.write_text(
+                generator_source.replace(bootstrap, "", 1),
+                encoding="utf-8",
+                newline="\n",
+            )
+            negative = subprocess.run(
+                [sys.executable, "-I", str(fixture_generator)],
+                cwd=fixture_root,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(negative.returncode, 0)
+            self.assertIn("No module named 'validate_rules'", negative.stderr)
+
+            fixture_generator.write_text(
+                generator_source,
+                encoding="utf-8",
+                newline="\n",
+            )
+            positive = subprocess.run(
+                [sys.executable, "-I", str(fixture_generator)],
+                cwd=fixture_root,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(positive.returncode, 0, positive.stderr)
+            self.assertIn("MANIFEST_GENERATED", positive.stdout)
+
+            generated = json.loads((fixture_root / "MANIFEST.json").read_text(encoding="utf-8"))
+            entries = {entry["path"]: entry for entry in generated["files"]}
+            payload = fixture_generator.read_bytes()
+            self.assertEqual(
+                entries["scripts/generate_manifest.py"]["sha256"],
+                hashlib.sha256(payload).hexdigest(),
+            )
+            self.assertEqual(entries["scripts/generate_manifest.py"]["size"], len(payload))
+
+        self.assertEqual(generator_path.read_text(encoding="utf-8"), generator_source)
+        self.assertEqual(manifest_path.read_bytes(), manifest_source)
 
 
 class UniversalAcceptancePolicyTests(unittest.TestCase):

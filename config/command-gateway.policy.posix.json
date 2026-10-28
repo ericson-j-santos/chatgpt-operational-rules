@@ -90,5 +90,6 @@
   "require_preflight_snapshot": true,
   "session_source_roots": [],
   "governed_branch_updates": [],
+  "governed_reconciliations": [],
   "allowed_executable_specs": []
 }

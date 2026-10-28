@@ -68,6 +68,7 @@ POLICY_LIST_FIELDS = {
     "git_untracked_excludes",
     "session_source_roots",
     "governed_branch_updates",
+    "governed_reconciliations",
     "allowed_executable_specs",
 }
 POLICY_PATH_LIST_FIELDS = ("allowed_roots", "denied_roots", "session_source_roots")
@@ -415,12 +416,16 @@ def validate_policy(data: object, *, enforce_platform: bool = True) -> dict[str,
         value = data[field]
         if not isinstance(value, list):
             raise GatewayError(f"{field} deve ser lista")
-        if field in {"governed_branch_updates", "allowed_executable_specs"}:
-            path_keys = (
-                ("script", "repo_root")
-                if field == "governed_branch_updates"
-                else ("path",)
-            )
+        if field in {
+            "governed_branch_updates", "governed_reconciliations",
+            "allowed_executable_specs",
+        }:
+            if field == "governed_branch_updates":
+                path_keys = ("script", "repo_root")
+            elif field == "governed_reconciliations":
+                path_keys = ("script", "repo_root", "proposal")
+            else:
+                path_keys = ("path",)
             for index, record in enumerate(value):
                 if not isinstance(record, dict):
                     raise GatewayError(f"{field}[{index}] deve ser objeto")
@@ -467,6 +472,11 @@ def configured_policy_paths(policy: dict[str, Any]) -> list[tuple[str, str]]:
             value = record.get(key)
             if value is not None:
                 configured.append((f"governed_branch_updates[{index}].{key}", value))
+    for index, record in enumerate(policy.get("governed_reconciliations", [])):
+        for key in ("script", "repo_root", "proposal"):
+            value = record.get(key)
+            if value is not None:
+                configured.append((f"governed_reconciliations[{index}].{key}", value))
     for index, record in enumerate(policy.get("allowed_executable_specs", [])):
         value = record.get("path")
         if value is not None:
@@ -552,6 +562,20 @@ def resolve_runtime_policy_paths(policy: dict[str, Any]) -> dict[str, Any]:
         governed_updates.append(resolved_record)
     if "governed_branch_updates" in policy:
         resolved["governed_branch_updates"] = governed_updates
+    governed_reconciliations: list[dict[str, Any]] = []
+    for index, record in enumerate(policy.get("governed_reconciliations", [])):
+        resolved_record = dict(record)
+        for key in ("script", "repo_root", "proposal"):
+            value = record.get(key)
+            if value is not None:
+                resolved_record[key] = canonicalize_policy_path(
+                    value,
+                    field=f"governed_reconciliations[{index}].{key}",
+                    allow_glob=False,
+                )
+        governed_reconciliations.append(resolved_record)
+    if "governed_reconciliations" in policy:
+        resolved["governed_reconciliations"] = governed_reconciliations
     executable_specs: list[dict[str, Any]] = []
     for index, record in enumerate(policy.get("allowed_executable_specs", [])):
         resolved_record = dict(record)
@@ -737,6 +761,7 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any], cwd
     if exe == "docker" and any(tail[: len(p)] == p for p in DOCKER_DESTRUCTIVE):
         raise GatewayError("operação Docker destrutiva bloqueada")
     validate_governed_branch_update(args, cwd or Path.cwd(), policy)
+    validate_governed_reconciliation(args, risk, cwd or Path.cwd(), policy)
 
 
 def python_script_path(args: Sequence[str], cwd: Path) -> Path | None:
@@ -815,6 +840,79 @@ def validate_governed_branch_update(args: Sequence[str], cwd: Path, policy: dict
         raise GatewayError("governed branch update script is unavailable") from exc
     if lexical_norm(resolved_script) != lexical_norm(frozen_script):
         raise GatewayError("governed branch update script changed after policy validation")
+
+
+def validate_governed_reconciliation(
+    args: Sequence[str], risk: int, cwd: Path, policy: dict[str, Any]
+) -> None:
+    """Bind the PR #185 reconciler to one reviewed proposal and worktree."""
+    exe = Path(args[0]).name.casefold() if args else ""
+    if exe.endswith(".exe"):
+        exe = exe[:-4]
+    script = python_script_path(args, cwd)
+    if exe not in {"python", "python3"} or script is None:
+        return
+    if script.name != "reconcile_todo_gateway_pr185_main_governed.py":
+        return
+    if risk != 2:
+        raise GatewayError("governed reconciliation requires risk 2")
+
+    allowed = {
+        "--repo", "--proposal", "--proposal-sha256", "--confirm", "--correlation-id",
+    }
+    pairs: dict[str, str] = {}
+    idx = 2
+    while idx < len(args):
+        key = args[idx]
+        if key not in allowed or idx + 1 >= len(args) or key in pairs:
+            raise GatewayError("governed reconciliation arguments are restricted")
+        pairs[key] = args[idx + 1]
+        idx += 2
+    if set(pairs) != allowed:
+        raise GatewayError("governed reconciliation requires the complete reviewed argument set")
+
+    matches = []
+    for record in policy.get("governed_reconciliations", []):
+        if lexical_norm(script) != lexical_norm(Path(str(record.get("script", "")))):
+            continue
+        if lexical_norm(cwd) != lexical_norm(str(record.get("repo_root", ""))):
+            continue
+        if lexical_norm(pairs["--repo"]) != lexical_norm(str(record.get("repo_root", ""))):
+            continue
+        if lexical_norm(pairs["--proposal"]) != lexical_norm(str(record.get("proposal", ""))):
+            continue
+        if pairs["--proposal-sha256"].casefold() != str(record.get("proposal_sha256", "")).casefold():
+            continue
+        if pairs["--confirm"] != str(record.get("confirm", "")):
+            continue
+        matches.append(record)
+    if len(matches) != 1:
+        raise GatewayError("governed reconciliation capability is not configured or is ambiguous")
+
+    record = matches[0]
+    frozen_script = Path(str(record["script"]))
+    frozen_proposal = Path(str(record["proposal"]))
+    for label, frozen in (
+        ("governed reconciliation script", frozen_script),
+        ("governed reconciliation proposal", frozen_proposal),
+    ):
+        assert_no_link_components(frozen, field=label)
+        try:
+            resolved = frozen.resolve(strict=True)
+        except OSError as exc:
+            raise GatewayError(f"{label} is unavailable") from exc
+        if lexical_norm(resolved) != lexical_norm(frozen):
+            raise GatewayError(f"{label} changed after policy validation")
+    expected_digest = str(record.get("proposal_sha256", "")).casefold()
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
+        raise GatewayError("governed reconciliation proposal digest is invalid")
+    if sha256_file(frozen_proposal).casefold() != expected_digest:
+        raise GatewayError("governed reconciliation proposal integrity is not proven")
+    expected_script_digest = str(record.get("script_sha256", "")).casefold()
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_script_digest):
+        raise GatewayError("governed reconciliation script digest is invalid")
+    if sha256_file(frozen_script).casefold() != expected_script_digest:
+        raise GatewayError("governed reconciliation script integrity is not proven")
 
 
 def assert_safe_gui_automation(args: Sequence[str], cwd: Path, policy: dict[str, Any]) -> None:
