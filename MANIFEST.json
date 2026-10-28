@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-27T19:33:14.353728+00:00",
+  "generated_at": "2026-10-28T00:40:41.009194+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -69,8 +69,8 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "9e08fe4f5c4030425700f71c67ab546f0f8540422465d53d66c85823cb970f42",
-      "size": 2859
+      "sha256": "4e80e7af2be85156b44e4b27686c15ec29f5d16e61f9612f101afb861bcee1be",
+      "size": 3372
     },
     {
       "path": "config/command-gateway.policy.posix.json",
@@ -518,6 +518,11 @@
       "size": 9122
     },
     {
+      "path": "scripts/reconcile_lenovo_pr112_main_governed.py",
+      "sha256": "151e70df7733649690801850e0bc4da99b97ccb2ea14d9c480cb3d1e8abcca34",
+      "size": 5545
+    },
+    {
       "path": "scripts/render_postgres_preservation.py",
       "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
       "size": 13578
@@ -664,8 +669,8 @@
     },
     {
       "path": "scripts/update_branch_fast_forward_governed.py",
-      "sha256": "0a2051052b3d3d53db47c44e7e0aeb49e324ba08dc57dbcd716562319dace3f3",
-      "size": 7871
+      "sha256": "5c10954bdbeb23354e1b4cd5b7922246d0e4e1be50d2b1e762e8151753df52b1",
+      "size": 8501
     },
     {
       "path": "scripts/update_command_gateway_host.py",
@@ -958,6 +963,11 @@
       "size": 7334
     },
     {
+      "path": "tests/test_reconcile_lenovo_pr112_main_governed.py",
+      "sha256": "4d547d0f8faa8fab5d572e2b80b7b8aecb52c4daaf44adbddd23b820504a7fa9",
+      "size": 4884
+    },
+    {
       "path": "tests/test_render_postgres_preservation.py",
       "sha256": "d06995aaaa82374e674a27ba15544a0bb87951dec1c2532a1289503cd55a53c7",
       "size": 19230
@@ -1079,8 +1089,8 @@
     },
     {
       "path": "tests/test_update_branch_fast_forward_governed.py",
-      "sha256": "928f791f78598106e489826b0a5c49ae33f04e17885fcc4d11db0453696b5370",
-      "size": 12120
+      "sha256": "d57c28237849582fe6d7cf1a748122a0ae0b3d23780b3ccc713e448d6dd3657a",
+      "size": 14461
     },
     {
       "path": "tests/test_update_command_gateway_host.py",

@@ -39,6 +39,11 @@ RULES_HEAD_SHA = "2eb124bf457b9e121141eaca7dd124865374eaeb"
 RULES_REPO_ROOT = (
     r"C:\dev\chatgpt-workers\wt-chat-noteri-eventlog-rules-reconcile-gs-20261025-r2"
 )
+LENOVO_PR112_REPOSITORY = "ericson-j-santos/desktop-pc24x7-runtime"
+LENOVO_PR112_BRANCH = "fix/lenovo-native-task-readback-20261027"
+LENOVO_PR112_REMOTE_SHA = "04d7788513618bfd3cf39c283747f9e3f0d88397"
+LENOVO_PR112_HEAD_SHA = "0f2337012a7926d2327cfbdd8931147354d1db68"
+LENOVO_PR112_REPO_ROOT = r"C:\dev\chatgpt-workers\wt-chat-lenovo-task-readback-20261027"
 
 
 def reviewed_operations() -> tuple[dict[str, str], ...]:
@@ -70,6 +75,13 @@ def reviewed_operations() -> tuple[dict[str, str], ...]:
             "expected_remote": RULES_REMOTE_SHA,
             "expected_head": RULES_HEAD_SHA,
             "repo_root": RULES_REPO_ROOT,
+        },
+        {
+            "repository": LENOVO_PR112_REPOSITORY,
+            "branch": LENOVO_PR112_BRANCH,
+            "expected_remote": LENOVO_PR112_REMOTE_SHA,
+            "expected_head": LENOVO_PR112_HEAD_SHA,
+            "repo_root": LENOVO_PR112_REPO_ROOT,
         },
     )
 

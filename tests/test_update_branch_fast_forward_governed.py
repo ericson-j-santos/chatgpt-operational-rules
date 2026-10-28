@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import tempfile
 import unittest
@@ -216,6 +217,51 @@ class GovernedUpdateTests(unittest.TestCase):
                             expected_head,
                         )
                 git.assert_not_called()
+
+    def test_lenovo_pr112_policy_and_script_scope_match_exactly(self) -> None:
+        operation = next(
+            item for item in module.reviewed_operations()
+            if item["branch"] == module.LENOVO_PR112_BRANCH
+        )
+        self.assertEqual(operation, {
+            "repository": "ericson-j-santos/desktop-pc24x7-runtime",
+            "branch": "fix/lenovo-native-task-readback-20261027",
+            "expected_remote": "04d7788513618bfd3cf39c283747f9e3f0d88397",
+            "expected_head": "0f2337012a7926d2327cfbdd8931147354d1db68",
+            "repo_root": r"C:\dev\chatgpt-workers\wt-chat-lenovo-task-readback-20261027",
+        })
+        policy = json.loads((ROOT / "config" / "command-gateway.policy.json").read_text())
+        matches = [item for item in policy["governed_branch_updates"] if item["branch"] == operation["branch"]]
+        self.assertEqual(len(matches), 1)
+        self.assertEqual({key: matches[0][key] for key in operation}, operation)
+        self.assertEqual(
+            matches[0]["script"],
+            r"C:\dev\chatgpt-workers\wt-chat-lenovo-pr112-rules-20261027\scripts\update_branch_fast_forward_governed.py",
+        )
+
+    def test_lenovo_pr112_update_and_mixed_sha_rejection(self) -> None:
+        values = {
+            "repo": self.base_args["repo"],
+            "remote": "origin",
+            "branch": module.LENOVO_PR112_BRANCH,
+            "expected_remote": module.LENOVO_PR112_REMOTE_SHA,
+            "expected_head": module.LENOVO_PR112_HEAD_SHA,
+        }
+        fake_git, calls = fake_git_factory(
+            repository=module.LENOVO_PR112_REPOSITORY,
+            branch=module.LENOVO_PR112_BRANCH,
+            expected_remote=module.LENOVO_PR112_REMOTE_SHA,
+            expected_head=module.LENOVO_PR112_HEAD_SHA,
+        )
+        with (
+            patch.object(module, "LENOVO_PR112_REPO_ROOT", str(values["repo"])),
+            patch.object(module, "git", side_effect=fake_git),
+        ):
+            evidence = module.update(**values)
+            with self.assertRaisesRegex(RuntimeError, "reviewed branch"):
+                module.validate(**dict(values, expected_head=module.EXPECTED_HEAD_SHA))
+        self.assertEqual(evidence["post_remote"], module.LENOVO_PR112_HEAD_SHA)
+        self.assertEqual(sum(call[:1] == ("push",) for call in calls), 1)
 
     def test_update_aborts_if_remote_changes_between_checks(self) -> None:
         fake_git, calls = fake_git_factory([module.EXPECTED_REMOTE_SHA, "4" * 40])
