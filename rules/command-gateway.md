@@ -122,6 +122,12 @@ Esse comportamento precisa ser confirmado no host antes de atribuir prontidão.
 - A chave de política `noteri_wsl_running_inventory` deve ser booleano **true**
   em um perfil explicitamente admitido para o Noteri; o padrão é ausente/false.
   A política Windows global continua com `wsl` em `blocked_executables`.
+- O perfil versionado `config/command-gateway.policy.noteri-wsl.json` difere da
+  política Windows global somente pelo opt-in. O updater canônico o seleciona
+  apenas com `--noteri-wsl-inventory-profile` no Windows `Noteri` exato; sem a
+  flag, instala a política global. O arquivo selecionado deve vir do mesmo
+  bundle SHA/manifesto verificado, sem gerar política não assinada no host.
+  Essa seleção não dispensa autorização Risk2, backup, rollback e readback.
 - Exigir `os.name=nt`, hostname exato `Noteri`, política `platform=windows`,
   sessão existente, Gateway `risk=1`, lock, HEAD SHA e cwd isolado.
 - O executável deve ser exatamente o `wsl.exe` do diretório Win32 System32,

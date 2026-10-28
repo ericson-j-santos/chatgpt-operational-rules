@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import socket
 import stat
 import sys
 import tempfile
@@ -19,6 +20,37 @@ import install_command_gateway_host as bootstrap
 
 EXIT_HOST_UPDATE = 28
 SUCCESS_RESULTS = {"HOST_UPDATE_OK", "HOST_UPDATE_ALREADY_CURRENT_VERIFIED"}
+NOTERI_WSL_POLICY_SOURCE = "config/command-gateway.policy.noteri-wsl.json"
+WINDOWS_POLICY_SOURCE = "config/command-gateway.policy.json"
+DEFAULT_RUNTIME_MAP = dict(bootstrap.RUNTIME_MAP)
+
+
+def runtime_map_for_profile(enabled: bool, *, platform: str, host: str) -> dict[str, str]:
+    """Select a SHA-pinned policy without widening the default Windows bundle."""
+    mapping = dict(DEFAULT_RUNTIME_MAP)
+    if enabled:
+        if platform != "nt" or host != "Noteri":
+            raise bootstrap.HostBootstrapError("perfil WSL somente no host Noteri Windows")
+        mapping[NOTERI_WSL_POLICY_SOURCE] = mapping.pop(WINDOWS_POLICY_SOURCE)
+    return mapping
+
+
+def verify_legacy_v1_with_original_map(
+    install_root: Path, *, receipt_sha256: str, manifest_sha256: str,
+) -> dict[str, Any]:
+    """Never reinterpret historical v1 source paths as the new profile."""
+    import noteri_gateway_legacy_v1_rebaseline as legacy
+
+    selected_runtime_map = bootstrap.RUNTIME_MAP
+    try:
+        bootstrap.RUNTIME_MAP = dict(DEFAULT_RUNTIME_MAP)
+        return legacy.verify_legacy_v1_current_state(
+            install_root,
+            expected_receipt_sha256=receipt_sha256,
+            expected_manifest_sha256=manifest_sha256,
+        )
+    finally:
+        bootstrap.RUNTIME_MAP = selected_runtime_map
 
 
 class RuntimeReplaceabilityError(bootstrap.HostBootstrapError):
@@ -698,6 +730,7 @@ def main() -> int:
     parser.add_argument("--noteri-legacy-v1-stage-only", action="store_true")
     parser.add_argument("--expected-legacy-receipt-sha256")
     parser.add_argument("--expected-legacy-manifest-sha256")
+    parser.add_argument("--noteri-wsl-inventory-profile", action="store_true")
     ns = parser.parse_args()
 
     install_root = ns.install_root or bootstrap.default_install_root()
@@ -734,6 +767,15 @@ def main() -> int:
         if len(expected) != 64 or actual != expected:
             raise bootstrap.HostBootstrapError("SHA-256 do updater divergente")
         commit = bootstrap.validate_commit(ns.commit)
+        if ns.noteri_wsl_inventory_profile and ns.noteri_legacy_v1_stage_only:
+            raise bootstrap.HostBootstrapError(
+                "perfil WSL exige atualização governada, não stage-only"
+            )
+        bootstrap.RUNTIME_MAP = runtime_map_for_profile(
+            ns.noteri_wsl_inventory_profile,
+            platform=os.name,
+            host=socket.gethostname(),
+        )
 
         phase = "acquire_update_lock"
         update_lock = acquire_update_lock(install_root)
@@ -777,12 +819,11 @@ def main() -> int:
                 )
             # Only for exact Noteri Win32 + pinned original v1 receipt/manifest.
             # The historical v1 is NEVER treated as Windows metadata evidence.
-            import noteri_gateway_legacy_v1_rebaseline as legacy
             phase = "verify_legacy_v1_live_state"
-            legacy_readback = legacy.verify_legacy_v1_current_state(
+            legacy_readback = verify_legacy_v1_with_original_map(
                 install_root,
-                expected_receipt_sha256=ns.expected_legacy_receipt_sha256,
-                expected_manifest_sha256=ns.expected_legacy_manifest_sha256,
+                receipt_sha256=ns.expected_legacy_receipt_sha256,
+                manifest_sha256=ns.expected_legacy_manifest_sha256,
             )
         else:
             if (
@@ -842,6 +883,8 @@ def main() -> int:
                 and previous_receipt
                 and previous_receipt.get("result") in SUCCESS_RESULTS
                 and previous_receipt.get("source_commit") == commit
+                and previous_receipt.get("noteri_wsl_inventory_profile", False)
+                == ns.noteri_wsl_inventory_profile
             ):
                 phase = "idempotent_readback"
                 desired = desired_runtime_state(
@@ -861,6 +904,7 @@ def main() -> int:
                     "result": "HOST_UPDATE_ALREADY_CURRENT_VERIFIED",
                     "transaction_id": transaction_id,
                     "source_commit": commit,
+                    "noteri_wsl_inventory_profile": ns.noteri_wsl_inventory_profile,
                     "verified_at": utc_now(),
                     "install_root": str(install_root),
                     "backup_dir": previous_receipt.get("backup_dir"),
@@ -1005,6 +1049,7 @@ def main() -> int:
             "result": "HOST_UPDATE_OK",
             "transaction_id": transaction_id,
             "source_commit": commit,
+            "noteri_wsl_inventory_profile": ns.noteri_wsl_inventory_profile,
             "rules_version": result.get("rules_version"),
             "updated_at": utc_now(),
             "host": result.get("host"),
@@ -1089,6 +1134,7 @@ def main() -> int:
         print(json.dumps(persisted, ensure_ascii=False, sort_keys=True), file=sys.stderr)
         return EXIT_HOST_UPDATE
     finally:
+        bootstrap.RUNTIME_MAP = dict(DEFAULT_RUNTIME_MAP)
         if update_lock is not None:
             try:
                 update_lock.close()

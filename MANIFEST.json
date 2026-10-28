@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-28T00:40:41.009194+00:00",
+  "generated_at": "2026-10-28T03:12:39.937476+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -71,6 +71,11 @@
       "path": "config/command-gateway.policy.json",
       "sha256": "4e80e7af2be85156b44e4b27686c15ec29f5d16e61f9612f101afb861bcee1be",
       "size": 3372
+    },
+    {
+      "path": "config/command-gateway.policy.noteri-wsl.json",
+      "sha256": "781eeef08b170c5129eb43a4f8a119e8f4c78aa21bf9322a20d3eaa516d75422",
+      "size": 3176
     },
     {
       "path": "config/command-gateway.policy.posix.json",
@@ -209,8 +214,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "0b470c248c5afc6f1ceb38e985fde2ccc9ce71c9e12d2c2d58c4c29c69353989",
-      "size": 13233
+      "sha256": "b5bc28d3f1af687a2afdc0b8ad2675d25f1960927ffdcfccb9fe5f29825a7a8a",
+      "size": 13707
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -674,13 +679,13 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "61b94398bab9f426e050270593225bc98ccd07966852816ad67c771373b40b2d",
-      "size": 45666
+      "sha256": "e4961e1efeb38a9c763ead8f3900d392942421c495cdd8a28e08fb7ceb0d92fe",
+      "size": 47722
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "b9ed71e978eb8c464d11b5235f1f25b766cb56a1bbe2c1032be28588a52cad85",
-      "size": 14459
+      "sha256": "f178a3cf489b152ff5230cc5e0df204589b329d0e7acdf778730971020d273f9",
+      "size": 15675
     },
     {
       "path": "services/__init__.py",
@@ -1094,8 +1099,8 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "f0c21542e0293d9d22cd391e0fef5b87afe7eb82cd5357e640b61a64d2a936ee",
-      "size": 74892
+      "sha256": "705e53542ed3f3530c7c26093ff4bf0628fd78a9530da899876691f7256e7f01",
+      "size": 82774
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
