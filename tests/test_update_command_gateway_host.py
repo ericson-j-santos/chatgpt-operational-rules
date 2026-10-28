@@ -19,9 +19,36 @@ SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import update_command_gateway_host as updater
+import noteri_gateway_legacy_v1_rebaseline as legacy
 
 
 class HostRuntimeUpdateTests(unittest.TestCase):
+    def test_legacy_v1_verifier_uses_original_sources_then_restores_profile(self) -> None:
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        observed: list[dict[str, str]] = []
+
+        def verify(*_args, **_kwargs):
+            observed.append(dict(updater.bootstrap.RUNTIME_MAP))
+            return {"verified": True}
+
+        with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected), \
+                mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                                  side_effect=verify):
+            self.assertEqual(updater.verify_legacy_v1_with_original_map(
+                Path("unused"), receipt_sha256="a" * 64,
+                manifest_sha256="b" * 64), {"verified": True})
+            self.assertEqual(updater.bootstrap.RUNTIME_MAP, selected)
+        self.assertEqual(observed, [updater.DEFAULT_RUNTIME_MAP])
+
+        with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected), \
+                mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                                  side_effect=RuntimeError("injected")):
+            with self.assertRaisesRegex(RuntimeError, "injected"):
+                updater.verify_legacy_v1_with_original_map(
+                    Path("unused"), receipt_sha256="a" * 64,
+                    manifest_sha256="b" * 64)
+            self.assertEqual(updater.bootstrap.RUNTIME_MAP, selected)
+
     def test_noteri_wsl_profile_is_explicit_and_host_bound(self) -> None:
         default = updater.runtime_map_for_profile(False, platform="nt", host="Noteri")
         self.assertEqual(default, updater.DEFAULT_RUNTIME_MAP)

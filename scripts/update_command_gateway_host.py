@@ -35,6 +35,24 @@ def runtime_map_for_profile(enabled: bool, *, platform: str, host: str) -> dict[
     return mapping
 
 
+def verify_legacy_v1_with_original_map(
+    install_root: Path, *, receipt_sha256: str, manifest_sha256: str,
+) -> dict[str, Any]:
+    """Never reinterpret historical v1 source paths as the new profile."""
+    import noteri_gateway_legacy_v1_rebaseline as legacy
+
+    selected_runtime_map = bootstrap.RUNTIME_MAP
+    try:
+        bootstrap.RUNTIME_MAP = dict(DEFAULT_RUNTIME_MAP)
+        return legacy.verify_legacy_v1_current_state(
+            install_root,
+            expected_receipt_sha256=receipt_sha256,
+            expected_manifest_sha256=manifest_sha256,
+        )
+    finally:
+        bootstrap.RUNTIME_MAP = selected_runtime_map
+
+
 class RuntimeReplaceabilityError(bootstrap.HostBootstrapError):
     """Falha fechada de preflight sem inferir a origem de um erro do SO."""
 
@@ -801,12 +819,11 @@ def main() -> int:
                 )
             # Only for exact Noteri Win32 + pinned original v1 receipt/manifest.
             # The historical v1 is NEVER treated as Windows metadata evidence.
-            import noteri_gateway_legacy_v1_rebaseline as legacy
             phase = "verify_legacy_v1_live_state"
-            legacy_readback = legacy.verify_legacy_v1_current_state(
+            legacy_readback = verify_legacy_v1_with_original_map(
                 install_root,
-                expected_receipt_sha256=ns.expected_legacy_receipt_sha256,
-                expected_manifest_sha256=ns.expected_legacy_manifest_sha256,
+                receipt_sha256=ns.expected_legacy_receipt_sha256,
+                manifest_sha256=ns.expected_legacy_manifest_sha256,
             )
         else:
             if (
