@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "platform": "windows",
+  "allowed_roots": [
+    "C:\\dev\\reqsys-v2-enterprise-real",
+    "C:\\dev\\wt-*",
+    "C:\\dev\\chatgpt-workers\\*"
+  ],
+  "denied_roots": ["%USERPROFILE%"],
+  "denied_segments": [".ssh", ".azure", ".aws", ".gnupg", ".kube"],
+  "denied_names": [".env", ".env.*", "id_rsa", "id_ed25519", "*.pem", "*.pfx", "*.p12"],
+  "allowed_executables": ["git", "python", "python3", "pytest", "node", "npm", "npx", "dotnet", "docker"],
+  "blocked_executables": ["cmd", "powershell", "pwsh", "bash", "sh", "wsl", "ssh", "scp", "az", "gh", "fly", "vercel", "kubectl", "terraform"],
+  "deny_inline_code": true,
+  "block_gui_input_automation": true,
+  "blocked_gui_input_markers": ["keybd_event(", "mouse_event(", "pyautogui.write(", "pyautogui.press(", "keyboard.write(", "keyboard.press(", "SetClipboardText("],
+  "blocked_gui_context_markers": [".invoke(", ".type_keys(", ".click_input(", "send_keys(", "win32clipboard"],
+  "require_git_repo": true,
+  "risk2_requires_clean_tree": true,
+  "max_timeout_seconds": 900,
+  "git_state_timeout_seconds": 60,
+  "state_dir": "%LOCALAPPDATA%\\ReqSys\\CommandGateway",
+  "git_untracked_excludes": [".tmp/**"],
+  "require_session_bootstrap": true,
+  "worktree_root": "C:\\dev\\chatgpt-workers",
+  "worktree_prefix": "wt-chat-",
+  "rules_version": "1.6.19",
+  "require_preflight_snapshot": true,
+  "session_source_roots": ["%LOCALAPPDATA%\\ReqSys\\NoteriGitHubRunner\\_work\\reqsys-v2-enterprise-real\\reqsys-v2-enterprise-real"],
+  "governed_branch_updates": [
+    {
+      "script": "C:\\dev\\chatgpt-workers\\operational-rules-validation\\scripts\\update_branch_fast_forward_governed.py",
+      "repo_root": "C:\\dev\\chatgpt-workers\\wt-chat-rp23ogs-diag-desktop-rp23-20261015-110652-19cc",
+      "repository": "ericson-j-santos/desktop-pc24x7-runtime",
+      "remote": "origin",
+      "branch": "fix/rp23ogs-host-label-isolation-draft-gating-20261015",
+      "expected_remote": "3f88cd5c35c1ab85c3dc13a30ad0bc645a1ff6b5",
+      "expected_head": "22b435ea287971e3e1ff0126d7cc3f096eae5747"
+    },
+    {
+      "script": "C:\\dev\\chatgpt-workers\\operational-rules-validation\\scripts\\update_branch_fast_forward_governed.py",
+      "repo_root": "C:\\dev\\chatgpt-workers\\wt-chat-engineering-worker-pool-base-20261022-a1",
+      "repository": "ericson-j-santos/engineering-worker-pool",
+      "remote": "origin",
+      "branch": "codex/windows-native-no-docker-20261022",
+      "expected_remote": "8740def7e832916452b13c52a1f4bec2f5712df7",
+      "expected_head": "cd150974a094dcda240987d8a2283c709a714d36"
+    },
+    {
+      "script": "C:\\dev\\chatgpt-workers\\wt-chat-lenovo-pr112-rules-20261027\\scripts\\update_branch_fast_forward_governed.py",
+      "repo_root": "C:\\dev\\chatgpt-workers\\wt-chat-lenovo-task-readback-20261027",
+      "repository": "ericson-j-santos/desktop-pc24x7-runtime",
+      "remote": "origin",
+      "branch": "fix/lenovo-native-task-readback-20261027",
+      "expected_remote": "04d7788513618bfd3cf39c283747f9e3f0d88397",
+      "expected_head": "0f2337012a7926d2327cfbdd8931147354d1db68"
+    }
+  ],
+  "allowed_executable_specs": [],
+  "noteri_wsl_running_inventory": true
+}
