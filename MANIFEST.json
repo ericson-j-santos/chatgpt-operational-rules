@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-27T19:33:14.353728+00:00",
+  "generated_at": "2026-10-28T00:40:37.593895+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "170513fd4a6888676e75619e882b33c916384cb48fca28c418d39c57bb7d349d",
-      "size": 17649
+      "sha256": "9608bd00f02d825b974e1683515bfc3612c37636a0fe81699b19dee2690a6ed1",
+      "size": 18119
     },
     {
       "path": ".gitignore",
@@ -359,8 +359,8 @@
     },
     {
       "path": "scripts/generate_manifest.py",
-      "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
-      "size": 1679
+      "sha256": "eb3d634bf478e20f2399547e26eb27f8c82c3bdcc210ec5a074e52489f675716",
+      "size": 1962
     },
     {
       "path": "scripts/github_schedule_bridge.py",
@@ -1089,8 +1089,8 @@
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
-      "sha256": "d719aef24cf06a1657ab637a0a7aef208324a26c93bdcd9006d6baaa620e9622",
-      "size": 5447
+      "sha256": "e58cafe4bc87e6475a0e684cb2225e81bb4b47ccfbaa0740ada4174d80afc84c",
+      "size": 10270
     }
   ]
 }
