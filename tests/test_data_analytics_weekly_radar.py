@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
+from urllib.error import HTTPError, URLError
 
 MODULE = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "data_analytics_weekly_radar.py"
 SPEC = importlib.util.spec_from_file_location("data_radar", MODULE)
@@ -171,6 +172,57 @@ class RadarTests(unittest.TestCase):
                     with patch.object(radar,"issue_list",side_effect=AssertionError("no issue listing")):
                         with self.assertRaisesRegex(radar.RadarError,"do not republish"):
                             radar.run("o/r","token",dry_run=False,output=folder)
+
+    def test_post_transient_error_is_not_retried(self):
+        with patch.object(radar,"urlopen",side_effect=URLError("connection dropped")) as urlopen_mock:
+            with patch.object(radar.time,"sleep",side_effect=AssertionError("no POST backoff")):
+                with self.assertRaisesRegex(radar.RadarError,"after 1 attempts"):
+                    radar.request("https://api.github.com/repos/o/r/issues",method="POST",payload={"title":"X"})
+        self.assertEqual(urlopen_mock.call_count,1)
+
+    def test_post_server_error_is_not_retried(self):
+        error=HTTPError("https://api.github.com/repos/o/r/issues",503,"unavailable",None,None)
+        with patch.object(radar,"urlopen",side_effect=error) as urlopen_mock:
+            with patch.object(radar.time,"sleep",side_effect=AssertionError("no POST backoff")):
+                with self.assertRaisesRegex(radar.RadarError,"after 1 attempts"):
+                    radar.request("https://api.github.com/repos/o/r/issues",method="POST",payload={"title":"X"})
+        self.assertEqual(urlopen_mock.call_count,1)
+
+    def test_get_transient_error_retains_bounded_retry(self):
+        with patch.object(radar,"urlopen",side_effect=URLError("connection dropped")) as urlopen_mock:
+            with patch.object(radar.time,"sleep",return_value=None) as sleep_mock:
+                with self.assertRaisesRegex(radar.RadarError,"after 2 attempts"):
+                    radar.request("https://example.invalid/resource",method="GET")
+        self.assertEqual(urlopen_mock.call_count,2)
+        self.assertEqual(sleep_mock.call_count,1)
+
+    def test_issue_publication_records_intent_and_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=pathlib.Path(tmp)
+            with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
+                with patch.object(radar,"issue_list",return_value=[]), patch.object(radar,"collect",return_value=([],{"ok":True})), patch.object(radar,"select",return_value=[]), patch.object(radar,"render",return_value="# Radar técnico de dados — teste"):
+                    with patch.object(radar,"gh",return_value={"html_url":"https://github.com/o/r/issues/77"}) as api:
+                        result=radar.run("o/r","token",output=folder)
+                    self.assertEqual(api.call_count,1)
+                    self.assertEqual(api.call_args.kwargs["method"],"POST")
+            intent=json.loads((folder/"publication-intent.json").read_text(encoding="utf-8"))
+            receipt=json.loads((folder/"report.json").read_text(encoding="utf-8"))
+            self.assertEqual(intent["run_id"],"777")
+            self.assertEqual(receipt["issue_url"],result["issue_url"])
+            self.assertEqual(receipt["issue_url"],"https://github.com/o/r/issues/77")
+
+    def test_uncertain_post_acknowledgement_never_republishes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=pathlib.Path(tmp)
+            with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
+                with patch.object(radar,"issue_list",return_value=[]), patch.object(radar,"collect",return_value=([],{"ok":True})), patch.object(radar,"select",return_value=[]), patch.object(radar,"render",return_value="# Radar técnico de dados — teste"):
+                    with patch.object(radar,"gh",return_value={}) as api:
+                        with self.assertRaisesRegex(radar.RadarError,"acknowledgement uncertain"):
+                            radar.run("o/r","token",output=folder)
+                        self.assertTrue((folder/"publication-intent.json").exists())
+                        with self.assertRaisesRegex(radar.RadarError,"do not republish"):
+                            radar.run("o/r","token",output=folder)
+                    self.assertEqual(api.call_count,1)
 
     def test_artifacts_written(self):
         with tempfile.TemporaryDirectory() as tmp:

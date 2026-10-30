@@ -84,8 +84,10 @@ def request(url: str, *, token: str="", method: str="GET", payload=None):
     headers={"User-Agent":USER_AGENT,"Accept":"application/rss+xml, application/atom+xml, application/xml, text/html, application/json;q=0.9, */*;q=0.8"}
     if token:
         headers.update({"Authorization":f"Bearer {token}","X-GitHub-Api-Version":"2022-11-28"})
+    # Issue creation is not idempotent: retry only read-only requests.
+    attempts=RETRIES if method in {"GET", "HEAD"} else 1
     last=None
-    for attempt in range(RETRIES):
+    for attempt in range(attempts):
         try:
             with urlopen(Request(url,headers=headers,data=data,method=method),timeout=TIMEOUT) as r:
                 return r.read().decode("utf-8",errors="replace")
@@ -93,8 +95,8 @@ def request(url: str, *, token: str="", method: str="GET", payload=None):
             last=exc
             if exc.code not in {408,429,500,502,503,504}: raise RadarError(f"HTTP {exc.code} for {url}") from exc
         except (URLError,TimeoutError) as exc: last=exc
-        if attempt+1 < RETRIES: time.sleep(2**attempt)
-    raise RadarError(f"request failed after {RETRIES} attempts: {url}: {last}")
+        if attempt+1 < attempts: time.sleep(2**attempt)
+    raise RadarError(f"request failed after {attempts} attempts: {url}: {last}")
 
 def gh(repo: str, suffix: str, token: str, *, method="GET", payload=None):
     raw=request(f"https://api.github.com/repos/{repo}/{suffix.lstrip('/')}",token=token,method=method,payload=payload)
@@ -294,6 +296,7 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
     now=now or datetime.now(timezone.utc)
     output=output or Path(OUT)
     receipt=output / "report.json"
+    intent_file=output / "publication-intent.json"
     if not dry_run and receipt.exists() and os.getenv("GITHUB_RUN_ID"):
         try:
             previous=json.loads(receipt.read_text(encoding="utf-8"))
@@ -303,6 +306,8 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
             raise RadarError("previous receipt invalid; do not republish")
         if previous.get("run_id")==os.getenv("GITHUB_RUN_ID"):
             return {**verify_publication(repo,token,output),"replay":True}
+    if not dry_run and intent_file.exists():
+        raise RadarError("publication intent already exists; do not republish")
     issues=issue_list(repo,token) if token else []
     title=issue_title(now)
     existing=next((x for x in issues if x.get("title")==title),None)
@@ -330,7 +335,28 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
     if existing: issue_url=str(existing.get("html_url") or "")
     elif not dry_run:
         if not token: raise RadarError("GH_TOKEN/GITHUB_TOKEN is required to publish")
-        issue_url=str(gh(repo,"issues",token,method="POST",payload={"title":title,"body":body}).get("html_url") or "")
+        run_id=os.getenv("GITHUB_RUN_ID", "")
+        head_sha=os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA", "")
+        if not re.fullmatch(r"[1-9][0-9]*",run_id) or not re.fullmatch(r"[0-9a-f]{40}",head_sha):
+            raise RadarError("GitHub run ID/SHA not attested for publication")
+        output.mkdir(parents=True,exist_ok=True)
+        intent={"schema_version":"1.0", "repo":repo, "title":title,
+                "run_id":run_id, "head_sha":head_sha, "correlation_id":cid}
+        try:
+            with intent_file.open("x",encoding="utf-8") as out:
+                json.dump(intent,out,ensure_ascii=False,sort_keys=True)
+                out.write("\n")
+                out.flush()
+                os.fsync(out.fileno())
+        except FileExistsError as exc:
+            raise RadarError("publication intent collision; do not republish") from exc
+        # Exactly one POST; an ambiguous outcome must be reconciled, never retried.
+        response=gh(repo,"issues",token,method="POST",payload={"title":title,"body":body})
+        candidate=response.get("html_url") if isinstance(response,dict) else None
+        prefix=f"https://github.com/{repo}/issues/"
+        if not isinstance(candidate,str) or not candidate.startswith(prefix) or not re.fullmatch(r"[1-9][0-9]*",candidate[len(prefix):]):
+            raise RadarError("publication acknowledgement uncertain; do not republish")
+        issue_url=candidate
     report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":dry_run,"replay":bool(existing),"issue_url":issue_url,"selected_count":len(chosen),"selected":[{**x,"limitation":limitation(x),"recommendation":recommendation(x)} for x in chosen],"sources":statuses,"correlation_id":cid,"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}
     write_artifacts(output,report,body); return report
 
