@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-30T16:43:43.601Z",
+  "generated_at": "2026-10-30T16:50:21.561Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -339,8 +339,8 @@
     },
     {
       "path": "scripts/data_analytics_weekly_radar.py",
-      "sha256": "055b7bc2f24233a7e046ed1a54c784e9c1b7b8c14c7faccebd912c1ae90b4b95",
-      "size": 20124
+      "sha256": "9f262ef8a01febcd50a2a2d1b795555659985af4e2c1f28371f0fbc363a36d56",
+      "size": 20730
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
@@ -809,8 +809,8 @@
     },
     {
       "path": "tests/test_data_analytics_weekly_radar.py",
-      "sha256": "45be197cf47e0d33dfab47dfc659d94a5fbc7915f545de6d58067731f73cf638",
-      "size": 10653
+      "sha256": "5ff1e913bed26866fffc22008634a2219bb3b28b5a36f04b1885d61cdb23435e",
+      "size": 12118
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",

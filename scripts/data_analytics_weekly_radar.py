@@ -291,7 +291,20 @@ def write_artifacts(output,report,body):
     output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8"); (output/"report.md").write_text(body,encoding="utf-8")
 
 def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
-    now=now or datetime.now(timezone.utc); output=output or Path(OUT); issues=issue_list(repo,token) if token else []; title=issue_title(now)
+    now=now or datetime.now(timezone.utc)
+    output=output or Path(OUT)
+    receipt=output / "report.json"
+    if not dry_run and receipt.exists() and os.getenv("GITHUB_RUN_ID"):
+        try:
+            previous=json.loads(receipt.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise RadarError("previous receipt invalid; do not republish") from exc
+        if not isinstance(previous,dict):
+            raise RadarError("previous receipt invalid; do not republish")
+        if previous.get("run_id")==os.getenv("GITHUB_RUN_ID"):
+            return {**verify_publication(repo,token,output),"replay":True}
+    issues=issue_list(repo,token) if token else []
+    title=issue_title(now)
     existing=next((x for x in issues if x.get("title")==title),None)
     if existing and not dry_run:
         body=str(existing.get("body") or ""); report={"schema_version":"1.0.0","generated_at":datetime.now(timezone.utc).isoformat(),"repo":repo,"title":title,"dry_run":False,"replay":True,"issue_url":str(existing.get("html_url") or ""),"selected_count":len(re.findall(r"(?m)^## \d+\.",body)),"selected":[],"sources":[],"correlation_id":hashlib.sha256(f"{repo}|{title}|replay".encode()).hexdigest()[:24],"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID","")}

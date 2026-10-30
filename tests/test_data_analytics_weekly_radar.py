@@ -151,6 +151,27 @@ class RadarTests(unittest.TestCase):
         self.assertIn("|| 'publisher'",data)
         self.assertIn("cancel-in-progress: false",data)
 
+    def test_run_repeat_uses_receipt_and_skips_stale_listing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=pathlib.Path(tmp); data=self.publication_fixture(folder)
+            with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
+                with patch.object(radar,"gh",return_value=self.published_fixture(data)) as api:
+                    with patch.object(radar,"issue_list",side_effect=AssertionError("must not list")):
+                        result=radar.run("o/r","token",dry_run=False,output=folder)
+                    api.assert_called_once_with("o/r","issues/77","token")
+            self.assertTrue(result["replay"])
+            self.assertEqual(result["issue_url"],data["issue_url"])
+
+    def test_run_repeat_invalid_receipt_fails_closed_before_publish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=pathlib.Path(tmp)
+            (folder/"report.json").write_text("{invalid-json",encoding="utf-8")
+            with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
+                with patch.object(radar,"gh",side_effect=AssertionError("no API")):
+                    with patch.object(radar,"issue_list",side_effect=AssertionError("no issue listing")):
+                        with self.assertRaisesRegex(radar.RadarError,"do not republish"):
+                            radar.run("o/r","token",dry_run=False,output=folder)
+
     def test_artifacts_written(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp); radar.write_artifacts(p,{"selected_count":0},"# report\n")
