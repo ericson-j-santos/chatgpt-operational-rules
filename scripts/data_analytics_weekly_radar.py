@@ -240,6 +240,53 @@ def issue_list(repo,token):
     if not isinstance(data,list): raise RadarError("unexpected GitHub issue-list response")
     return [x for x in data if isinstance(x,dict) and "pull_request" not in x]
 
+def verify_publication(repo: str, token: str, output: Path) -> dict:
+    """Verify the exact GitHub issue from this run without another publication."""
+    if not token:
+        raise RadarError("GH_TOKEN/GITHUB_TOKEN is required to verify the published issue")
+    try:
+        evidence = json.loads((output / "report.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RadarError("publication evidence missing or invalid") from exc
+    if not isinstance(evidence, dict):
+        raise RadarError("publication evidence must be an object")
+
+    run_id = os.getenv("GITHUB_RUN_ID", "")
+    sha = os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA", "")
+    url = evidence.get("issue_url")
+    title = evidence.get("title")
+    cid = evidence.get("correlation_id")
+    prefix = f"https://github.com/{repo}/issues/"
+    if (not run_id or not re.fullmatch(r"[0-9a-f]{40}", sha) or
+            evidence.get("run_id") != run_id or evidence.get("head_sha") != sha or
+            evidence.get("repo") != repo or evidence.get("dry_run") is not False or
+            type(evidence.get("replay")) is not bool):
+        raise RadarError("publication evidence differs from current run/repo/SHA")
+    if (not isinstance(url, str) or not url.startswith(prefix) or
+            not re.fullmatch(r"[1-9][0-9]*", url[len(prefix):]) or
+            not isinstance(title, str) or not title.startswith(PREFIX) or
+            not isinstance(cid, str) or not re.fullmatch(r"[0-9a-f]{24}", cid)):
+        raise RadarError("invalid published issue identity")
+
+    issue = gh(repo, f"issues/{url[len(prefix):]}", token)
+    if (not isinstance(issue, dict) or issue.get("pull_request") or
+            issue.get("html_url") != url or issue.get("title") != title):
+        raise RadarError("published issue readback mismatch")
+    body = str(issue.get("body") or "")
+    if not body.startswith("# Radar técnico de dados — "):
+        raise RadarError("published issue missing radar body")
+    if evidence["replay"] is False:
+        mark = chr(96)
+        expected = (
+            f"- Run: {mark}{run_id}{mark}",
+            f"- SHA: {mark}{sha}{mark}",
+            f"- Correlation ID: {mark}{cid}{mark}",
+        )
+        if not all(line in body for line in expected):
+            raise RadarError("published issue differs in run/SHA/correlation ID")
+    return {**evidence, "verification": "passed"}
+
+
 def write_artifacts(output,report,body):
     output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8"); (output/"report.md").write_text(body,encoding="utf-8")
 
@@ -275,11 +322,18 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
     write_artifacts(output,report,body); return report
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument("--repo",default=os.getenv("GITHUB_REPOSITORY","")); p.add_argument("--dry-run",action="store_true"); p.add_argument("--output-dir",default=OUT); a=p.parse_args(); token=os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or ""; output=Path(a.output_dir)
+    p=argparse.ArgumentParser(); p.add_argument("--repo",default=os.getenv("GITHUB_REPOSITORY","")); p.add_argument("--dry-run",action="store_true"); p.add_argument("--verify-publication",action="store_true"); p.add_argument("--output-dir",default=OUT); a=p.parse_args(); token=os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or ""; output=Path(a.output_dir)
     if not a.repo or "/" not in a.repo: print("RADAR_BLOCKED: invalid repo",file=sys.stderr); return 2
-    try: result=run(a.repo,token,dry_run=a.dry_run,output=output)
+    if a.dry_run and a.verify_publication: print("RADAR_BLOCKED: contradictory modes",file=sys.stderr); return 2
+    try:
+        result=verify_publication(a.repo,token,output) if a.verify_publication else run(a.repo,token,dry_run=a.dry_run,output=output)
     except (RadarError,json.JSONDecodeError,ValueError) as exc:
-        output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps({"status":"blocked","repo":a.repo,"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID",""),"reason":str(exc)},ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(f"RADAR_BLOCKED: {exc}",file=sys.stderr); return 1
-    print(json.dumps({k:result[k] for k in ("selected_count","issue_url","replay","dry_run","correlation_id")},ensure_ascii=False,sort_keys=True)); return 0
+        output.mkdir(parents=True,exist_ok=True)
+        error_file="verification.json" if a.verify_publication else "report.json"
+        (output/error_file).write_text(json.dumps({"status":"blocked","repo":a.repo,"head_sha":os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA",""),"run_id":os.getenv("GITHUB_RUN_ID",""),"reason":str(exc)},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+        print(f"RADAR_BLOCKED: {exc}",file=sys.stderr); return 1
+    summary={k:result[k] for k in ("selected_count","issue_url","replay","dry_run","correlation_id")}
+    if a.verify_publication: summary["verification"]=result["verification"]
+    print(json.dumps(summary,ensure_ascii=False,sort_keys=True)); return 0
 
 if __name__ == "__main__": raise SystemExit(main())

@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: data-analytics-weekly-radar-${{ github.event_name }}
+  group: data-analytics-weekly-radar-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publisher' }}
   cancel-in-progress: false
 
 jobs:
@@ -117,6 +117,7 @@ jobs:
         run: >-
           python scripts/data_analytics_weekly_radar.py
           --repo "$GITHUB_REPOSITORY"
+          --verify-publication
 
       - name: Upload radar evidence
         if: always()
