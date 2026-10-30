@@ -103,8 +103,8 @@ class HostBootstrapTests(unittest.TestCase):
             target = root / "managed.txt"
             target.write_bytes(b"previous")
             with mock.patch.object(
-                hb.os,
-                "replace",
+                hb,
+                "replace_file",
                 side_effect=PermissionError("injected-replace-failure"),
             ):
                 with self.assertRaisesRegex(
@@ -124,7 +124,9 @@ class HostBootstrapTests(unittest.TestCase):
                 Path(source).write_bytes(b"divergent")
                 raise PermissionError("injected-replace-failure")
 
-            with mock.patch.object(hb.os, "replace", side_effect=diverge_then_fail):
+            with mock.patch.object(
+                hb, "replace_file", side_effect=diverge_then_fail
+            ):
                 with self.assertRaisesRegex(
                     PermissionError, "injected-replace-failure"
                 ):
@@ -134,24 +136,22 @@ class HostBootstrapTests(unittest.TestCase):
             self.assertEqual(len(leftovers), 1)
             self.assertEqual(leftovers[0].read_bytes(), b"divergent")
 
-    def test_atomic_write_preserves_symlink_temp_after_replace_failure(self) -> None:
+    def test_atomic_write_preserves_non_file_temp_after_replace_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             target = root / "managed.txt"
             target.write_bytes(b"previous")
-            symlink_target = root / "external.txt"
-            symlink_target.write_bytes(b"desired")
 
-            def replace_temp_with_symlink_then_fail(source, _destination):
+            def replace_temp_with_directory_then_fail(source, _destination):
                 temp = Path(source)
                 temp.unlink()
-                temp.symlink_to(symlink_target)
+                temp.mkdir()
                 raise PermissionError("original-replace-failure")
 
             with mock.patch.object(
-                hb.os,
-                "replace",
-                side_effect=replace_temp_with_symlink_then_fail,
+                hb,
+                "replace_file",
+                side_effect=replace_temp_with_directory_then_fail,
             ):
                 with self.assertRaisesRegex(
                     PermissionError, "original-replace-failure"
@@ -160,8 +160,7 @@ class HostBootstrapTests(unittest.TestCase):
             self.assertEqual(target.read_bytes(), b"previous")
             leftovers = list(root.glob("managed.txt.tmp-*"))
             self.assertEqual(len(leftovers), 1)
-            self.assertTrue(leftovers[0].is_symlink())
-            self.assertEqual(leftovers[0].resolve(), symlink_target.resolve())
+            self.assertTrue(leftovers[0].is_dir())
 
     def test_atomic_write_preserves_unreadable_temp_and_original_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -176,8 +175,8 @@ class HostBootstrapTests(unittest.TestCase):
                 return original_read_bytes(path)
 
             with mock.patch.object(
-                hb.os,
-                "replace",
+                hb,
+                "replace_file",
                 side_effect=PermissionError("original-replace-failure"),
             ), mock.patch.object(Path, "read_bytes", deny_temp_read):
                 with self.assertRaisesRegex(
@@ -202,8 +201,8 @@ class HostBootstrapTests(unittest.TestCase):
                 return original_unlink(path, *args, **kwargs)
 
             with mock.patch.object(
-                hb.os,
-                "replace",
+                hb,
+                "replace_file",
                 side_effect=PermissionError("original-replace-failure"),
             ), mock.patch.object(Path, "unlink", deny_temp_unlink):
                 with self.assertRaisesRegex(

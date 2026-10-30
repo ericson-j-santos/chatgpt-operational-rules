@@ -59,6 +59,40 @@ class HostBootstrapError(RuntimeError):
     pass
 
 
+class WindowsReplaceError(OSError):
+    """Falha sanitizada e localizável da primitiva de replace no Windows."""
+
+    def __init__(self, operation: str, cause: BaseException) -> None:
+        self.operation = operation
+        self.os_error = cause if isinstance(cause, OSError) else None
+        errno = self.os_error.errno if self.os_error is not None else None
+        super().__init__(
+            errno,
+            f"falha Windows durante {operation}: {type(cause).__name__}",
+        )
+
+
+class RuntimeInstallError(HostBootstrapError):
+    """Vincula uma falha de instalação ao destino gerenciado allowlisted."""
+
+    def __init__(
+        self,
+        destination: str,
+        operation: str,
+        cause: BaseException,
+    ) -> None:
+        self.destination = destination
+        self.operation = operation
+        if isinstance(cause, WindowsReplaceError):
+            self.os_error = cause.os_error
+        else:
+            self.os_error = cause if isinstance(cause, OSError) else None
+        super().__init__(
+            "instalação do runtime bloqueada em "
+            f"{destination} durante {operation}: {type(cause).__name__}"
+        )
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -1259,22 +1293,27 @@ def _cleanup_owned_stage(path: Path) -> None:
 
 
 def _windows_replace_file(source: Path, destination: Path) -> None:
-    payload = source.read_bytes()
-    expected_state = _windows_file_state(destination)
-    descriptor = expected_state["security_descriptor"]
-    expected_security = expected_state["security"]
-    expected_attributes = expected_state["attributes"]
-    expected_streams = expected_state["streams"]
     stage = destination.with_name(
         destination.name + f".replace-stage-{uuid.uuid4().hex}"
     )
-    if stage.exists():
-        raise OSError(f"stage Windows já existe: {stage}")
     stage_owned = False
     primary_error: BaseException | None = None
+    operation = "read_source"
     try:
+        payload = source.read_bytes()
+        operation = "snapshot_destination"
+        expected_state = _windows_file_state(destination)
+        operation = "validate_stage_absent"
+        if stage.exists():
+            raise OSError(f"stage Windows já existe: {stage}")
+        descriptor = expected_state["security_descriptor"]
+        expected_security = expected_state["security"]
+        expected_attributes = expected_state["attributes"]
+        expected_streams = expected_state["streams"]
+        operation = "clone_destination"
         _windows_copy_file(destination, stage)
         stage_owned = True
+        operation = "read_clone_security"
         cloned_security = _windows_security_fingerprint(
             _windows_get_security_descriptor(stage)
         )
@@ -1282,15 +1321,21 @@ def _windows_replace_file(source: Path, destination: Path) -> None:
             expected_security, cloned_security
         ):
             raise OSError("clone Windows alterou owner ou group do destino")
+        operation = "read_clone_attributes"
         if _windows_get_file_attributes(stage) != expected_attributes:
             raise OSError("clone Windows alterou atributos do destino")
+        operation = "read_clone_streams"
         if _windows_stream_fingerprint(stage) != expected_streams:
             raise OSError("clone Windows alterou ADS do destino")
+        operation = "overwrite_default_stream"
         _overwrite_default_stream(stage, payload)
         if not _windows_security_equivalent(expected_security, cloned_security):
+            operation = "restore_dacl"
             _windows_set_dacl(stage, descriptor)
+        operation = "restore_attributes"
         if _windows_get_file_attributes(stage) != expected_attributes:
             _windows_set_file_attributes(stage, expected_attributes)
+        operation = "validate_stage_security"
         actual_security = _windows_security_fingerprint(
             _windows_get_security_descriptor(stage)
         )
@@ -1301,12 +1346,16 @@ def _windows_replace_file(source: Path, destination: Path) -> None:
                 f"clone={_windows_security_diagnostic(cloned_security)!r}; "
                 f"atual={_windows_security_diagnostic(actual_security)!r}"
             )
+        operation = "validate_stage_content"
         if stage.read_bytes() != payload:
             raise OSError("stage Windows não reteve o payload esperado")
+        operation = "validate_stage_attributes"
         if _windows_get_file_attributes(stage) != expected_attributes:
             raise OSError("stage Windows não reteve atributos do destino")
+        operation = "validate_stage_streams"
         if _windows_stream_fingerprint(stage) != expected_streams:
             raise OSError("stage Windows não reteve ADS do destino")
+        operation = "validate_live_destination"
         live_state = _windows_file_state(destination)
         if (
             live_state["identity"] != expected_state["identity"]
@@ -1321,9 +1370,12 @@ def _windows_replace_file(source: Path, destination: Path) -> None:
                 "destino Windows mudou desde o snapshot; ativação recusada"
             )
         staged_identity = _windows_file_identity(stage)
+        operation = "unlink_source"
         source.unlink()
+        operation = "activate_stage"
         _windows_move_file(stage, destination)
         stage_owned = False
+        operation = "validate_final_destination"
         final_state = _windows_file_state(destination)
         if (
             final_state["identity"] != staged_identity
@@ -1337,17 +1389,20 @@ def _windows_replace_file(source: Path, destination: Path) -> None:
             raise OSError("readback final do destino Windows divergiu do stage")
     except Exception as exc:
         primary_error = exc
-        raise
+        if isinstance(exc, WindowsReplaceError):
+            raise
+        raise WindowsReplaceError(operation, exc) from exc
     finally:
         if stage_owned:
             try:
                 _cleanup_owned_stage(stage)
             except OSError as cleanup_error:
                 if primary_error is None:
-                    raise
-                raise OSError(
-                    f"{primary_error}; limpeza do stage Windows falhou: "
-                    f"{cleanup_error}"
+                    raise WindowsReplaceError(
+                        "cleanup_stage", cleanup_error
+                    ) from cleanup_error
+                raise WindowsReplaceError(
+                    "cleanup_stage", cleanup_error
                 ) from primary_error
 
 
@@ -1750,7 +1805,16 @@ def install_bundle(
         for source, destination in RUNTIME_MAP.items():
             payload = (bundle_dir / source).read_bytes()
             target = _managed_target(install_root, destination)
-            atomic_write(target, payload)
+            try:
+                atomic_write(target, payload)
+            except WindowsReplaceError as exc:
+                raise RuntimeInstallError(
+                    destination, exc.operation, exc
+                ) from exc
+            except OSError as exc:
+                raise RuntimeInstallError(
+                    destination, "atomic_write", exc
+                ) from exc
             installed_file: dict[str, Any] = {
                 "sha256": sha256_file(target),
                 "size": target.stat().st_size,
