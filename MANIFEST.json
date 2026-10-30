@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-28T03:12:39.937476+00:00",
+  "generated_at": "2026-10-30T11:49:33.466131+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -69,18 +69,18 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "4e80e7af2be85156b44e4b27686c15ec29f5d16e61f9612f101afb861bcee1be",
-      "size": 3372
+      "sha256": "bb2616449292e23ec1e0be3436852a0e94d550d5cb44d7ebee536228eed117b0",
+      "size": 3406
     },
     {
       "path": "config/command-gateway.policy.noteri-wsl.json",
-      "sha256": "781eeef08b170c5129eb43a4f8a119e8f4c78aa21bf9322a20d3eaa516d75422",
-      "size": 3176
+      "sha256": "c0e702f77b7e36b9b0e4dde4cc285a323a9446da5aafe31f9450b6fd1e651802",
+      "size": 3210
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "80e9b14b5396d8be4a1efbcf0b7c72fd9019de2d2b05e91cc053af7346c27e0e",
-      "size": 2058
+      "sha256": "5aa2c2326f7fdb2a67f14505c138a81413e2486c863dc430f0aec9fa54407b5f",
+      "size": 2092
     },
     {
       "path": "config/host-readiness.json",
@@ -288,6 +288,11 @@
       "size": 8036
     },
     {
+      "path": "rules/todo-gateway-pr185-reconciliation.md",
+      "sha256": "df3bb9dbd13f11333e011f67e6ed0faed56d47a77cd9b348ae749af03b4ea07d",
+      "size": 4744
+    },
+    {
       "path": "rules/todo-global.md",
       "sha256": "cd35178bf711315a036c20a0a05abb596c864900432675277485a8b0a020e8a2",
       "size": 9113
@@ -314,8 +319,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "db7d9404c82b5116f1904162a45cfd25cdd0db1942814e5653d5aee89e4601d8",
-      "size": 71429
+      "sha256": "805c0b4d71fec9690efa6296e9672a5be2e69287d725d15db9e7560d0e943380",
+      "size": 76092
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -364,8 +369,8 @@
     },
     {
       "path": "scripts/generate_manifest.py",
-      "sha256": "a1dd731a53e8d1737370f85967495f835dfb51bfc09267653a4b0c7ecbc23216",
-      "size": 1679
+      "sha256": "eb3d634bf478e20f2399547e26eb27f8c82c3bdcc210ec5a074e52489f675716",
+      "size": 1962
     },
     {
       "path": "scripts/github_schedule_bridge.py",
@@ -528,6 +533,11 @@
       "size": 5545
     },
     {
+      "path": "scripts/reconcile_todo_gateway_pr185_main_governed.py",
+      "sha256": "2056523370fcd572e89a8c54b131b73565ed13c08d24651e88ef70d769bb0248",
+      "size": 27445
+    },
+    {
       "path": "scripts/render_postgres_preservation.py",
       "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
       "size": 13578
@@ -684,8 +694,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "f178a3cf489b152ff5230cc5e0df204589b329d0e7acdf778730971020d273f9",
-      "size": 15675
+      "sha256": "c2bab7f01a215bc5f52a0265739b3f896931850da6b894f746162d12910d0621",
+      "size": 15782
     },
     {
       "path": "services/__init__.py",
@@ -794,8 +804,8 @@
     },
     {
       "path": "tests/test_command_gateway_posix_policy.py",
-      "sha256": "add1afb146b373fef55a1a5a48077d70f15c9e5a1339a23768d80bdfdcfb1822",
-      "size": 31486
+      "sha256": "f284517561a889f0757cbbf8554ea156d9b39e54963cf5d95ad19d4cf0672726",
+      "size": 32837
     },
     {
       "path": "tests/test_continuation_worker.py",
@@ -844,8 +854,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "dc353d6bac6a7503473f00f529ce315a875f386a8bee4128d1173bb977c8108d",
-      "size": 9200
+      "sha256": "06b6afae34bc8fbe86dea902dab24021304e51d3d9411e0472a3e2ba22f91eaf",
+      "size": 15118
     },
     {
       "path": "tests/test_host_bootstrap.py",
@@ -1094,8 +1104,8 @@
     },
     {
       "path": "tests/test_update_branch_fast_forward_governed.py",
-      "sha256": "d57c28237849582fe6d7cf1a748122a0ae0b3d23780b3ccc713e448d6dd3657a",
-      "size": 14461
+      "sha256": "b505bcb4f538b202a4fb263258de8ffaabc951260188bccae0828217f65dbf36",
+      "size": 46611
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
@@ -1104,8 +1114,8 @@
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
-      "sha256": "d719aef24cf06a1657ab637a0a7aef208324a26c93bdcd9006d6baaa620e9622",
-      "size": 5447
+      "sha256": "e58cafe4bc87e6475a0e684cb2225e81bb4b47ccfbaa0740ada4174d80afc84c",
+      "size": 10270
     }
   ]
 }

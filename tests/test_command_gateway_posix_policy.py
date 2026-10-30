@@ -715,5 +715,41 @@ class PosixCommandGatewayPolicyTests(unittest.TestCase):
         self.assertNotIn("${REQSYS_WORKSPACE_ROOT}/*", policy["allowed_roots"])
 
 
+class WindowsPr185ReconciliationCiBridgeTests(unittest.TestCase):
+    @unittest.skipUnless(
+        os.name == "nt",
+        "a suíte é executada diretamente pelo step Linux e por esta ponte no Windows",
+    )
+    def test_todo_gateway_pr185_reconciliation_fixtures_on_windows(self) -> None:
+        targets = (
+            (
+                "test_update_branch_fast_forward_governed.py",
+                "TodoGatewayPr185ReconciliationTests",
+            ),
+            (
+                "test_governed_branch_update_policy.py",
+                "GovernedPr185ReconciliationPolicyTests",
+            ),
+        )
+        for filename, class_name in targets:
+            with self.subTest(class_name=class_name):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(ROOT / "tests" / filename),
+                        class_name,
+                        "-v",
+                    ],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(class_name, result.stderr)
+                self.assertRegex(result.stderr, r"Ran [1-9][0-9]* tests")
+
+
 if __name__ == "__main__":
     unittest.main()
