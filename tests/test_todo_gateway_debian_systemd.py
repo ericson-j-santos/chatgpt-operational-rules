@@ -471,6 +471,40 @@ def test_postgres_timeout_is_bounded_and_sanitized(monkeypatch, capsys):
     assert secret not in "\n".join(captured["args"])
 
 
+def _proc_status_terminated_or_zombie(path: Path) -> bool:
+    """Processos podem sair enquanto /proc/<pid>/stat é lido."""
+    try:
+        return path.read_text(encoding="utf-8").split()[2] == "Z"
+    except FileNotFoundError:
+        return True
+
+
+def test_proc_status_running_and_zombie_are_distinct(tmp_path):
+    status = tmp_path / "stat"
+    status.write_text("4242 (python) S 1", encoding="utf-8")
+    assert not _proc_status_terminated_or_zombie(status)
+    status.write_text("4242 (python) Z 1", encoding="utf-8")
+    assert _proc_status_terminated_or_zombie(status)
+    status.unlink()
+    assert _proc_status_terminated_or_zombie(status)
+
+
+def test_proc_status_disappearing_mid_read_is_treated_as_terminated(tmp_path, monkeypatch):
+    status = tmp_path / "stat"
+    status.write_text("4242 (python) S 1", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def disappear_on_read(path, *args, **kwargs):
+        if path == status:
+            status.unlink()
+            raise FileNotFoundError(2, "No such file or directory", str(status))
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", disappear_on_read)
+    assert _proc_status_terminated_or_zombie(status)
+    assert not status.exists()
+
+
 def test_timeout_terminates_descendant_process_group(tmp_path, monkeypatch):
     module = _module()
     pid_file = tmp_path / "descendant.pid"
@@ -493,8 +527,7 @@ def test_timeout_terminates_descendant_process_group(tmp_path, monkeypatch):
     descendant_pid = int(pid_file.read_text(encoding="utf-8"))
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
-        status = Path(f"/proc/{descendant_pid}/stat")
-        if not status.exists() or status.read_text(encoding="utf-8").split()[2] == "Z":
+        if _proc_status_terminated_or_zombie(Path(f"/proc/{descendant_pid}/stat")):
             break
         time.sleep(0.02)
     else:
