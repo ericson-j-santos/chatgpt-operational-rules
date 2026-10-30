@@ -329,7 +329,9 @@ def _canonical_manifest_payload(
     generated_at: str,
 ) -> bytes:
     with tempfile.TemporaryDirectory(prefix="pr185-canonical-manifest-") as temporary:
-        root = Path(temporary)
+        # Match the generator's physical ROOT spelling (including Windows 8.3
+        # aliases) while preserving the exact command allowlist below.
+        root = Path(temporary).resolve(strict=True)
         _run_git(repo, "checkout-index", "--all", f"--prefix={root}{os.sep}", env=index_env)
         generator_path = root / "scripts" / "generate_manifest.py"
         module_name = "_reqsys_pr185_canonical_manifest"

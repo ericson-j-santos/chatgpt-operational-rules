@@ -710,6 +710,57 @@ class TodoGatewayPr185ReconciliationTests(unittest.TestCase):
         with self.assertRaisesRegex(reconcile_module.ReconcileBlocked, "remote_url_not_approved"):
             self.real_canonical_remote(str(self.origin))
 
+    def test_canonical_generator_accepts_resolved_temporary_directory_alias(self) -> None:
+        proposal_path, digest, proposal = self._proposal()
+        with tempfile.TemporaryDirectory(dir=self.root) as canonical:
+            # Controlled lexical alias exercises spelling differences without
+            # claiming to reproduce Windows 8.3 physically on POSIX.
+            alias = Path(canonical) / ".." / Path(canonical).name
+            self.assertNotEqual(str(alias), str(alias.resolve()))
+            with patch.object(reconcile_module.tempfile, "TemporaryDirectory") as temporary:
+                temporary.return_value.__enter__.return_value = str(alias)
+                result = reconcile_module.reconcile(
+                    self.repo, proposal_path, digest, "pr185-canonical-alias"
+                )
+            temporary.assert_called_once_with(prefix="pr185-canonical-manifest-")
+        self.assertEqual(result["result"], "RECONCILED_AND_PUBLISHED")
+        self.assertEqual(fixture_git(self.repo, "rev-parse", "HEAD"), proposal["expected_commit"])
+        self.assertEqual(fixture_git(self.repo, "write-tree"), proposal["expected_tree"])
+        self.assertEqual(
+            fixture_git(self.origin, "rev-parse", "refs/heads/pr185"),
+            proposal["expected_commit"],
+        )
+
+    def test_canonical_generator_still_rejects_changed_git_command(self) -> None:
+        self._assert_canonical_command_rejected('"ls-files"', '"status"')
+
+    def test_canonical_generator_still_rejects_distinct_root(self) -> None:
+        self._assert_canonical_command_rejected('str(ROOT), "ls-files"', 'str(ROOT.parent), "ls-files"')
+
+    def test_canonical_generator_still_rejects_extra_argument(self) -> None:
+        self._assert_canonical_command_rejected('"ls-files", "-z"', '"ls-files", "-z", "--cached"')
+
+    def _assert_canonical_command_rejected(self, original: str, replacement: str) -> None:
+        proposal_path, digest, _ = self._proposal()
+        real_run = reconcile_module._run_git
+
+        def replace_fixture_command(repo: Path, *args: str, **kwargs):
+            completed = real_run(repo, *args, **kwargs)
+            if args and args[0] == "checkout-index":
+                prefix = next(arg.removeprefix("--prefix=") for arg in args if arg.startswith("--prefix="))
+                generator = Path(prefix) / "scripts" / "generate_manifest.py"
+                source = generator.read_text(encoding="utf-8")
+                self.assertIn(original, source)
+                self.assertNotEqual(original, replacement)
+                generator.write_text(source.replace(original, replacement, 1), encoding="utf-8")
+            return completed
+
+        with patch.object(reconcile_module, "_run_git", side_effect=replace_fixture_command):
+            with self.assertRaisesRegex(reconcile_module.ReconcileBlocked, "canonical_generator_external_command"):
+                reconcile_module.reconcile(self.repo, proposal_path, digest, "pr185-command-guard")
+        self.assertEqual(fixture_git(self.repo, "rev-parse", "HEAD"), self.old)
+        self.assertEqual(fixture_git(self.origin, "rev-parse", "refs/heads/pr185"), self.old)
+
     def test_canonical_generator_mismatch_blocks_before_local_change(self) -> None:
         proposal_path, digest, _ = self._proposal()
         with patch.object(reconcile_module, "_canonical_manifest_payload", return_value=b"different\n"):
