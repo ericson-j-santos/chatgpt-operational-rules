@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-30T14:06:18.256+00:00",
+  "generated_at": "2026-10-30T14:50:43.438Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -59,8 +59,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "614a4f94fbac4c8e10ba6dab48f8c161a2f79a6dca5c212914bb2426b1b3ec13",
-      "size": 20962
+      "sha256": "99c2d62076dfa6e40aa2d948de9b5533172e5ab6ac175204ac7a36eb8017ba8d",
+      "size": 21354
     },
     {
       "path": "README.md",
@@ -294,8 +294,8 @@
     },
     {
       "path": "rules/tool-routing.md",
-      "sha256": "37cea1cbb2f7ad5d59dac2a2898500e8b04cf5a2fb4285e75e09f173e308ba6a",
-      "size": 9693
+      "sha256": "71e4def5f3a1ed3e242b4013d8c242a11a5cc96fdf520b05f3c75a0f3c2e1e44",
+      "size": 13297
     },
     {
       "path": "schemas/artifact-manifest.schema.json",
