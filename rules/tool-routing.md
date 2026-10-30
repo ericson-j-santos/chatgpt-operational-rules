@@ -15,6 +15,23 @@ Retirar ferramentas com cota/custo do caminho crítico quando existe executor na
 
 Não usar TinyFish ou Remote Desktop Commander para GitHub, Drive, Gmail, Calendar, pesquisa pública ou outra operação que possua executor nativo adequado.
 
+## Continuidade gratuita de monitoramentos sem agendamento no ChatGPT
+
+**Aplicação:** rotinas de pesquisa, acompanhamento e notificação quando o ChatGPT não permite criar ou manter uma tarefa (limite do plano, indisponibilidade, permissões ou custo). Esta regra escolhe uma rota; **não habilita agendamentos nem altera sistemas por si só**. A decisão do proprietário está registrada na [issue #191](https://github.com/ericson-j-santos/chatgpt-operational-rules/issues/191).
+
+Ordem de decisão, preservando `rules/cost-governance.md`:
+
+1. **Inventariar antes de criar:** verificar automações e workflows existentes, escopo, periodicidade, fonte, último resultado real e notificações anteriores. Reaproveitar um agendamento capaz de atender ao requisito, sem duplicar produtores, trabalhos ou avisos.
+2. **GitHub Actions gratuito (primeira contingência):** preferir um workflow existente no repositório público, com runner padrão hospedado pelo GitHub e documentação oficial vigente comprovando custo incremental R$ 0,00. Se precisar de novo workflow, usar somente o fluxo governado de issue/branch/PR/gates; agendamento real só ocorre depois da integração autorizada à branch padrão. Não presumir que armazenamento de artefatos, cache, executores especiais, repositório privado ou integrações externas sejam gratuitos. Se houver limite de armazenamento ou possibilidade de overage sem bloqueio, não usar esses recursos.
+3. **Computadores próprios (segunda contingência):** somente se GitHub Actions não atender ou estiver bloqueado, selecionar PC24x7, Noteri ou host autorizado, com evidência atual de energia/rede, runner e etiquetas, dependências operantes, cota e custo zero. Exigir `SESSION_LAUNCH_OK`, `state_validated=true`, sessão/worktree exclusivos e Command Gateway; observar `rules/runtime-routing.md`, `rules/session-bootstrap.md` e `rules/dual-host-routing.md` quando aplicáveis. Nunca contornar indisponibilidade com shell irrestrito, RDC bloqueado, Docker, Fly.io ou provedor pago.
+4. **Falhar fechado:** se nenhuma rota puder ser comprovada segura e gratuita, registrar `BLOQUEADO`, evidência atual, dono, impedimento e próxima ação no TODO Global; não simular execução nem solicitar gasto.
+
+**Exclusividade e troca de rota.** Um monitor lógico deve ter um único publicador ativo ou coordenação por lease/CAS e `idempotency_key` estável compartilhados. Antes de ligar o substituto, validar estado e checkpoint atuais; comprovar cenário positivo, negativo, replay sem duplicação e leitura independente no destino. Desativar apenas o escopo antigo sobreposto, nunca outros acompanhamentos agrupados; manter reversão documentada. `scheduled`, workflow verde ou HTTP 2xx isolados não comprovam entrega nem recebimento de alerta.
+
+**Qualidade da agenda.** GitHub Actions `schedule` depende da branch padrão, pode sofrer atraso/perda em horários congestionados e, em repositórios públicos sem atividade por 60 dias, pode ser desabilitado. Usar horários desencontrados do início da hora, vigilância de última execução, limite de atraso e reconciliação idempotente. Não declarar SLA contínuo sem medição.
+
+**Critério de alerta.** Para monitores de produto (por exemplo, Power BI/SQL Server/Power Automate no ReqSys), citar somente mudança material confirmada em fonte oficial com data/versão, impacto, risco e adaptação mínima segura. Distinguir hipótese e uso real do tenant. Na ausência de novidade comprovada, permanecer silencioso. Custo adicional máximo R$ 0,00 e nenhuma alteração de produção implícita.
+
 ## TinyFish
 
 - saldo `<= 0`: indisponível para novas execuções pagas;

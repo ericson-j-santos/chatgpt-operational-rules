@@ -1,5 +1,9 @@
 # Changelog
 
+## Em preparação - 2026-10-30
+
+- Formalizada a contingência gratuita de monitoramentos quando não é possível agendar no ChatGPT: reaproveitamento primeiro, GitHub Actions público com runner padrão em seguida, host governado por último e bloqueio sem prova de custo zero, com deduplicação, teste e readback (issue #191). Sem novo agendamento ou alteração automática de sistema.
+
 ## 1.6.19 - 2026-10-25
 
 - Adicionado o contrato global para reparo real de agentes: patch persistido no CAS, validação independente, uma PR draft e readback/replay idempotente.
