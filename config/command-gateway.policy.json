@@ -104,6 +104,15 @@
       "branch": "codex/windows-native-no-docker-20261022",
       "expected_remote": "8740def7e832916452b13c52a1f4bec2f5712df7",
       "expected_head": "cd150974a094dcda240987d8a2283c709a714d36"
+    },
+    {
+      "script": "C:\\dev\\chatgpt-workers\\wt-chat-lenovo-pr112-rules-20261027\\scripts\\update_branch_fast_forward_governed.py",
+      "repo_root": "C:\\dev\\chatgpt-workers\\wt-chat-lenovo-task-readback-20261027",
+      "repository": "ericson-j-santos/desktop-pc24x7-runtime",
+      "remote": "origin",
+      "branch": "fix/lenovo-native-task-readback-20261027",
+      "expected_remote": "04d7788513618bfd3cf39c283747f9e3f0d88397",
+      "expected_head": "0f2337012a7926d2327cfbdd8931147354d1db68"
     }
   ],
   "allowed_executable_specs": []

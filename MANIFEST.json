@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-10-28T00:40:37.593895+00:00",
+  "generated_at": "2026-10-30T14:06:18.256+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -69,8 +69,13 @@
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "9e08fe4f5c4030425700f71c67ab546f0f8540422465d53d66c85823cb970f42",
-      "size": 2859
+      "sha256": "4e80e7af2be85156b44e4b27686c15ec29f5d16e61f9612f101afb861bcee1be",
+      "size": 3372
+    },
+    {
+      "path": "config/command-gateway.policy.noteri-wsl.json",
+      "sha256": "781eeef08b170c5129eb43a4f8a119e8f4c78aa21bf9322a20d3eaa516d75422",
+      "size": 3176
     },
     {
       "path": "config/command-gateway.policy.posix.json",
@@ -209,8 +214,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "0b470c248c5afc6f1ceb38e985fde2ccc9ce71c9e12d2c2d58c4c29c69353989",
-      "size": 13233
+      "sha256": "b5bc28d3f1af687a2afdc0b8ad2675d25f1960927ffdcfccb9fe5f29825a7a8a",
+      "size": 13707
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -518,6 +523,11 @@
       "size": 9122
     },
     {
+      "path": "scripts/reconcile_lenovo_pr112_main_governed.py",
+      "sha256": "151e70df7733649690801850e0bc4da99b97ccb2ea14d9c480cb3d1e8abcca34",
+      "size": 5545
+    },
+    {
       "path": "scripts/render_postgres_preservation.py",
       "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
       "size": 13578
@@ -664,18 +674,18 @@
     },
     {
       "path": "scripts/update_branch_fast_forward_governed.py",
-      "sha256": "0a2051052b3d3d53db47c44e7e0aeb49e324ba08dc57dbcd716562319dace3f3",
-      "size": 7871
+      "sha256": "5c10954bdbeb23354e1b4cd5b7922246d0e4e1be50d2b1e762e8151753df52b1",
+      "size": 8501
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "61b94398bab9f426e050270593225bc98ccd07966852816ad67c771373b40b2d",
-      "size": 45666
+      "sha256": "e4961e1efeb38a9c763ead8f3900d392942421c495cdd8a28e08fb7ceb0d92fe",
+      "size": 47722
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "b9ed71e978eb8c464d11b5235f1f25b766cb56a1bbe2c1032be28588a52cad85",
-      "size": 14459
+      "sha256": "f178a3cf489b152ff5230cc5e0df204589b329d0e7acdf778730971020d273f9",
+      "size": 15675
     },
     {
       "path": "services/__init__.py",
@@ -958,6 +968,11 @@
       "size": 7334
     },
     {
+      "path": "tests/test_reconcile_lenovo_pr112_main_governed.py",
+      "sha256": "4d547d0f8faa8fab5d572e2b80b7b8aecb52c4daaf44adbddd23b820504a7fa9",
+      "size": 4884
+    },
+    {
       "path": "tests/test_render_postgres_preservation.py",
       "sha256": "d06995aaaa82374e674a27ba15544a0bb87951dec1c2532a1289503cd55a53c7",
       "size": 19230
@@ -1079,13 +1094,13 @@
     },
     {
       "path": "tests/test_update_branch_fast_forward_governed.py",
-      "sha256": "928f791f78598106e489826b0a5c49ae33f04e17885fcc4d11db0453696b5370",
-      "size": 12120
+      "sha256": "d57c28237849582fe6d7cf1a748122a0ae0b3d23780b3ccc713e448d6dd3657a",
+      "size": 14461
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "f0c21542e0293d9d22cd391e0fef5b87afe7eb82cd5357e640b61a64d2a936ee",
-      "size": 74892
+      "sha256": "705e53542ed3f3530c7c26093ff4bf0628fd78a9530da899876691f7256e7f01",
+      "size": 82774
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",

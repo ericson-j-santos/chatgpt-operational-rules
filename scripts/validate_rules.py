@@ -21,7 +21,7 @@ import command_gateway as cg
 REQUIRED_PATHS = {
     ".github/workflows/validate-rules.yml",
     "AGENTS.md", "CHANGELOG.md", "README.md", "config/command-gateway.policy.json",
-    "config/command-gateway.policy.posix.json",
+    "config/command-gateway.policy.posix.json", "config/command-gateway.policy.noteri-wsl.json",
     "rules/command-gateway.md", "rules/e2e-validation.md", "rules/evidence-validation.md",
     "rules/log-driven-improvement.md",
     "rules/session-bootstrap.md", "rules/terminal-execution.md", "scripts/command_gateway.py",
@@ -96,6 +96,7 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
     changelog_path = root / "CHANGELOG.md"
     policy_paths = {
         "windows": root / "config" / "command-gateway.policy.json",
+        "windows_noteri": root / "config" / "command-gateway.policy.noteri-wsl.json",
         "posix": root / "config" / "command-gateway.policy.posix.json",
     }
     if readme_path.is_file():
@@ -138,11 +139,11 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
             except cg.GatewayError as exc:
                 errors.append(f"política do Command Gateway inválida ({policy_path.name}): {exc}")
                 continue
-            if policy.get("platform") != expected_platform:
+            if policy.get("platform") != ("windows" if expected_platform == "windows_noteri" else expected_platform):
                 errors.append(f"plataforma da política divergente: {policy_path.name}.")
             if not policy.get("allowed_roots"):
                 errors.append(f"Command Gateway sem allowlist: {policy_path.name}.")
-            if expected_platform == "windows" and not policy.get("denied_roots"):
+            if expected_platform in {"windows", "windows_noteri"} and not policy.get("denied_roots"):
                 errors.append("Command Gateway Windows sem denied_roots.")
             timeout = policy.get("max_timeout_seconds")
             if type(timeout) is not int or timeout <= 0:
@@ -219,6 +220,19 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                         "caminhos da política POSIX inválidos: "
                         "worktree_root não está coberto por allowed_roots"
                     )
+    windows_path, noteri_path = policy_paths["windows"], policy_paths["windows_noteri"]
+    if windows_path.is_file() and noteri_path.is_file():
+        try:
+            windows_policy = json.loads(windows_path.read_text(encoding="utf-8"))
+            noteri_policy = json.loads(noteri_path.read_text(encoding="utf-8"))
+            if not isinstance(windows_policy, dict) or not isinstance(noteri_policy, dict):
+                raise ValueError("policy not object")
+            if windows_policy.get("noteri_wsl_running_inventory") is True:
+                errors.append("política Windows global não pode ativar WSL Noteri.")
+            if noteri_policy.pop("noteri_wsl_running_inventory", None) is not True or noteri_policy != windows_policy:
+                errors.append("perfil Noteri deve diferir da política Windows somente pelo opt-in WSL.")
+        except (OSError, ValueError, json.JSONDecodeError):
+            errors.append("perfil Noteri não pôde ser comparado à política Windows.")
     return errors
 
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -17,9 +19,138 @@ SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import update_command_gateway_host as updater
+import noteri_gateway_legacy_v1_rebaseline as legacy
 
 
 class HostRuntimeUpdateTests(unittest.TestCase):
+    def test_legacy_v1_verifier_uses_original_sources_then_restores_profile(self) -> None:
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        observed: list[dict[str, str]] = []
+
+        def verify(*_args, **_kwargs):
+            observed.append(dict(updater.bootstrap.RUNTIME_MAP))
+            return {"verified": True}
+
+        with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected), \
+                mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                                  side_effect=verify):
+            self.assertEqual(updater.verify_legacy_v1_with_original_map(
+                Path("unused"), receipt_sha256="a" * 64,
+                manifest_sha256="b" * 64), {"verified": True})
+            self.assertEqual(updater.bootstrap.RUNTIME_MAP, selected)
+        self.assertEqual(observed, [updater.DEFAULT_RUNTIME_MAP])
+
+        with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected), \
+                mock.patch.object(legacy, "verify_legacy_v1_current_state",
+                                  side_effect=RuntimeError("injected")):
+            with self.assertRaisesRegex(RuntimeError, "injected"):
+                updater.verify_legacy_v1_with_original_map(
+                    Path("unused"), receipt_sha256="a" * 64,
+                    manifest_sha256="b" * 64)
+            self.assertEqual(updater.bootstrap.RUNTIME_MAP, selected)
+
+    def test_noteri_wsl_profile_is_explicit_and_host_bound(self) -> None:
+        default = updater.runtime_map_for_profile(False, platform="nt", host="Noteri")
+        self.assertEqual(default, updater.DEFAULT_RUNTIME_MAP)
+        self.assertNotIn(updater.NOTERI_WSL_POLICY_SOURCE, default)
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        self.assertNotIn(updater.WINDOWS_POLICY_SOURCE, selected)
+        self.assertEqual(selected[updater.NOTERI_WSL_POLICY_SOURCE], "config/policy.json")
+        for platform, host in (("posix", "Noteri"), ("nt", "Other"),
+                               ("nt", "Noteri-renamed")):
+            with self.subTest(platform=platform, host=host):
+                with self.assertRaises(updater.bootstrap.HostBootstrapError):
+                    updater.runtime_map_for_profile(True, platform=platform, host=host)
+
+    def test_noteri_profile_uses_verified_bundle_not_generated_policy(self) -> None:
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            updater.bootstrap, "RUNTIME_MAP", selected
+        ):
+            bundle = self.make_current_bundle(Path(tmp))
+            _, index = updater.bootstrap.verify_bundle(bundle)
+            self.assertIn(updater.NOTERI_WSL_POLICY_SOURCE, index)
+            self.assertNotIn(updater.WINDOWS_POLICY_SOURCE, selected)
+            policy = json.loads((bundle / updater.NOTERI_WSL_POLICY_SOURCE).read_text())
+            self.assertIs(policy["noteri_wsl_running_inventory"], True)
+            self.assertIn("wsl", policy["blocked_executables"])
+
+    def test_noteri_profile_update_and_replay_preserve_unmanaged_file(self) -> None:
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install, work_root = root / "install", root / "workers"
+            with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected):
+                bundle = self.make_current_bundle(root)
+                _, sentinel, _ = self.seed_legacy_runtime(install)
+            commit = "a" * 40
+            argv = self.update_argv(install, work_root, commit) + [
+                "--noteri-wsl-inventory-profile"
+            ]
+            common = [
+                mock.patch.object(updater, "runtime_map_for_profile", return_value=selected),
+                mock.patch.object(updater.bootstrap, "download_bundle",
+                                  side_effect=self.copy_bundle(bundle, commit)),
+                mock.patch.object(updater.bootstrap, "resolve_git",
+                                  return_value=(Path(sys.executable), "test")),
+                mock.patch.object(updater.bootstrap, "prepare_validation_repo",
+                                  return_value=(work_root / "validation", commit)),
+                mock.patch.object(sys, "argv", argv),
+            ]
+            with common[0], common[1], common[2], common[3], common[4], \
+                    contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(updater.main(), 0)
+            self.assertEqual(sentinel.read_bytes(), b"preserve-me\n")
+            policy_target = install / "config" / "policy.json"
+            self.assertEqual(policy_target.read_bytes(),
+                             (bundle / updater.NOTERI_WSL_POLICY_SOURCE).read_bytes())
+            first = json.loads((install / "update-receipt.json").read_text())
+            self.assertTrue(first["noteri_wsl_inventory_profile"])
+            with common[0], common[1], common[2], common[3], common[4], \
+                    mock.patch.object(updater.bootstrap, "install_bundle",
+                                      side_effect=AssertionError("replay reinstalou")), \
+                    contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(updater.main(), 0)
+            replay = json.loads((install / "update-receipt.json").read_text())
+            self.assertEqual(replay["result"], "HOST_UPDATE_ALREADY_CURRENT_VERIFIED")
+            self.assertFalse(replay["mutation_started"])
+            self.assertEqual(sentinel.read_bytes(), b"preserve-me\n")
+
+    def test_noteri_profile_failure_restores_previous_runtime(self) -> None:
+        selected = updater.runtime_map_for_profile(True, platform="nt", host="Noteri")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install, work_root = root / "install", root / "workers"
+            with mock.patch.object(updater.bootstrap, "RUNTIME_MAP", selected):
+                bundle = self.make_current_bundle(root)
+                previous, sentinel, sentinel_mode = self.seed_legacy_runtime(install)
+            commit = "b" * 40
+            argv = self.update_argv(install, work_root, commit) + [
+                "--noteri-wsl-inventory-profile"
+            ]
+            real_atomic = updater.bootstrap.atomic_write
+
+            def fail_after_policy(path: Path, payload: bytes) -> None:
+                real_atomic(path, payload)
+                if path == install / "config" / "policy.json":
+                    raise OSError("injected-profile-write-failure")
+
+            with mock.patch.object(updater, "runtime_map_for_profile", return_value=selected), \
+                    mock.patch.object(updater.bootstrap, "download_bundle",
+                                      side_effect=self.copy_bundle(bundle, commit)), \
+                    mock.patch.object(updater.bootstrap, "atomic_write",
+                                      side_effect=fail_after_policy), \
+                    mock.patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+            self.assert_legacy_state(install, previous, sentinel, sentinel_mode)
+            receipt = json.loads((install / "update-receipt.json").read_text())
+            self.assertEqual(receipt["result"], "HOST_UPDATE_BLOCKED")
+            self.assertTrue(receipt["rollback_succeeded"])
+
     def make_current_bundle(self, root: Path) -> Path:
         bundle = root / "current-bundle"
         bundle.mkdir()
