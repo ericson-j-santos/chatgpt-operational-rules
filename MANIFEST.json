@@ -1044,8 +1044,8 @@
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
-      "sha256": "62c9b73ac4109e0b2343ec81e389df80d51fa8cab5140da20c6740f445786cad",
-      "size": 41039
+      "sha256": "01f357722108db67d538e19604ec1d524231f08bbf46cde3ee5ecb8b715455ec",
+      "size": 42252
     },
     {
       "path": "tests/test_todo_gateway_local_inventory.py",
