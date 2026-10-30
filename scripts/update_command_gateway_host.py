@@ -63,6 +63,7 @@ class RuntimeReplaceabilityError(bootstrap.HostBootstrapError):
         detail: str,
         *,
         os_error: OSError | None = None,
+        operation: str | None = None,
     ) -> None:
         super().__init__(
             f"preflight de substituição falhou para {destination}: {detail}"
@@ -70,6 +71,7 @@ class RuntimeReplaceabilityError(bootstrap.HostBootstrapError):
         self.destination = destination
         self.category = category
         self.os_error = os_error
+        self.operation = operation
 
 
 def utc_now() -> str:
@@ -510,17 +512,51 @@ def preflight_runtime_replaceability(install_root: Path, backup_dir: Path) -> di
                 _windows_delete_access_probe(target, destination)
             _exclusive_write(first, b"reqsys-replaceability-probe\n")
             first_owned = True
-            _exclusive_write(second, b"reqsys-replaceability-destination\n")
-            second_owned = True
+            if os.name == "nt" and entry["existed"]:
+                try:
+                    bootstrap._windows_clone_verified(
+                        target,
+                        second,
+                        expected_metadata=entry["previous_windows_state"],
+                    )
+                    second_owned = True
+                except Exception as exc:
+                    raise RuntimeReplaceabilityError(
+                        destination,
+                        "primitive_target_clone_error",
+                        f"{type(exc).__name__}",
+                        os_error=exc if isinstance(exc, OSError) else None,
+                        operation="clone_probe_target",
+                    ) from exc
+            else:
+                _exclusive_write(
+                    second, b"reqsys-replaceability-destination\n"
+                )
+                second_owned = True
             try:
                 bootstrap.replace_file(first, second)
                 first_owned = False
             except OSError as exc:
+                operation = (
+                    exc.operation
+                    if isinstance(exc, bootstrap.WindowsReplaceError)
+                    else "replace_probe_target"
+                )
+                os_error = (
+                    exc.os_error
+                    if isinstance(exc, bootstrap.WindowsReplaceError)
+                    else exc
+                )
                 raise RuntimeReplaceabilityError(
                     destination,
-                    "replace_os_error",
-                    f"{type(exc).__name__}: {exc}",
-                    os_error=exc,
+                    (
+                        f"primitive_{operation}_error"
+                        if isinstance(exc, bootstrap.WindowsReplaceError)
+                        else "replace_os_error"
+                    ),
+                    f"{type(exc).__name__}",
+                    os_error=os_error,
+                    operation=operation,
                 ) from exc
             second.unlink()
             second_owned = False
@@ -551,6 +587,7 @@ def preflight_runtime_replaceability(install_root: Path, backup_dir: Path) -> di
                     failure.category,
                     f"{failure}; {'; '.join(cleanup_errors)}",
                     os_error=failure.os_error,
+                    operation=failure.operation,
                 ) from failure
             if failure:
                 raise failure
@@ -564,7 +601,16 @@ def preflight_runtime_replaceability(install_root: Path, backup_dir: Path) -> di
         raise bootstrap.HostBootstrapError(
             "preflight não preservou o estado anterior do runtime"
         )
-    return {"checked": checked, "reconciliation": final}
+    return {
+        "checked": checked,
+        "reconciliation": final,
+        "windows_metadata_contract": (
+            snapshot.get("metadata_contract") if os.name == "nt" else None
+        ),
+        "owner_group_dacl_ads_verified": (
+            final["previous_state"] if os.name == "nt" else None
+        ),
+    }
 
 
 def restore_backup(install_root: Path, backup_dir: Path | None) -> None:
@@ -596,13 +642,33 @@ def _failure_metadata(exc: Exception) -> dict[str, Any]:
                 ),
             }
         )
+        if exc.operation is not None:
+            metadata["operation"] = exc.operation
         if exc.category == "read_only":
             metadata["cause_determined"] = True
         if exc.os_error is not None:
             metadata["os_error"] = {
                 "errno": exc.os_error.errno,
                 "winerror": getattr(exc.os_error, "winerror", None),
-                "strerror": exc.os_error.strerror,
+            }
+    elif isinstance(exc, bootstrap.RuntimeInstallError):
+        metadata.update(
+            {
+                "destination": exc.destination,
+                "category": "install_runtime_os_error",
+                "operation": exc.operation,
+                "candidate_causes": [
+                    "open_handle_without_delete_share",
+                    "acl_or_directory_permission",
+                    "security_or_antivirus_interference",
+                    "other_filesystem_interference",
+                ],
+            }
+        )
+        if exc.os_error is not None:
+            metadata["os_error"] = {
+                "errno": exc.os_error.errno,
+                "winerror": getattr(exc.os_error, "winerror", None),
             }
     return metadata
 
