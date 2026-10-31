@@ -84,3 +84,15 @@ Recuperação estrutural só está concluída quando:
 - uma versão/alvo inválido falha fechado;
 - o host retorna ao Command Gateway/session bootstrap normal após a recuperação;
 - a evidência física pertence ao mesmo SHA/ambiente da atualização.
+
+## Journal do Gateway Noteri
+
+O incidente fixo do Noteri usa `scripts/recover_noteri_gateway_journal.py` como
+capability separada do updater. Ela não baixa bundle, não instala runtime, não
+reescreve recibos e não executa rollback. A admissão exige os hashes fixos do
+journal, recibo primário, manifesto v2, recibo legado arquivado e manifesto v1;
+duas leituras idênticas de bytes e owner/group/DACL/ADS; lock preexistente
+aberto sem criação/escrita; e destino ausente mesmo quando for link quebrado.
+O único efeito permitido é mover o journal para nome determinístico dentro do
+backup v2, sem overwrite, seguido de readback e replay idempotente. Integração
+do código, execução recovery-only e atualização posterior são gates distintos.
