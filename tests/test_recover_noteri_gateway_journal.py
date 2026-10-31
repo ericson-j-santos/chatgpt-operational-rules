@@ -256,9 +256,22 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
         )
         self.assertFalse(self.archive().exists())
 
-    @unittest.skipIf(os.name == "nt", "symlink sem privilégio não é confiável no CI Windows")
     def test_broken_archive_symlink_counts_as_existing(self) -> None:
-        self.archive().symlink_to(self.root / "missing-target")
+        archive = self.archive()
+        if os.name == "nt":
+            real_lexists = os.path.lexists
+
+            def lexists(path: object) -> bool:
+                return Path(path) == archive or real_lexists(path)
+
+            with mock.patch.object(recovery.os.path, "lexists", side_effect=lexists):
+                with self.assertRaisesRegex(
+                    recovery.RecoveryBlocked, "RECOVERY_ARCHIVE_ALREADY_EXISTS"
+                ):
+                    recovery.recover(self.root)
+            return
+
+        archive.symlink_to(self.root / "missing-target")
         with self.assertRaisesRegex(
             recovery.RecoveryBlocked, "JOURNAL_AND_ARCHIVE_BOTH_PRESENT"
         ):
