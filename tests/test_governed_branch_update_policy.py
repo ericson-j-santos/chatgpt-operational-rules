@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -183,6 +184,131 @@ class GovernedBranchPolicyTests(unittest.TestCase):
         sensitive = "postgresql://synthetic:fixture-password@example.invalid/database"
         self.assertTrue(cg.sensitive_reference([sensitive], self.policy))
         self.assertEqual("[REDACTED_POSTGRES_URI]", cg.redact(sensitive))
+
+
+class GovernedPr185ReconciliationPolicyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.repo = self.root / "repo"
+        self.repo.mkdir()
+        self.proposal = self.root / "proposal.json"
+        self.proposal.write_text('{"fixture": true}\n', encoding="utf-8")
+        self.digest = hashlib.sha256(self.proposal.read_bytes()).hexdigest()
+        self.script = self.root / "reconcile_todo_gateway_pr185_main_governed.py"
+        self.script.write_bytes(
+            (ROOT / "scripts" / "reconcile_todo_gateway_pr185_main_governed.py").read_bytes()
+        )
+        self.script_digest = hashlib.sha256(self.script.read_bytes()).hexdigest()
+        self.policy = cg.load_policy(
+            ROOT / "config" / "command-gateway.policy.json",
+            enforce_platform=False,
+            validate_paths=False,
+        )
+        self.policy["allowed_roots"] = [str(self.repo)]
+        self.policy["governed_reconciliations"] = [{
+            "script": str(self.script),
+            "repo_root": str(self.repo),
+            "proposal": str(self.proposal),
+            "proposal_sha256": self.digest,
+            "script_sha256": self.script_digest,
+            "confirm": "RECONCILE-TODO-GATEWAY-PR185",
+        }]
+        self.command = [
+            "python", str(self.script),
+            "--repo", str(self.repo),
+            "--proposal", str(self.proposal),
+            "--proposal-sha256", self.digest,
+            "--confirm", "RECONCILE-TODO-GATEWAY-PR185",
+            "--correlation-id", "pr185-policy-fixture",
+        ]
+
+    def test_exact_proposal_bound_invocation_is_allowed_at_risk2(self) -> None:
+        cg.validate_command(self.command, 2, self.policy, self.repo)
+
+    def test_reconciliation_requires_risk2_before_integrity_or_subprocess(self) -> None:
+        for risk in (1, 3):
+            with self.subTest(risk=risk):
+                with (
+                    mock.patch.object(cg, "sha256_file") as digest,
+                    mock.patch.object(cg.subprocess, "run") as run,
+                ):
+                    with self.assertRaises(cg.GatewayError) as raised:
+                        cg.validate_command(self.command, risk, self.policy, self.repo)
+                    if risk == 1:
+                        self.assertIn("requires risk 2", str(raised.exception))
+                    digest.assert_not_called()
+                    run.assert_not_called()
+
+    def test_uninstalled_default_policy_has_no_reconciliation_capability(self) -> None:
+        installed = cg.load_policy(
+            ROOT / "config" / "command-gateway.policy.json",
+            enforce_platform=False,
+            validate_paths=False,
+        )
+        self.assertEqual(installed["governed_reconciliations"], [])
+        with self.assertRaisesRegex(cg.GatewayError, "not configured"):
+            cg.validate_command(self.command, 2, installed, self.repo)
+
+    def test_all_versioned_profiles_keep_reconciliation_dormant(self) -> None:
+        for name in (
+            "command-gateway.policy.json",
+            "command-gateway.policy.noteri-wsl.json",
+            "command-gateway.policy.posix.json",
+        ):
+            with self.subTest(profile=name):
+                profile = cg.load_policy(
+                    ROOT / "config" / name,
+                    enforce_platform=False,
+                    validate_paths=False,
+                )
+                self.assertEqual(profile["governed_reconciliations"], [])
+
+    def test_duplicate_or_broad_reconciliation_records_are_rejected(self) -> None:
+        duplicate = copy.deepcopy(self.policy)
+        duplicate["governed_reconciliations"].append(
+            dict(duplicate["governed_reconciliations"][0])
+        )
+        with self.assertRaisesRegex(cg.GatewayError, "ambiguous"):
+            cg.validate_command(self.command, 2, duplicate, self.repo)
+
+        broad = copy.deepcopy(self.policy)
+        broad["governed_reconciliations"][0]["repo_root"] = str(self.root / "*")
+        with self.assertRaisesRegex(cg.GatewayError, "not configured"):
+            cg.validate_command(self.command, 2, broad, self.repo)
+
+    def test_proposal_path_digest_confirmation_and_argument_set_are_exact(self) -> None:
+        mutations = []
+        for flag, value in (
+            ("--proposal", str(self.root / "other.json")),
+            ("--proposal-sha256", "0" * 64),
+            ("--confirm", "DIFFERENT"),
+        ):
+            changed = list(self.command)
+            changed[changed.index(flag) + 1] = value
+            mutations.append(changed)
+        mutations.extend((self.command[:-2], self.command + ["--extra", "value"]))
+        for command in mutations:
+            with self.subTest(command=command):
+                with self.assertRaises(cg.GatewayError):
+                    cg.validate_command(command, 2, self.policy, self.repo)
+
+    def test_proposal_integrity_change_is_rejected(self) -> None:
+        self.proposal.write_text('{"fixture": false}\n', encoding="utf-8")
+        with self.assertRaisesRegex(cg.GatewayError, "integrity"):
+            cg.validate_command(self.command, 2, self.policy, self.repo)
+
+    def test_script_integrity_change_is_rejected(self) -> None:
+        self.script.write_bytes(self.script.read_bytes() + b"\n# changed\n")
+        with self.assertRaisesRegex(cg.GatewayError, "script integrity"):
+            cg.validate_command(self.command, 2, self.policy, self.repo)
+
+    def test_reconciliation_is_not_available_at_risk3_or_other_worktree(self) -> None:
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(self.command, 3, self.policy, self.repo)
+        with self.assertRaises(cg.GatewayError):
+            cg.validate_command(self.command, 2, self.policy, self.repo / "other")
 
 
 if __name__ == "__main__":
