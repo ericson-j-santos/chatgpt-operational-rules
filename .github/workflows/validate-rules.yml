@@ -168,6 +168,9 @@ jobs:
         run: python -m unittest -v tests/test_host_onboarding_report.py
       - name: Validate native host capacity probe and negative controls
         run: python -m unittest -v tests/test_native_host_capacity_probe.py
+
+      - name: Validate TODO Gateway local inventory hermetic contracts (Linux)
+        run: python -m unittest -v tests/test_todo_gateway_local_inventory.py
       - name: Validate Lenovo governed bootstrap inventory workflow
         run: python -m unittest -v tests/test_lenovo_command_gateway_bootstrap_inventory_workflow.py
       - name: Run TodoEvent unit tests
@@ -222,6 +225,11 @@ jobs:
           python-version: "3.12"
       - name: Validate native Windows policy loading and shared path controls
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
+
+      - name: Validate TODO Gateway local inventory hermetic contracts (Windows)
+        run: python -m unittest -v tests/test_todo_gateway_local_inventory.py
+      - name: Validate manifest generator isolation contracts (Windows)
+        run: python -m unittest -v tests/test_validate_rules_policy_profiles.py
       - name: Validate exact Noteri WSL running-only gate (Windows contract)
         run: python -m unittest -v tests/test_noteri_wsl_running_status.py
       - name: Gate legacy Noteri Gateway read-only recovery (Windows contracts)
