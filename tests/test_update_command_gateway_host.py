@@ -506,6 +506,50 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             )
             self.assertEqual(success["result"], "HOST_UPDATE_OK")
 
+    def test_install_failure_reports_destination_operation_and_os_code(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install = root / "install"
+            work_root = root / "workers"
+            bundle = self.make_current_bundle(root)
+            self.seed_legacy_runtime(install)
+            backup = updater.bootstrap.prepare_runtime_rollback(
+                bundle, install
+            )
+            failure = updater.bootstrap.WindowsReplaceError(
+                "activate_stage",
+                PermissionError(13, "injected permission denial"),
+            )
+            with mock.patch.object(
+                updater.bootstrap,
+                "atomic_write",
+                side_effect=failure,
+            ), self.assertRaises(
+                updater.bootstrap.RuntimeInstallError
+            ) as caught:
+                updater.bootstrap.install_bundle(
+                    bundle,
+                    install,
+                    work_root,
+                    "4" * 40,
+                    rollback_dir=backup,
+                    rollback_on_error=False,
+                    write_receipt=False,
+                )
+
+            error = caught.exception
+            self.assertEqual(error.destination, "bin/command_gateway.py")
+            self.assertEqual(error.operation, "activate_stage")
+            metadata = updater._failure_metadata(error)
+            self.assertEqual(
+                metadata["category"], "install_runtime_os_error"
+            )
+            self.assertEqual(metadata["destination"], error.destination)
+            self.assertEqual(metadata["operation"], error.operation)
+            self.assertEqual(metadata["os_error"]["errno"], 13)
+            self.assertNotIn(str(install), json.dumps(metadata))
+            self.assertNotIn("injected permission denial", json.dumps(metadata))
+
     @unittest.skipUnless(os.name == "nt", "requer sharing modes do Windows")
     def test_windows_handle_without_delete_share_is_caught_by_preflight(self):
         import ctypes
@@ -552,6 +596,42 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             finally:
                 self.assertTrue(close_handle(handle))
 
+    @unittest.skipUnless(os.name == "nt", "requer metadados do Windows")
+    def test_windows_preflight_exercises_metadata_preserving_primitive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install = root / "install"
+            bundle = self.make_current_bundle(root)
+            self.seed_legacy_runtime(install)
+            backup = updater.bootstrap.prepare_runtime_rollback(
+                bundle, install
+            )
+            snapshot = updater.bootstrap._load_runtime_rollback(
+                install, backup
+            )
+            expected_clones = sum(
+                entry["existed"]
+                for entry in snapshot["entries"].values()
+            )
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_clone_verified",
+                wraps=updater.bootstrap._windows_clone_verified,
+            ) as clone:
+                report = updater.preflight_runtime_replaceability(
+                    install, backup
+                )
+
+            self.assertEqual(
+                clone.call_count,
+                expected_clones,
+            )
+            self.assertEqual(
+                report["windows_metadata_contract"],
+                updater.bootstrap.WINDOWS_ROLLBACK_METADATA_CONTRACT,
+            )
+            self.assertTrue(report["owner_group_dacl_ads_verified"])
+
     def test_windows_staged_replace_clone_failure_keeps_target_and_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -583,12 +663,110 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             ) as move_file, mock.patch.object(
                 updater.bootstrap, "_cleanup_owned_stage"
             ) as cleanup:
-                with self.assertRaisesRegex(PermissionError, "clone failure"):
+                with self.assertRaises(
+                    updater.bootstrap.WindowsReplaceError
+                ) as caught:
                     updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(caught.exception.operation, "clone_destination")
             self.assertEqual(target.read_bytes(), b"previous\n")
             self.assertEqual(source.read_bytes(), b"desired\n")
             move_file.assert_not_called()
             cleanup.assert_not_called()
+
+    def test_windows_staged_replace_read_source_failure_reports_operation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "missing.tmp-owned"
+            target.write_bytes(b"previous\n")
+
+            with self.assertRaises(
+                updater.bootstrap.WindowsReplaceError
+            ) as caught:
+                updater.bootstrap._windows_replace_file(source, target)
+
+            self.assertEqual(caught.exception.operation, "read_source")
+            self.assertIsInstance(caught.exception.os_error, FileNotFoundError)
+
+    def test_windows_staged_replace_snapshot_failure_reports_operation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_file_state",
+                side_effect=PermissionError("injected snapshot failure"),
+            ), self.assertRaises(
+                updater.bootstrap.WindowsReplaceError
+            ) as caught:
+                updater.bootstrap._windows_replace_file(source, target)
+
+            self.assertEqual(caught.exception.operation, "snapshot_destination")
+
+    def test_windows_staged_replace_existing_stage_reports_operation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed.py"
+            source = root / "managed.py.tmp-owned"
+            target.write_bytes(b"previous\n")
+            source.write_bytes(b"desired\n")
+            stage = root / "managed.py.replace-stage-fixed"
+            stage.write_bytes(b"foreign\n")
+
+            with mock.patch.object(
+                updater.bootstrap.uuid,
+                "uuid4",
+                return_value=mock.Mock(hex="fixed"),
+            ), mock.patch.object(
+                updater.bootstrap,
+                "_windows_file_state",
+                return_value={},
+            ), self.assertRaises(
+                updater.bootstrap.WindowsReplaceError
+            ) as caught:
+                updater.bootstrap._windows_replace_file(source, target)
+
+            self.assertEqual(caught.exception.operation, "validate_stage_absent")
+            self.assertEqual(stage.read_bytes(), b"foreign\n")
+
+    def test_preflight_preserves_primary_operation_when_cleanup_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            install = root / "install"
+            bundle = self.make_current_bundle(root)
+            self.seed_legacy_runtime(install)
+            backup = updater.bootstrap.prepare_runtime_rollback(
+                bundle, install
+            )
+            replace_error = updater.bootstrap.WindowsReplaceError(
+                "activate_stage",
+                PermissionError(13, "injected replace failure"),
+            )
+            with mock.patch.object(
+                updater.bootstrap,
+                "_windows_clone_verified",
+            ), mock.patch.object(
+                updater.bootstrap,
+                "replace_file",
+                side_effect=replace_error,
+            ), mock.patch.object(
+                updater,
+                "_cleanup_probe",
+                return_value="injected cleanup failure",
+            ), self.assertRaises(
+                updater.RuntimeReplaceabilityError
+            ) as caught:
+                updater.preflight_runtime_replaceability(install, backup)
+
+            self.assertEqual(caught.exception.operation, "activate_stage")
+            self.assertEqual(
+                caught.exception.category,
+                "primitive_activate_stage_error",
+            )
 
     def test_windows_staged_replace_security_failure_cleans_owned_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -631,8 +809,11 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             ), mock.patch.object(
                 updater.bootstrap, "_windows_move_file"
             ) as move_file:
-                with self.assertRaisesRegex(PermissionError, "security failure"):
+                with self.assertRaises(
+                    updater.bootstrap.WindowsReplaceError
+                ) as caught:
                     updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(caught.exception.operation, "restore_dacl")
             self.assertEqual(target.read_bytes(), b"previous\n")
             self.assertEqual(source.read_bytes(), b"desired\n")
             self.assertEqual(list(root.glob("managed.py.replace-stage-*")), [])
@@ -679,8 +860,11 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 "_windows_move_file",
                 side_effect=PermissionError("injected sharing violation"),
             ):
-                with self.assertRaisesRegex(PermissionError, "sharing violation"):
+                with self.assertRaises(
+                    updater.bootstrap.WindowsReplaceError
+                ) as caught:
                     updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(caught.exception.operation, "activate_stage")
             self.assertEqual(target.read_bytes(), b"previous\n")
             self.assertFalse(source.exists())
             self.assertEqual(list(root.glob("managed.py.replace-stage-*")), [])
@@ -728,10 +912,12 @@ class HostRuntimeUpdateTests(unittest.TestCase):
                 "_cleanup_owned_stage",
                 side_effect=PermissionError("injected cleanup failure"),
             ):
-                with self.assertRaisesRegex(
-                    OSError, "security failure.*limpeza.*cleanup failure"
-                ):
+                with self.assertRaises(
+                    updater.bootstrap.WindowsReplaceError
+                ) as caught:
                     updater.bootstrap._windows_replace_file(source, target)
+            self.assertEqual(caught.exception.operation, "cleanup_stage")
+            self.assertIsInstance(caught.exception.os_error, PermissionError)
             self.assertEqual(target.read_bytes(), b"previous\n")
             self.assertEqual(source.read_bytes(), b"desired\n")
             self.assertEqual(len(list(root.glob("managed.py.replace-stage-*"))), 1)
