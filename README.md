@@ -1,6 +1,6 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.19
+Versão: 1.6.20
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
@@ -53,6 +53,8 @@ Checks `skipped`, `neutral`, `pending`, `cancelled`, falhos ou sem evidência n�
 28. Para alterações de código feitas por agentes, aplicar `rules/agent-durable-pr-gate.md`: evidenciar reparo real, CAS/SHA, Validator independente, uma PR draft e readback sem duplicação antes de declarar 100% funcional.
 
 Host novo sem Gateway: executar exclusivamente `scripts/install_command_gateway_host.py` com SHA completo aprovado e SHA-256 esperado do próprio instalador. Se Git não estiver instalado em Windows, o próprio bootstrap pode provisionar a distribuição oficial MinGit fixada por versão, tamanho e SHA-256, sem alterar o `PATH` global. Após `HOST_BOOTSTRAP_OK`, seguir imediatamente para `scripts/session_preflight.py`; não usar o bootstrap como terminal genérico.
+
+No incidente fixo do Gateway Noteri, a remoção do journal pendente não pertence ao updater normal. `scripts/recover_noteri_gateway_journal.py` é a capability recovery-only, vinculada aos digests do incidente, que exige lock preexistente somente leitura, duas leituras idênticas, move sem overwrite para o backup v2 e readback integral de conteúdo e metadados Windows. Sua presença não autoriza execução física nem uma atualização subsequente; cada mutação exige autorização Risk2 própria.
 
 ## Continuidade em um computador novo
 

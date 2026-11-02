@@ -1,6 +1,6 @@
 {
-  "version": "1.6.19",
-  "generated_at": "2026-11-02T02:24:00Z",
+  "version": "1.6.20",
+  "generated_at": "2026-11-02T13:49:34.712331+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "9608bd00f02d825b974e1683515bfc3612c37636a0fe81699b19dee2690a6ed1",
-      "size": 18119
+      "sha256": "cb8db5a0caca0461f2a3ec63853985f3bb03597a22c07ccff119d6cbf7b5ae23",
+      "size": 18209
     },
     {
       "path": ".gitignore",
@@ -59,27 +59,27 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "99c2d62076dfa6e40aa2d948de9b5533172e5ab6ac175204ac7a36eb8017ba8d",
-      "size": 21354
+      "sha256": "cd9fcd5d462361661417fe64bd55c6f70892068228ea419dd8b7ed43c21d8dc7",
+      "size": 21893
     },
     {
       "path": "README.md",
-      "sha256": "408bf1b498173ec1c07c4eeadb963f1aa4d42c0365ed11875c870e3f788e07ae",
-      "size": 10494
+      "sha256": "eb97fe883beaee204e53cf0f9c5a4068dcd4ebb1a83374255d06975bb15f4f1c",
+      "size": 11002
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "bb2616449292e23ec1e0be3436852a0e94d550d5cb44d7ebee536228eed117b0",
+      "sha256": "d5538a1ec6c6120d020ec9b2bb761f6d74f137d5176a713a74701add9ea4188b",
       "size": 3406
     },
     {
       "path": "config/command-gateway.policy.noteri-wsl.json",
-      "sha256": "c0e702f77b7e36b9b0e4dde4cc285a323a9446da5aafe31f9450b6fd1e651802",
+      "sha256": "961b50c2cf24a3e57ea8915f9adc66a4e71d2196f489e6f0a5ec3df75304543d",
       "size": 3210
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "5aa2c2326f7fdb2a67f14505c138a81413e2486c863dc430f0aec9fa54407b5f",
+      "sha256": "d1a8ef2e7c9aadcf0985c25da355e08f10d1fbc3d37c7336ff5d60af4a5a443d",
       "size": 2092
     },
     {
@@ -219,8 +219,8 @@
     },
     {
       "path": "rules/control-plane-recovery.md",
-      "sha256": "56c9577ff4da5ff84b7b89f5bd0a20581735a373d386ada4dc8ae964e026da5c",
-      "size": 3992
+      "sha256": "e8e570a0d7300d71324de12a06465ee6ac3a8332b4eb7b0c2ec4300444e7c48a",
+      "size": 4749
     },
     {
       "path": "rules/cost-governance.md",
@@ -538,6 +538,11 @@
       "size": 27445
     },
     {
+      "path": "scripts/recover_noteri_gateway_journal.py",
+      "sha256": "260de1755185382808edbe8bec456e3d104b1c46cb0c5b4574a70e7929284035",
+      "size": 25370
+    },
+    {
       "path": "scripts/render_postgres_preservation.py",
       "sha256": "39b5a8c45fe9dc5551b1834bbf6d8946e60ee5851a2a35df762ea1b0b0fc93f2",
       "size": 13578
@@ -694,8 +699,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "c2bab7f01a215bc5f52a0265739b3f896931850da6b894f746162d12910d0621",
-      "size": 15782
+      "sha256": "84a7eff9d0888385368dfb42840fc17cc8e0487430c1bf461d6320d3873c7d9d",
+      "size": 15883
     },
     {
       "path": "services/__init__.py",
@@ -981,6 +986,11 @@
       "path": "tests/test_reconcile_lenovo_pr112_main_governed.py",
       "sha256": "4d547d0f8faa8fab5d572e2b80b7b8aecb52c4daaf44adbddd23b820504a7fa9",
       "size": 4884
+    },
+    {
+      "path": "tests/test_recover_noteri_gateway_journal.py",
+      "sha256": "8f9027be8fb61ee6b9d5afe9cba2618eee82c9cc7a19be8d8d8b2cb634bdcbcf",
+      "size": 13293
     },
     {
       "path": "tests/test_render_postgres_preservation.py",

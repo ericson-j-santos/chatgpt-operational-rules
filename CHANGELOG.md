@@ -4,6 +4,12 @@
 
 - Formalizada a contingência gratuita de monitoramentos quando não é possível agendar no ChatGPT: reaproveitamento primeiro, GitHub Actions público com runner padrão em seguida, host governado por último e bloqueio sem prova de custo zero, com deduplicação, teste e readback (issue #191). Sem novo agendamento ou alteração automática de sistema.
 
+## 1.6.20 - 2026-10-31
+
+- Adicionada capability recovery-only do incidente fixo do Gateway Noteri, separada do updater normal e vinculada aos hashes do journal, recibos e manifestos já atestados.
+- A recuperação abre somente o lock existente sem criar/escrever, valida JSON estrito e owner/group/DACL/ADS em duas leituras, move o journal sem overwrite e oferece replay idempotente com readback.
+- Nenhuma execução física é autorizada pela mudança; recuperação do journal e atualização posterior continuam Risk2 independentes.
+
 ## 1.6.19 - 2026-10-25
 
 - Adicionado o contrato global para reparo real de agentes: patch persistido no CAS, validação independente, uma PR draft e readback/replay idempotente.

@@ -161,7 +161,7 @@ jobs:
       - name: Run Remote Desktop Commander owner arbitration tests
         run: python -m unittest -v tests/test_rdc_owner_arbitration.py
       - name: Run Host Bootstrap unit tests
-        run: python -m unittest -v tests/test_host_bootstrap.py tests/test_update_command_gateway_host.py
+        run: python -m unittest -v tests/test_host_bootstrap.py tests/test_update_command_gateway_host.py tests/test_recover_noteri_gateway_journal.py
       - name: Run Host Bootstrap E2E
         run: python scripts/host_bootstrap_e2e.py
       - name: Validate new-host inventory and isolated onboarding E2E
@@ -237,7 +237,7 @@ jobs:
       - name: Validate SHA-bound local clone and failure controls on Windows
         run: python -m unittest -v tests.test_session_launcher.SessionLauncherTests.test_isolated_local_clone_uses_pinned_commit_without_network_fetch tests.test_session_launcher.SessionLauncherTests.test_restricted_fetch_different_sha_still_blocks
       - name: Validate transactional Command Gateway runtime update on Windows
-        run: python -m unittest -v tests/test_update_command_gateway_host.py
+        run: python -m unittest -v tests/test_update_command_gateway_host.py tests/test_recover_noteri_gateway_journal.py
 
   debian-installer-isolated:
     name: Debian installer isolated systemd homologation
