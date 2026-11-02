@@ -1,6 +1,6 @@
 {
   "version": "1.6.19",
-  "generated_at": "2026-11-01T23:55:35.529Z",
+  "generated_at": "2026-11-02T02:24:00Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/data-analytics-weekly-radar.yml",
-      "sha256": "ef96a78bfc4077127e791a368a37ffa943f479872623868451c9ce1779e0a9ef",
-      "size": 4148
+      "sha256": "ea1b48ef28d64bcdd06bf4ee37deb32af931be593e21e0c7abbe0bd646e0eb92",
+      "size": 4286
     },
     {
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
@@ -344,8 +344,8 @@
     },
     {
       "path": "scripts/data_analytics_weekly_radar.py",
-      "sha256": "df7637e1398c40adc5f8c8012439fb3a97b8e9c23147d283a2d921b63a212a5f",
-      "size": 17244
+      "sha256": "0a99d3806a9801904d6902eb1e3f0e2921d919e25c2553f6bb726589dbc4c526",
+      "size": 25111
     },
     {
       "path": "scripts/dispatch_workflow_governed.py",
@@ -819,8 +819,8 @@
     },
     {
       "path": "tests/test_data_analytics_weekly_radar.py",
-      "sha256": "5112a6c891c76796a3063ce8e9bda26c0ab9d50bb6425b56cd7e76449c52a415",
-      "size": 4830
+      "sha256": "63a80da0918006bb0d19ef2516e48871cf2a1c61af0a6fd64ce7bc66ca1aa5ba",
+      "size": 19337
     },
     {
       "path": "tests/test_dispatch_workflow_governed.py",
@@ -1054,8 +1054,8 @@
     },
     {
       "path": "tests/test_todo_gateway_debian_systemd.py",
-      "sha256": "62c9b73ac4109e0b2343ec81e389df80d51fa8cab5140da20c6740f445786cad",
-      "size": 41039
+      "sha256": "af94433667cd4f23495c7195011ff6be4eb1d6dd2513a163d22b205c661f8416",
+      "size": 41735
     },
     {
       "path": "tests/test_todo_gateway_local_inventory.py",

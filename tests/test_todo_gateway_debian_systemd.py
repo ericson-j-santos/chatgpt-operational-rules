@@ -471,6 +471,29 @@ def test_postgres_timeout_is_bounded_and_sanitized(monkeypatch, capsys):
     assert secret not in "\n".join(captured["args"])
 
 
+
+def _descendant_exited(pid: int) -> bool:
+    """A process that disappears while /proc is read has terminated."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()[2] == "Z"
+    except FileNotFoundError:
+        return True
+
+
+def test_proc_stat_removed_between_poll_checks(monkeypatch):
+    def disappeared(self, **kwargs):
+        if str(self) == "/proc/123456789/stat":
+            raise FileNotFoundError(self)
+        raise AssertionError("unexpected file read")
+
+    monkeypatch.setattr(Path, "read_text", disappeared)
+    assert _descendant_exited(123456789)
+
+
+def test_proc_stat_live_process_is_not_terminal(monkeypatch):
+    monkeypatch.setattr(Path, "read_text", lambda self, **kwargs: "123 (child) R 1")
+    assert not _descendant_exited(123)
+
 def test_timeout_terminates_descendant_process_group(tmp_path, monkeypatch):
     module = _module()
     pid_file = tmp_path / "descendant.pid"
@@ -493,8 +516,7 @@ def test_timeout_terminates_descendant_process_group(tmp_path, monkeypatch):
     descendant_pid = int(pid_file.read_text(encoding="utf-8"))
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
-        status = Path(f"/proc/{descendant_pid}/stat")
-        if not status.exists() or status.read_text(encoding="utf-8").split()[2] == "Z":
+        if _descendant_exited(descendant_pid):
             break
         time.sleep(0.02)
     else:
