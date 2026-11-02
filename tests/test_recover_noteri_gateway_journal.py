@@ -162,6 +162,23 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
             self.assertTrue(recovery._same_existing_path(str(alias), expected))
         self.assertEqual(samefile.call_count, 2)
 
+    def test_install_root_is_checked_before_and_after_alias_canonicalization(self) -> None:
+        alias = Path("C:/Users/RUNNER~1/install")
+        canonical = Path("C:/Users/runneradmin/install")
+        with (
+            mock.patch.object(recovery.os.path, "abspath", return_value=str(alias)),
+            mock.patch.object(recovery.Path, "resolve", return_value=canonical),
+            mock.patch.object(recovery, "_require_directory") as require_directory,
+        ):
+            self.assertEqual(recovery._canonical_install_root(alias), canonical)
+        self.assertEqual(
+            require_directory.call_args_list,
+            [
+                mock.call(alias, "INSTALL_ROOT_INVALID"),
+                mock.call(canonical, "INSTALL_ROOT_INVALID"),
+            ],
+        )
+
     def test_receipt_path_rejects_same_file_identity_from_other_parent(self) -> None:
         outside = Path("C:/outside/update-receipt.json")
         expected = self.root / "update-receipt.json"

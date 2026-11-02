@@ -86,6 +86,17 @@ def _require_directory(path: Path, code: str) -> os.stat_result:
     return metadata
 
 
+def _canonical_install_root(root: Path) -> Path:
+    absolute = Path(os.path.abspath(root))
+    _require_directory(absolute, "INSTALL_ROOT_INVALID")
+    try:
+        canonical = absolute.resolve(strict=True)
+    except OSError as exc:
+        raise RecoveryBlocked("INSTALL_ROOT_INVALID") from exc
+    _require_directory(canonical, "INSTALL_ROOT_INVALID")
+    return canonical
+
+
 def _confined(root: Path, target: Path, code: str) -> Path:
     root_absolute = Path(os.path.abspath(root))
     target_absolute = Path(os.path.abspath(target))
@@ -497,8 +508,7 @@ def _result_payload(result: str, evidence: Evidence) -> dict[str, Any]:
 
 
 def recover(root: Path) -> dict[str, Any]:
-    root = Path(os.path.abspath(root))
-    _require_directory(root, "INSTALL_ROOT_INVALID")
+    root = _canonical_install_root(root)
     lock_path = root / "update.lock"
     journal_path = root / "update-transaction.json"
     with ExistingUpdateLock(lock_path):
