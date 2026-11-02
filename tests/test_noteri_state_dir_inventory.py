@@ -90,6 +90,34 @@ class NoteriStateDirInventoryTests(unittest.TestCase):
         self.assertTrue(result["state_changed"])
         self.assertFalse(result["mutated"])
 
+    def test_missing_target_changed_parent_between_reads_blocks(self):
+        actual = os.lstat
+        parent_reads = 0
+        missing_target = self.root / "missing-child"
+
+        def altered(path):
+            nonlocal parent_reads
+            found = actual(path)
+            if Path(path) == self.root:
+                parent_reads += 1
+                if parent_reads == 2:
+                    return SimpleNamespace(
+                        st_mode=found.st_mode,
+                        st_file_attributes=getattr(found, "st_file_attributes", 0),
+                        st_dev=found.st_dev,
+                        st_ino=found.st_ino,
+                        st_size=found.st_size,
+                        st_mtime_ns=found.st_mtime_ns + 1,
+                    )
+            return found
+
+        result = inv.inspect_twice(
+            (("missing", missing_target, "directory"),), stat_fn=altered
+        )
+        self.assertEqual(result["result"], "BLOCKED_OBSERVATION_CHANGED")
+        self.assertTrue(result["state_changed"])
+        self.assertFalse(result["mutated"])
+
     def test_missing_path_does_not_leak_full_path(self):
         import json
         result = inv.inspect_twice((("fixed", self.root / "personal", "directory"),))
