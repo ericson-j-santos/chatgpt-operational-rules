@@ -23,6 +23,10 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "install"
         self.root.mkdir()
+        # Windows pode expandir o alias 8.3 do diretório temporário (RUNNER~1).
+        # A fixture precisa usar a mesma raiz canônica validada pelo recovery.
+        # Não flexibilizar _confined() nem aceitar backups fora do root.
+        self.root = self.root.resolve(strict=True)
         (self.root / "update.lock").write_bytes(b"\0")
         self.transaction_id = "1" * 32
         self.incident = "2" * 40
@@ -152,6 +156,11 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
 
     def archive(self) -> Path:
         return self.backup / f"recovered-update-transaction-{self.transaction_id}.json"
+
+    def test_fixture_root_is_canonical_before_seeding_incident(self) -> None:
+        self.assertEqual(self.root, self.root.resolve(strict=True))
+        self.assertEqual(self.backup.parent, self.root)
+        self.assertEqual(self.legacy_backup.parent, self.root)
 
     def test_receipt_path_accepts_alias_for_same_parent_and_file(self) -> None:
         alias = Path("C:/Users/RUNNER~1/install/update-receipt.json")
