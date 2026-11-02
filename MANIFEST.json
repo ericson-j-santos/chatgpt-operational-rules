@@ -449,8 +449,8 @@
     },
     {
       "path": "scripts/noteri_state_dir_inventory.py",
-      "sha256": "511198d93822178f4342a3147488a8d65e07d7ac51ef31b8bf6dd4d8e79b738d",
-      "size": 6244
+      "sha256": "1c5e5243159fb9090efaf5db9ba82687a614e8c3a42448895151161daac2f695",
+      "size": 6399
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -909,8 +909,8 @@
     },
     {
       "path": "tests/test_noteri_state_dir_inventory.py",
-      "sha256": "c8016b4ce0826dfd72e5608beb7c93ee3eafb1e72a7857bc11ed67817610d6e2",
-      "size": 5143
+      "sha256": "b7ff42fe8e559298d7e2523983a4a458435943d2c4cee8918ec12e5f2a27b292",
+      "size": 6231
     },
     {
       "path": "tests/test_noteri_wsl_running_status.py",
