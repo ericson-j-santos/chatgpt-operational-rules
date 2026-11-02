@@ -210,6 +210,20 @@ def _validate_manifest(manifest: dict[str, Any], root: Path) -> None:
             raise RecoveryBlocked("ROLLBACK_ENTRY_INVALID")
 
 
+def _same_existing_path(value: object, expected: Path) -> bool:
+    if not isinstance(value, str):
+        return False
+    candidate = Path(value)
+    if candidate.name.casefold() != expected.name.casefold():
+        return False
+    try:
+        return os.path.samefile(candidate.parent, expected.parent) and os.path.samefile(
+            candidate, expected
+        )
+    except (OSError, ValueError):
+        return False
+
+
 def _validate_incident_receipt(receipt: dict[str, Any], root: Path) -> None:
     expected = {
         "result", "gateway_exit_code", "transaction_id", "source_commit",
@@ -265,8 +279,9 @@ def _validate_incident_receipt(receipt: dict[str, Any], root: Path) -> None:
             "historical_metadata_verified": False,
             "original_receipt_archived": True,
         }
-        or os.path.normcase(str(Path(receipt["receipt_path"])))
-        != os.path.normcase(str(root / "update-receipt.json"))
+        or not _same_existing_path(
+            receipt["receipt_path"], root / "update-receipt.json"
+        )
     ):
         raise RecoveryBlocked("PRIMARY_RECEIPT_INCIDENT_MISMATCH")
 

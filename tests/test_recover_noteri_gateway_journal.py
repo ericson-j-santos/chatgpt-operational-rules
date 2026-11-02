@@ -153,6 +153,24 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
     def archive(self) -> Path:
         return self.backup / f"recovered-update-transaction-{self.transaction_id}.json"
 
+    def test_receipt_path_accepts_alias_for_same_parent_and_file(self) -> None:
+        alias = Path("C:/Users/RUNNER~1/install/update-receipt.json")
+        expected = self.root / "update-receipt.json"
+        with mock.patch.object(
+            recovery.os.path, "samefile", side_effect=[True, True]
+        ) as samefile:
+            self.assertTrue(recovery._same_existing_path(str(alias), expected))
+        self.assertEqual(samefile.call_count, 2)
+
+    def test_receipt_path_rejects_same_file_identity_from_other_parent(self) -> None:
+        outside = Path("C:/outside/update-receipt.json")
+        expected = self.root / "update-receipt.json"
+        with mock.patch.object(
+            recovery.os.path, "samefile", side_effect=[False, True]
+        ) as samefile:
+            self.assertFalse(recovery._same_existing_path(str(outside), expected))
+        self.assertEqual(samefile.call_count, 1)
+
     def test_success_moves_only_journal_and_replay_is_read_only(self) -> None:
         before = {
             path: self.digest(path)
