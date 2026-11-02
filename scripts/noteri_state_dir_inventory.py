@@ -51,22 +51,23 @@ def inspect_path(
     if not target.is_absolute() or expected not in {"file", "directory"}:
         return {"status": "INVALID_TARGET", "component_index": 0}, ("INVALID_TARGET",)
     chain = list(reversed(target.parents)) + [target]
+    # Compare ancestor identity even when the target is absent or invalid.
     fingerprint: list[tuple] = []
     for index, component in enumerate(chain):
         try:
             observed = stat_fn(component)
         except FileNotFoundError:
-            return {"status": "MISSING", "component_index": index}, ("MISSING", index)
+            return {"status": "MISSING", "component_index": index}, ("MISSING", index, tuple(fingerprint))
         except NotADirectoryError:
-            return {"status": "NOT_DIRECTORY", "component_index": index}, ("NOT_DIRECTORY", index)
+            return {"status": "NOT_DIRECTORY", "component_index": index}, ("NOT_DIRECTORY", index, tuple(fingerprint))
         except OSError as exc:
             code = getattr(exc, "winerror", None) or getattr(exc, "errno", None)
             if code == 267:  # ERROR_DIRECTORY no Windows
-                return {"status": "NOT_DIRECTORY", "component_index": index}, ("NOT_DIRECTORY", index)
+                return {"status": "NOT_DIRECTORY", "component_index": index}, ("NOT_DIRECTORY", index, tuple(fingerprint))
             code = code if type(code) is int and 0 <= code <= 65535 else 0
             return (
                 {"status": "OS_ERROR", "component_index": index, "os_code": code},
-                ("OS_ERROR", index, code),
+                ("OS_ERROR", index, code, tuple(fingerprint)),
             )
         attrs = int(getattr(observed, "st_file_attributes", 0))
         signature = (
