@@ -11,7 +11,7 @@ import re
 import sys
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -289,6 +289,64 @@ def verify_publication(repo: str, token: str, output: Path) -> dict:
     return {**evidence, "verification": "passed"}
 
 
+
+def publication_guard(repo: str, token: str, now: datetime) -> None:
+    """Fail closed when another workflow attempt could have published this week.
+
+    The GitHub Actions run ledger survives a new runner and an uncertain POST.
+    This is a conservative single-publisher gate, not a generic remote mutex.
+    """
+    event = os.getenv("GITHUB_EVENT_NAME", "")
+    run_id = os.getenv("GITHUB_RUN_ID", "")
+    attempt = os.getenv("GITHUB_RUN_ATTEMPT", "")
+    if (os.getenv("GITHUB_ACTIONS") != "true" or
+            event not in {"schedule", "workflow_dispatch"} or
+            not re.fullmatch(r"[1-9][0-9]*", run_id) or attempt != "1"):
+        raise RadarError("publisher must be first attested GitHub Actions attempt")
+
+    year, number, _ = now.astimezone(ZoneInfo("America/Sao_Paulo")).isocalendar()
+    monday = datetime.fromisocalendar(year, number, 1).date()
+    begin = (monday - timedelta(days=1)).isoformat()
+    end = (monday + timedelta(days=8)).isoformat()
+    data = gh(
+        repo,
+        f"actions/workflows/data-analytics-weekly-radar.yml/runs"
+        f"?per_page=100&created={begin}..{end}",
+        token,
+    )
+    if not isinstance(data, dict):
+        raise RadarError("publisher run ledger invalid")
+    runs = data.get("workflow_runs")
+    count = data.get("total_count")
+    if (type(count) is not int or count >= 100 or
+            not isinstance(runs, list) or len(runs) != count):
+        raise RadarError("publisher run ledger incomplete; do not republish")
+
+    current_seen = False
+    for entry in runs:
+        if not isinstance(entry, dict) or type(entry.get("id")) is not int:
+            raise RadarError("publisher run ledger entry invalid")
+        if entry["id"] == int(run_id):
+            current_seen = True
+        if entry.get("event") not in {"schedule", "workflow_dispatch"}:
+            continue
+        stamp = entry.get("created_at")
+        if not isinstance(stamp, str):
+            raise RadarError("publisher run timestamp invalid")
+        try:
+            observed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            if observed.tzinfo is None:
+                raise ValueError("timestamp without timezone")
+            observed_week = observed.astimezone(ZoneInfo("America/Sao_Paulo")).isocalendar()
+        except ValueError as exc:
+            raise RadarError("publisher run timestamp invalid") from exc
+        if (observed_week.year, observed_week.week) != (year, number):
+            continue
+        if entry["id"] != int(run_id):
+            raise RadarError("previous publisher this week; do not republish")
+    if not current_seen:
+        raise RadarError("current run absent from publisher ledger; do not publish")
+
 def write_artifacts(output,report,body):
     output.mkdir(parents=True,exist_ok=True); (output/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8"); (output/"report.md").write_text(body,encoding="utf-8")
 
@@ -339,6 +397,7 @@ def run(repo,token,*,dry_run=False,getter=request,now=None,output=None):
         head_sha=os.getenv("RADAR_HEAD_SHA") or os.getenv("GITHUB_SHA", "")
         if not re.fullmatch(r"[1-9][0-9]*",run_id) or not re.fullmatch(r"[0-9a-f]{40}",head_sha):
             raise RadarError("GitHub run ID/SHA not attested for publication")
+        publication_guard(repo, token, now)
         output.mkdir(parents=True,exist_ok=True)
         intent={"schema_version":"1.0", "repo":repo, "title":title,
                 "run_id":run_id, "head_sha":head_sha, "correlation_id":cid}

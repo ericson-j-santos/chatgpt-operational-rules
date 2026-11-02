@@ -201,7 +201,7 @@ class RadarTests(unittest.TestCase):
             folder=pathlib.Path(tmp)
             with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
                 with patch.object(radar,"issue_list",return_value=[]), patch.object(radar,"collect",return_value=([],{"ok":True})), patch.object(radar,"select",return_value=[]), patch.object(radar,"render",return_value="# Radar técnico de dados — teste"):
-                    with patch.object(radar,"gh",return_value={"html_url":"https://github.com/o/r/issues/77"}) as api:
+                    with patch.object(radar,"gh",return_value={"html_url":"https://github.com/o/r/issues/77"}) as api, patch.object(radar,"publication_guard",return_value=None):
                         result=radar.run("o/r","token",output=folder)
                     self.assertEqual(api.call_count,1)
                     self.assertEqual(api.call_args.kwargs["method"],"POST")
@@ -216,13 +216,56 @@ class RadarTests(unittest.TestCase):
             folder=pathlib.Path(tmp)
             with patch.dict(os.environ,{"GITHUB_RUN_ID":"777","GITHUB_SHA":"a"*40},clear=True):
                 with patch.object(radar,"issue_list",return_value=[]), patch.object(radar,"collect",return_value=([],{"ok":True})), patch.object(radar,"select",return_value=[]), patch.object(radar,"render",return_value="# Radar técnico de dados — teste"):
-                    with patch.object(radar,"gh",return_value={}) as api:
+                    with patch.object(radar,"gh",return_value={}) as api, patch.object(radar,"publication_guard",return_value=None):
                         with self.assertRaisesRegex(radar.RadarError,"acknowledgement uncertain"):
                             radar.run("o/r","token",output=folder)
                         self.assertTrue((folder/"publication-intent.json").exists())
                         with self.assertRaisesRegex(radar.RadarError,"do not republish"):
                             radar.run("o/r","token",output=folder)
                     self.assertEqual(api.call_count,1)
+
+
+    def test_publication_guard_first_publisher_current_week(self):
+        now=datetime(2026,10,30,12,0,tzinfo=timezone.utc)
+        current={"id":777,"event":"schedule","created_at":"2026-10-30T12:00:00Z"}
+        env={"GITHUB_ACTIONS":"true","GITHUB_EVENT_NAME":"schedule","GITHUB_RUN_ID":"777","GITHUB_RUN_ATTEMPT":"1"}
+        with patch.dict(os.environ,env,clear=True):
+            with patch.object(radar,"gh",return_value={"total_count":1,"workflow_runs":[current]}) as api:
+                radar.publication_guard("o/r","token",now)
+                api.assert_called_once()
+                self.assertIn("per_page=100&created=",api.call_args.args[1])
+
+    def test_publication_guard_denies_second_attempt_without_any_get(self):
+        now=datetime(2026,10,30,12,0,tzinfo=timezone.utc)
+        env={"GITHUB_ACTIONS":"true","GITHUB_EVENT_NAME":"schedule","GITHUB_RUN_ID":"777","GITHUB_RUN_ATTEMPT":"2"}
+        with patch.dict(os.environ,env,clear=True), patch.object(radar,"gh",side_effect=AssertionError("no API")):
+            with self.assertRaisesRegex(radar.RadarError,"first attested"):
+                radar.publication_guard("o/r","token",now)
+
+    def test_publication_guard_refuses_incomplete_or_stale_ledger(self):
+        now=datetime(2026,10,30,12,0,tzinfo=timezone.utc)
+        env={"GITHUB_ACTIONS":"true","GITHUB_EVENT_NAME":"schedule","GITHUB_RUN_ID":"777","GITHUB_RUN_ATTEMPT":"1"}
+        with patch.dict(os.environ,env,clear=True):
+            for payload in ({"total_count":101,"workflow_runs":[]},
+                            {"total_count":0,"workflow_runs":[]}):
+                with self.subTest(payload=payload):
+                    with patch.object(radar,"gh",return_value=payload):
+                        with self.assertRaisesRegex(radar.RadarError,"ledger"):
+                            radar.publication_guard("o/r","token",now)
+
+    def test_fresh_workspace_after_uncertain_post_never_publishes_again(self):
+        now=datetime(2026,10,30,12,0,tzinfo=timezone.utc)
+        older={"id":776,"event":"schedule","created_at":"2026-10-30T11:00:00Z","conclusion":"failure"}
+        current={"id":777,"event":"workflow_dispatch","created_at":"2026-10-30T12:00:00Z"}
+        env={"GITHUB_ACTIONS":"true","GITHUB_EVENT_NAME":"workflow_dispatch","GITHUB_RUN_ID":"777","GITHUB_RUN_ATTEMPT":"1","GITHUB_SHA":"a"*40}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,env,clear=True):
+            with patch.object(radar,"issue_list",return_value=[]), patch.object(radar,"collect",return_value=([],{"ok":True})), patch.object(radar,"select",return_value=[]), patch.object(radar,"render",return_value="# Radar tecnico de dados - teste"):
+                with patch.object(radar,"gh",return_value={"total_count":2,"workflow_runs":[current,older]}) as api:
+                    with self.assertRaisesRegex(radar.RadarError,"previous publisher"):
+                        radar.run("o/r","token",now=now,output=pathlib.Path(tmp))
+                    api.assert_called_once()
+                    self.assertNotEqual(api.call_args.kwargs.get("method"),"POST")
+                    self.assertFalse((pathlib.Path(tmp)/"publication-intent.json").exists())
 
     def test_artifacts_written(self):
         with tempfile.TemporaryDirectory() as tmp:
