@@ -45,6 +45,12 @@ class WatchTests(TestCase):
         self.assertEqual(len(watch.rss_items(xml, "CISA")), 1)
         self.assertTrue(watch.material(watch.rss_items(xml, "CISA")[0], NOW))
 
+    def test_atom_href_link_is_supported(self):
+        xml = b'<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>AI agent prompt injection security guidance</title><link href="https://www.cisa.gov/a"/><published>2026-11-04T09:00:00Z</published><summary>Mitigation against prompt injection</summary></entry></feed>'
+        parsed = watch.rss_items(xml, "CISA")
+        self.assertEqual(len(parsed), 1)
+        self.assertTrue(watch.material(parsed[0], NOW))
+
     def test_invalid_rss_fails_closed(self):
         with self.assertRaises(watch.MonitorBlocked):
             watch.rss_items(b"<rss", "CISA")

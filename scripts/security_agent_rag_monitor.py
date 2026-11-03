@@ -116,7 +116,7 @@ def rss_items(raw: bytes, name: str):
         fields = {}
         for child in element:
             key = child.tag.rsplit("}", 1)[-1]
-            val = child.attrib.get("href") if key == "link" else "".join(child.itertext())
+            val = (child.attrib.get("href") or "".join(child.itertext())) if key == "link" else "".join(child.itertext())
             if val:
                 fields[key] = val
         link = fields.get("link") or fields.get("guid") or ""
