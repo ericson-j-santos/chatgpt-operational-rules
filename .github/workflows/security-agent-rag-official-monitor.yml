@@ -8,7 +8,8 @@ on:
       - "tests/test_security_agent_rag_monitor.py"
       - "MANIFEST.json"
   push:
-    branches: [main]
+    # Feature-branch preflight is read-only; alert publishing is main-only.
+    branches: [main, "feat/ai-rag-security-*"]
     paths:
       - ".github/workflows/security-agent-rag-official-monitor.yml"
       - "scripts/security_agent_rag_monitor.py"
@@ -28,7 +29,7 @@ concurrency:
 
 jobs:
   validate:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -43,8 +44,15 @@ jobs:
           python3 -m py_compile scripts/security_agent_rag_monitor.py
           python3 -m unittest -v tests/test_security_agent_rag_monitor.py
 
+      - name: Live source collection, no GitHub write
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ""
+        run: |
+          python3 scripts/security_agent_rag_monitor.py --repo "$GITHUB_REPOSITORY" --dry-run
+
   monitor:
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     permissions:
