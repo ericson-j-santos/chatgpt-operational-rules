@@ -1,6 +1,6 @@
 {
   "version": "1.6.20",
-  "generated_at": "2026-11-03T16:00:42.287Z",
+  "generated_at": "2026-11-03T16:03:04.056Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -39,8 +39,8 @@
     },
     {
       "path": ".github/workflows/security-agent-rag-official-monitor.yml",
-      "sha256": "27c296496505c50fa2c49bb68caa63436fb539482a05c2cde5609f3e89000765",
-      "size": 2311
+      "sha256": "6371b0ed0c0ae4b1d3b4ea43049c8c932ca75f37c7360847c3c887a82fd612b4",
+      "size": 2308
     },
     {
       "path": ".github/workflows/todo-global-hourly-cycle.yml",

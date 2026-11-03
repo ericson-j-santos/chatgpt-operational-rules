@@ -35,7 +35,7 @@ jobs:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: \${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Compile and test monitoring contract
@@ -54,12 +54,12 @@ jobs:
       - name: Checkout exact run SHA
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Validate and run official-source monitor
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
