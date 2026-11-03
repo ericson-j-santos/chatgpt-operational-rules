@@ -77,10 +77,11 @@ def date(raw: str | None):
 def source_request(url: str, token: str = "") -> bytes:
     headers = {"User-Agent": UA, "Accept": "application/json, application/rss+xml, application/atom+xml, application/xml"}
     del token  # External official sources are read publicly; never forward repository credentials.
+    limit = 5_000_000 if url.startswith("https://www.cisa.gov/") else 2_000_000
     try:
         with urlopen(Request(url, headers=headers), timeout=18) as response:
-            data = response.read(2_000_001)
-            if len(data) > 2_000_000:
+            data = response.read(limit + 1)
+            if len(data) > limit:
                 raise MonitorBlocked("source payload exceeds size limit")
             return data
     except (HTTPError, URLError, TimeoutError) as exc:
