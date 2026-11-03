@@ -245,6 +245,8 @@ def execute(repo: str, token: str, now: datetime, *, dry_run: bool = False):
     if not dry_run:
         publication_guard()
     records, checks = collect(token)
+    if any(check["status"] != "ok" for check in checks):
+        raise MonitorBlocked("incomplete official-source coverage; publishing blocked")
     seen = existing_titles(repo, token) if not dry_run else set()
     eligible = []
     seen_batch = set()

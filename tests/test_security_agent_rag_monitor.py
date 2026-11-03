@@ -139,6 +139,17 @@ class WatchTests(TestCase):
             with self.assertRaises(watch.MonitorBlocked):
                 watch.publication_guard()
 
+    def test_partial_coverage_blocks_publication_and_cannot_turn_ci_green(self):
+        item = entry()
+        with patch.object(watch, "collect", return_value=([item], [
+            {"source": "CISA", "status": "coverage_incomplete"},
+            {"source": "NIST", "status": "ok"},
+        ])), patch.object(watch, "existing_titles") as issues, patch.object(watch, "gh") as api:
+            with self.assertRaisesRegex(watch.MonitorBlocked, "incomplete official-source coverage"):
+                watch.execute(watch.REPO, "fake", NOW, dry_run=True)
+            issues.assert_not_called()
+            api.assert_not_called()
+
     def test_replay_does_not_publish(self):
         item = entry()
         title = watch.alert_title(item)
