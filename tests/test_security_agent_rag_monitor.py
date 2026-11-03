@@ -83,6 +83,13 @@ class WatchTests(TestCase):
         renamed = {**original, "title": "Revised official headline"}
         self.assertEqual(watch.alert_title(original), watch.alert_title(renamed))
 
+    def test_cisa_watch_uses_narrow_official_alert_feed(self):
+        self.assertEqual(watch.SOURCES[0][0], "CISA")
+        self.assertEqual(
+            watch.SOURCES[0][2],
+            "https://www.cisa.gov/cybersecurity-advisories/alerts.xml",
+        )
+
     def test_cisa_feed_uses_bounded_five_megabyte_limit(self):
         sizes = []
         class Response:
@@ -94,7 +101,7 @@ class WatchTests(TestCase):
                 sizes.append(maximum)
                 return b"<rss/>"
         with patch.object(watch, "urlopen", return_value=Response()):
-            self.assertEqual(watch.source_request("https://www.cisa.gov/cybersecurity-advisories/all.xml"), b"<rss/>")
+            self.assertEqual(watch.source_request("https://www.cisa.gov/cybersecurity-advisories/alerts.xml"), b"<rss/>")
             self.assertEqual(watch.source_request("https://api.github.com/repos/ollama/ollama/releases"), b"<rss/>")
         self.assertEqual(sizes, [5_000_001, 2_000_001])
 
@@ -108,7 +115,7 @@ class WatchTests(TestCase):
                 return b"x" * maximum
         with patch.object(watch, "urlopen", return_value=Oversized()):
             with self.assertRaises(watch.MonitorBlocked):
-                watch.source_request("https://www.cisa.gov/cybersecurity-advisories/all.xml")
+                watch.source_request("https://www.cisa.gov/cybersecurity-advisories/alerts.xml")
 
     def test_external_source_request_does_not_forward_repository_token(self):
         class Response:

@@ -26,7 +26,7 @@ PREFIX = "[AI/RAG Security]"
 BASELINE = datetime(2026, 11, 3, 3, 0, tzinfo=timezone.utc)
 UA = "ReqSys-AI-RAG-Official-Security-Watch/1.0"
 SOURCES = (
-    ("CISA", "rss", "https://www.cisa.gov/cybersecurity-advisories/all.xml"),
+    ("CISA", "rss", "https://www.cisa.gov/cybersecurity-advisories/alerts.xml"),
     ("NIST", "rss", "https://www.nist.gov/news-events/news/rss.xml"),
     ("OWASP GenAI", "release", "https://api.github.com/repos/GenAI-Security-Project/GenAI-LLM-Top10/releases?per_page=30"),
     ("Ollama", "advisory", "https://api.github.com/repos/ollama/ollama/security-advisories?per_page=30"),
