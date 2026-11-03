@@ -72,6 +72,27 @@ class WatchTests(TestCase):
         self.assertEqual(watch.alert_title(item), watch.alert_title(item))
         self.assertIn(watch.PREFIX, watch.alert_title(item))
 
+    def test_headline_edit_does_not_create_a_new_alert_identity(self):
+        original = entry()
+        renamed = {**original, "title": "Revised official headline"}
+        self.assertEqual(watch.alert_title(original), watch.alert_title(renamed))
+
+    def test_external_source_request_does_not_forward_repository_token(self):
+        class Response:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, size):
+                return b"[]"
+        with patch.object(watch, "urlopen", return_value=Response()) as mocked:
+            self.assertEqual(
+                watch.source_request("https://api.github.com/repos/ollama/ollama/releases", "private-token"),
+                b"[]",
+            )
+            request = mocked.call_args.args[0]
+            self.assertIsNone(request.get_header("Authorization"))
+
     def test_publication_rejects_non_actions_context(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS":"false","GITHUB_EVENT_NAME":"schedule",
                                       "GITHUB_RUN_ATTEMPT":"1","GITHUB_SHA":"a"*40,"GITHUB_RUN_ID":"123"}):

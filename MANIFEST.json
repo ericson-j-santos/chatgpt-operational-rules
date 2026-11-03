@@ -1,6 +1,6 @@
 {
   "version": "1.6.20",
-  "generated_at": "2026-11-03T16:05:53.533Z",
+  "generated_at": "2026-11-03T19:04:38.550Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -579,8 +579,8 @@
     },
     {
       "path": "scripts/security_agent_rag_monitor.py",
-      "sha256": "3a3943f670c54d655ef097d74bef92e5c9b7afec27e2609dfd460d035e5f5f33",
-      "size": 14989
+      "sha256": "66edb1647867eaed7badcf58f221accdd84c56ee02521b8321b4ae97d3a1d8c8",
+      "size": 14890
     },
     {
       "path": "scripts/session_bootstrap_e2e.py",
@@ -1034,8 +1034,8 @@
     },
     {
       "path": "tests/test_security_agent_rag_monitor.py",
-      "sha256": "3368e79c8a4cb632396817c958777e8adeb6a789eff14e4d2a7686908b7502dd",
-      "size": 7766
+      "sha256": "967d147a152b7a2a4abb203e7c2b4ed796713cc61d8109e915b288136388cc6d",
+      "size": 8682
     },
     {
       "path": "tests/test_session_bootstrap.py",

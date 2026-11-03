@@ -76,9 +76,7 @@ def date(raw: str | None):
 
 def source_request(url: str, token: str = "") -> bytes:
     headers = {"User-Agent": UA, "Accept": "application/json, application/rss+xml, application/atom+xml, application/xml"}
-    if url.startswith("https://api.github.com/") and token:
-        headers["Authorization"] = "Bearer " + token
-        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    del token  # External official sources are read publicly; never forward repository credentials.
     try:
         with urlopen(Request(url, headers=headers), timeout=18) as response:
             data = response.read(2_000_001)
@@ -184,7 +182,7 @@ def material(item: dict, now: datetime):
 
 def alert_title(item: dict) -> str:
     key = hashlib.sha256(item["url"].encode("utf-8")).hexdigest()[:16]
-    return f"{PREFIX} {key} — {safe(item['title'], 100)}"
+    return f"{PREFIX} {key}"
 
 def report(item: dict, axes: tuple[str, ...], sha: str) -> str:
     published = item["published"].strftime("%Y-%m-%d %H:%M UTC")
