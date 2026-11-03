@@ -32,14 +32,14 @@ SOURCES = (
     ("Ollama", "advisory", "https://api.github.com/repos/ollama/ollama/security-advisories?per_page=30"),
     ("MCP", "advisory", "https://api.github.com/repos/modelcontextprotocol/servers/security-advisories?per_page=30"),
 )
-CONTEXT = re.compile(r"\b(?:llm|large language model|generative ai|genai|agentic|ai agent|prompt injection|rag|retrieval.augmented|model context protocol|mcp server|ollama|copilot studio)\b", re.I)
+CONTEXT = re.compile(r"\b(?:llm|large language model|generative ai|genai|agentic|ai agents?|prompt injection|rag|retrieval.augmented|model context protocol|mcp server|ollama|copilot studio)\b", re.I)
 AXES = {
     "injeção de instruções": re.compile(r"prompt.inject|instruction.inject|jailbreak|retrieval.poison|data.poison|untrusted.content", re.I),
     "acesso a ferramentas": re.compile(r"tool.call|tool.access|excessive.agency|authorization|privilege|permission|identity|agent.tool|mcp.server", re.I),
     "exposição de dados": re.compile(r"exfiltrat|data.leak|information.disclosure|sensitive.data|secret|credential|context.exposure", re.I),
     "auditoria": re.compile(r"audit|telemetr|logging|traceabil|observabil|correlation.id|trace.id", re.I),
 }
-MATERIAL = re.compile(r"\b(?:security|vulnerabilit|advisory|exploit|mitigat|patch|fix|risk|threat|attack|guidance|protection|CVE-\d{4}-\d+|GHSA-[a-z0-9-]+)\b", re.I)
+MATERIAL = re.compile(r"\b(?:security|vulnerabilit(?:y|ies)|advisory|exploit(?:s|ation|ed)?|mitigat(?:e|ion|ions)|patch(?:ed|ing)?|fix(?:ed|es)?|risk|threat|attack(?:s)?|guidance|protection|CVE-\d{4}-\d+|GHSA-[a-z0-9-]+)\b", re.I)
 ADAPT = {
     "injeção de instruções": "Verificar separação entre dados recuperados e instruções; adicionar teste negativo com conteúdo RAG hostil, sem liberar ferramentas.",
     "acesso a ferramentas": "Revalidar autorização por operação, menor privilégio, aprovação humana e negação de chamada indevida em DEV.",
@@ -130,7 +130,7 @@ def rss_items(raw: bytes, name: str):
             continue
         records.append({"source": name, "url": url, "title": safe(fields.get("title")),
                         "description": safe(fields.get("description") or fields.get("summary"), 900),
-                        "published": date(fields.get("pubDate") or fields.get("published")),
+                        "published": date(fields.get("pubDate") or fields.get("published") or fields.get("updated") or fields.get("date")),
                         "kind": "guidance"})
         if len(records) >= 60:
             break
@@ -248,10 +248,13 @@ def execute(repo: str, token: str, now: datetime, *, dry_run: bool = False):
     records, checks = collect(token)
     seen = existing_titles(repo, token) if not dry_run else set()
     eligible = []
+    seen_batch = set()
     for item in records:
         axes = material(item, now)
-        if axes and alert_title(item) not in seen:
+        title = alert_title(item)
+        if axes and title not in seen and title not in seen_batch:
             eligible.append((item, axes))
+            seen_batch.add(title)
     eligible.sort(key=lambda pair: pair[0]["published"])
     issues = []
     for item, axes in eligible:

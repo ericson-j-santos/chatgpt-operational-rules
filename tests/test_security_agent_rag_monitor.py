@@ -102,6 +102,24 @@ class WatchTests(TestCase):
         with patch.dict(os.environ, env), patch.object(watch, "collect", return_value=([item], [{"source":"CISA","status":"ok"}])), patch.object(watch, "existing_titles", return_value=set()), patch.object(watch, "gh", side_effect=api):
             self.assertEqual(watch.execute(watch.REPO, "fake", NOW)["issues_created"], 1)
 
+    def test_same_official_item_twice_in_one_cycle_creates_one_issue(self):
+        item = entry()
+        title, body = watch.alert_title(item), watch.report(item, watch.material(item, NOW), "a"*40)
+        def api(repo, suffix, token, **kw):
+            if suffix == "issues" and kw.get("method") == "POST":
+                return {"number": 9}
+            if suffix == "issues/9":
+                return {"title": title, "body": body, "html_url": "https://github.com/example/9"}
+            raise AssertionError(suffix)
+        env = {"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "schedule",
+               "GITHUB_RUN_ATTEMPT": "1", "GITHUB_SHA": "a"*40, "GITHUB_RUN_ID": "123"}
+        with patch.dict(os.environ, env), patch.object(watch, "collect",
+                return_value=([item, item], [{"source": "CISA", "status": "ok"}])), patch.object(
+                watch, "existing_titles", return_value=set()), patch.object(watch, "gh", side_effect=api) as mocked:
+            result = watch.execute(watch.REPO, "fake", NOW)
+            self.assertEqual(result["issues_created"], 1)
+            self.assertEqual(mocked.call_count, 2)
+
     def test_ambiguous_post_has_no_retry(self):
         item = entry()
         env = {"GITHUB_ACTIONS":"true","GITHUB_EVENT_NAME":"schedule",
