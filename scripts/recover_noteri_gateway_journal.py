@@ -97,6 +97,23 @@ def _canonical_install_root(root: Path) -> Path:
     return canonical
 
 
+def _windows_relative_by_ancestor_identity(root: Path, target: Path) -> Path | None:
+    current = target
+    parts: list[str] = []
+    for _ in range(256):
+        try:
+            if os.path.samefile(current, root):
+                return Path(*reversed(parts))
+        except (OSError, ValueError):
+            pass
+        parent = current.parent
+        if parent == current:
+            return None
+        parts.append(current.name)
+        current = parent
+    return None
+
+
 def _confined(root: Path, target: Path, code: str) -> Path:
     root_absolute = Path(os.path.abspath(root))
     target_absolute = Path(os.path.abspath(target))
@@ -105,7 +122,14 @@ def _confined(root: Path, target: Path, code: str) -> Path:
     except ValueError as exc:
         raise RecoveryBlocked(code) from exc
     if os.path.normcase(common) != os.path.normcase(str(root_absolute)):
-        raise RecoveryBlocked(code)
+        if os.name != "nt":
+            raise RecoveryBlocked(code)
+        relative = _windows_relative_by_ancestor_identity(
+            root_absolute, target_absolute
+        )
+        if relative is None:
+            raise RecoveryBlocked(code)
+        return root_absolute / relative
     return target_absolute
 
 

@@ -188,6 +188,32 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
             ],
         )
 
+    def test_confined_maps_windows_alias_only_by_root_directory_identity(self) -> None:
+        root = Path("C:/Users/RUNNER~1/install")
+        target = Path("C:/Users/runneradmin/install/backup-v2/manifest.json")
+
+        def samefile(left: object, right: object) -> bool:
+            return Path(left) == target.parents[1] and Path(right) == root
+
+        with (
+            mock.patch.object(recovery.os, "name", "nt"),
+            mock.patch.object(recovery.os.path, "samefile", side_effect=samefile),
+        ):
+            self.assertEqual(
+                recovery._confined(root, target, "OUTSIDE"),
+                root / "backup-v2" / "manifest.json",
+            )
+
+    def test_confined_rejects_windows_alias_without_root_directory_identity(self) -> None:
+        root = Path("C:/Users/RUNNER~1/install")
+        target = Path("C:/outside/update-receipt.json")
+        with (
+            mock.patch.object(recovery.os, "name", "nt"),
+            mock.patch.object(recovery.os.path, "samefile", return_value=False),
+            self.assertRaisesRegex(recovery.RecoveryBlocked, "OUTSIDE"),
+        ):
+            recovery._confined(root, target, "OUTSIDE")
+
     def test_receipt_path_rejects_same_file_identity_from_other_parent(self) -> None:
         outside = Path("C:/outside/update-receipt.json")
         expected = self.root / "update-receipt.json"
