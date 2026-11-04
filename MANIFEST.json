@@ -889,8 +889,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "06b6afae34bc8fbe86dea902dab24021304e51d3d9411e0472a3e2ba22f91eaf",
-      "size": 15118
+      "sha256": "1ef16a945f73edf94a40a615ddc5f4f9bcc4da85b99c8c6a74d7869cacdfdb77",
+      "size": 15908
     },
     {
       "path": "tests/test_host_bootstrap.py",
