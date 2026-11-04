@@ -26,22 +26,8 @@ jobs:
     name: Rules, Gateway, Session Bootstrap and E2E gate
     outputs:
       manual_pr_verified: ${{ steps.bind.outputs.manual_pr_verified }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
-    services:
-      triage-postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: todo_reservation_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: disposable-ci-only
-        ports:
-          - 5432/tcp
-        options: >-
-          --health-cmd "pg_isready -U postgres -d todo_reservation_test"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -104,6 +90,8 @@ jobs:
           python-version: "3.12"
       - name: Validate rules and negative self-test
         run: python scripts/validate_rules.py --self-test
+      - name: Validate feature/repair gate and native PostgreSQL CI contracts
+        run: python -m unittest -v tests/test_feature_pr_admission.py tests/test_native_postgres_ci_contract.py
       - name: Run one-time host power exception tests
         run: python -m unittest -v tests/test_owner_host_power_once.py
       - name: Run one-time remote host power exception tests
@@ -195,9 +183,34 @@ jobs:
         run: python -m unittest -v tests/test_render_todo_gateway_bootstrap.py
       - name: Run TODO Gateway E2E
         run: python -m scripts.todo_gateway_e2e
+      - name: Start and verify native PostgreSQL 16 without containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Dedicated, disposable GitHub-hosted VM. No Docker or external database.
+          test -x /usr/lib/postgresql/16/bin/postgres
+          command -v psql
+          command -v pg_isready
+          sudo systemctl start postgresql.service
+          server_version="$(sudo -u postgres psql -X -A -t -c 'SHOW server_version_num')"
+          if [[ ! "$server_version" =~ ^16[0-9]{4}$ ]]; then
+            echo 'NATIVE_POSTGRES_VERSION_MISMATCH' >&2
+            exit 1
+          fi
+          present="$(sudo -u postgres psql -X -A -t -c "SELECT COUNT(*) FROM pg_database WHERE datname = 'todo_reservation_test'")"
+          if [[ "$present" != '1' ]]; then
+            sudo -u postgres createdb --owner=postgres todo_reservation_test
+          fi
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE postgres WITH PASSWORD 'disposable-ci-only'"
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d todo_reservation_test -t 5
+          identity="$(PGPASSWORD='disposable-ci-only' psql -X -h 127.0.0.1 -p 5432 -U postgres -d todo_reservation_test -A -t -c 'SELECT current_database() || chr(58) || current_user')"
+          if [[ "$identity" != 'todo_reservation_test:postgres' ]]; then
+            echo 'NATIVE_POSTGRES_IDENTITY_MISMATCH' >&2
+            exit 1
+          fi
       - name: Run shared triage reservation E2E with real PostgreSQL
         env:
-          TRIAGE_TEST_DSN: host=127.0.0.1 port=${{ job.services.triage-postgres.ports[5432] }} dbname=todo_reservation_test user=postgres password=disposable-ci-only connect_timeout=5
+          TRIAGE_TEST_DSN: host=127.0.0.1 port=5432 dbname=todo_reservation_test user=postgres password=disposable-ci-only connect_timeout=5
           TRIAGE_GATEWAY_POLICY_PROFILE: posix
         run: python scripts/triage_reservation_e2e.py
       - name: Preserve triage reservation evidence

@@ -1,11 +1,20 @@
 # ChatGPT Operational Rules
 
-Versão: 1.6.20
+Versão: 1.6.21
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
 ## Regra nº 1 — custo adicional zero
 Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-governance.md`. O custo adicional máximo autorizado é **R$ 0,00**; custo desconhecido, overage não bloqueado ou qualquer custo incremental maior que zero deve falhar fechado. Cartão cadastrado e autorização técnica genérica não autorizam gasto.
+
+## Classificação de mudança por agente: funcionalidade vs. reparo
+
+Para mudanças que pretendem abrir PR, consultar `rules/feature-pr-admission.md`: classificar
+`feature` ou `repair` antes da execução. Um reparo exige falha real reproduzível
+e Builder/modelo real; uma funcionalidade nova exige ausência da capacidade
+comprovada e autoria verdadeira. Os demais controles CAS, Validator, custo zero,
+revisão e E2E permanecem obrigatórios. Pré-classificação de esquema não emite
+`READY_FOR_PR`, não modifica host nem autoriza integração.
 
 ## Regra nº 2 — 100% dos gates obrigatórios aplicáveis
 
