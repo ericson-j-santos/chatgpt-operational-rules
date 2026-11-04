@@ -6,6 +6,7 @@ import os
 import stat
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -187,6 +188,41 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
                 mock.call(canonical, "INSTALL_ROOT_INVALID"),
             ],
         )
+
+    def test_confined_maps_windows_alias_only_by_root_directory_identity(self) -> None:
+        root = Path("C:/Users/RUNNER~1/install")
+        target = Path("C:/Users/runneradmin/install/backup-v2/manifest.json")
+        windows_os = types.SimpleNamespace(name="nt", path=recovery.os.path)
+
+        def samefile(left: object, right: object) -> bool:
+            left_path = Path(left)
+            right_path = Path(right)
+            return (
+                left_path.name == "install"
+                and left_path.parent.name == "runneradmin"
+                and right_path.name == "install"
+                and right_path.parent.name == "RUNNER~1"
+            )
+
+        with (
+            mock.patch.object(recovery, "os", windows_os),
+            mock.patch.object(windows_os.path, "samefile", side_effect=samefile),
+        ):
+            self.assertEqual(
+                recovery._confined(root, target, "OUTSIDE"),
+                root / "backup-v2" / "manifest.json",
+            )
+
+    def test_confined_rejects_windows_alias_without_root_directory_identity(self) -> None:
+        root = Path("C:/Users/RUNNER~1/install")
+        target = Path("C:/outside/update-receipt.json")
+        windows_os = types.SimpleNamespace(name="nt", path=recovery.os.path)
+        with (
+            mock.patch.object(recovery, "os", windows_os),
+            mock.patch.object(windows_os.path, "samefile", return_value=False),
+            self.assertRaisesRegex(recovery.RecoveryBlocked, "OUTSIDE"),
+        ):
+            recovery._confined(root, target, "OUTSIDE")
 
     def test_receipt_path_rejects_same_file_identity_from_other_parent(self) -> None:
         outside = Path("C:/outside/update-receipt.json")
