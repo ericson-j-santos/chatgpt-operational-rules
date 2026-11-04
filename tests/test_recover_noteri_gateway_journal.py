@@ -195,7 +195,14 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
         windows_os = types.SimpleNamespace(name="nt", path=recovery.os.path)
 
         def samefile(left: object, right: object) -> bool:
-            return Path(left) == target.parents[1] and Path(right) == root
+            left_path = Path(left)
+            right_path = Path(right)
+            return (
+                left_path.name == "install"
+                and left_path.parent.name == "runneradmin"
+                and right_path.name == "install"
+                and right_path.parent.name == "RUNNER~1"
+            )
 
         with (
             mock.patch.object(recovery, "os", windows_os),

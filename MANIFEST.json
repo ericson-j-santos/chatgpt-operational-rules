@@ -1,6 +1,6 @@
 {
   "version": "1.6.20",
-  "generated_at": "2026-11-04T20:10:40.249456+00:00",
+  "generated_at": "2026-11-04T20:15:34.655267+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -1009,8 +1009,8 @@
     },
     {
       "path": "tests/test_recover_noteri_gateway_journal.py",
-      "sha256": "bba2ccc2df274ba98557f7d912aa638a2cf0aa53390b26f91bb989e9765e3585",
-      "size": 15182
+      "sha256": "18fd2b11398b8f788f4a26e403fb87d343b8cdf0f9ebe95f904df8f9946d3b7a",
+      "size": 15423
     },
     {
       "path": "tests/test_render_postgres_preservation.py",
