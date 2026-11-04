@@ -143,6 +143,11 @@
       "size": 2545
     },
     {
+      "path": "docs/TRANSF008_NOTERI_GCM_OAUTH.md",
+      "sha256": "e657aee7f8dc72e049e4067a81f4b3a4e9172eda5b709bd9abfb468d240b4a0e",
+      "size": 3312
+    },
+    {
       "path": "docs/triage-pipeline.md",
       "sha256": "917e08af85218731727318ed2e89a9490d636ff1493a468fb2c61f31bb24c23b",
       "size": 5338
@@ -456,6 +461,11 @@
       "path": "scripts/noteri_state_dir_inventory.py",
       "sha256": "1c5e5243159fb9090efaf5db9ba82687a614e8c3a42448895151161daac2f695",
       "size": 6399
+    },
+    {
+      "path": "scripts/noteri_transferidor_gcm_oauth.py",
+      "sha256": "4deda495401ef602a9b4daa4160c846b4fb26523ab4e17ffe18cd247aa97914b",
+      "size": 5838
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -921,6 +931,11 @@
       "path": "tests/test_noteri_state_dir_inventory.py",
       "sha256": "b7ff42fe8e559298d7e2523983a4a458435943d2c4cee8918ec12e5f2a27b292",
       "size": 6231
+    },
+    {
+      "path": "tests/test_noteri_transferidor_gcm_oauth.py",
+      "sha256": "c19eedd194d3f09c82f1ab91e6208842764d1afa189c573768752fa6b533fb7e",
+      "size": 5378
     },
     {
       "path": "tests/test_noteri_wsl_running_status.py",
