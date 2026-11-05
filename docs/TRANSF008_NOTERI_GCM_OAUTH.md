@@ -44,3 +44,9 @@ Não é possível classificar retroativamente o erro anterior porque a saída fo
 O gateway de risco 3 não transmite stdout de scripts que falham, preservando a confidencialidade. Para um diagnóstico governado, os erros classificados são representados por códigos **numéricos fixos**, sem alterar essa política: argumento GCM incompatível (31), navegador indisponível (32), consentimento cancelado (33), rede/TLS (34), cofre local indisponível (35), erro GCM não classificado (36), autenticação concluída mas leitura do repositório privado bloqueada (37). Outros bloqueios permanecem no código 28. Somente `SOURCE_AUTH_READY` (com SHA remoto conferido) é aceite; o preflight sem interação também pode retornar 0 com `OAUTH_HUMAN_CONSENT_REQUIRED`, sem conceder login.
 
 Mesmo que o processo retorne uma categoria numerada, nenhuma URL de callback, stdout/stderr bruto, token ou código de dispositivo poderá ser persistido. Cada nova execução real exige autorização Risk 3 individual vinculada ao SHA e consentimento do proprietário.
+
+## Diagnóstico do acesso Git privado sem OAuth
+
+O modo `--diagnose-readback` executa somente `git -c credential.interactive=never ls-remote --heads` para URL, referência e SHA fixos da v0.4.0. Não permite URL, branch ou comando arbitrários. Ele não inicia login nem navegador e retorna somente estados sanitizados: credencial ausente, autenticação/permissão negada, repositório inacessível, TLS/proxy, rede, referência ausente, SHA divergente, resposta inválida ou transporte não classificado.
+
+Um exit 0 dessa **consulta diagnóstica** significa apenas que a classificação foi executada; nunca significa que o acesso privado foi autorizado. Somente `status=SOURCE_AUTH_READY` e `source_head_verified=true` comprovam o ref SHA esperado. Proibido publicar stderr/stdout brutos, identidades, URL de callback ou credenciais. Executar somente em Noteri DEV com perfil NORMAL, Session Launcher e Command Gateway Risk1, worktree e SHA exclusivos.

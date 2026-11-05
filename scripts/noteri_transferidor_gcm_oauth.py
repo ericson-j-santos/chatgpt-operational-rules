@@ -160,11 +160,73 @@ def exit_for_status(status: str, *, preflight_only: bool) -> int:
         return 0
     return GCM_FAILURE_EXIT_CODES.get(status, 28)
 
+
+def diagnose_readback(*, git: str, runner: Callable[..., Any],
+                      env: dict[str, str]) -> dict[str, Any]:
+    """Read fixed Git reference once without prompting; return only enums."""
+    args = [git, "-c", "credential.interactive=never", "ls-remote",
+            "--heads", TARGET_URL, TARGET_REF]
+    guarded = {**env, "GCM_INTERACTIVE": "never"}
+    try:
+        cp = runner(args, stdin=subprocess.DEVNULL, capture_output=True,
+                    text=True, timeout=20, check=False, shell=False, env=guarded)
+    except (OSError, subprocess.TimeoutExpired):
+        return receipt("READBACK_TRANSPORT_UNAVAILABLE")
+    if cp.returncode != 0:
+        # Never return or persist stderr, which may contain URLs or identity.
+        error = str(getattr(cp, "stderr", "") or "")[:8192].casefold()
+        if any(x in error for x in ("could not read username", "terminal prompts disabled",
+                                     "credentials unavailable", "no credentials",
+                                     "unable to get password", "credential unavailable")):
+            return receipt("READBACK_CREDENTIAL_UNAVAILABLE")
+        if any(x in error for x in ("authentication failed", "http 401",
+                                     "http 403", "permission denied", "access denied")):
+            return receipt("READBACK_AUTH_OR_PERMISSION_DENIED")
+        if "repository not found" in error:
+            return receipt("READBACK_PRIVATE_REPOSITORY_NOT_ACCESSIBLE")
+        if any(x in error for x in ("ssl certificate", "certificate verify",
+                                     "tls handshake", "proxy authentication")):
+            return receipt("READBACK_TLS_OR_PROXY_BLOCKED")
+        if any(x in error for x in ("could not resolve host", "failed to connect",
+                                     "network is unreachable", "connection timed out")):
+            return receipt("READBACK_NETWORK_BLOCKED")
+        return receipt("READBACK_TRANSPORT_UNCLASSIFIED")
+    output = str(getattr(cp, "stdout", "") or "")
+    if len(output) > 512:
+        return receipt("READBACK_INVALID_RESPONSE")
+    rows = output.splitlines()
+    if not rows:
+        return receipt("READBACK_REF_ABSENT")
+    if len(rows) != 1:
+        return receipt("READBACK_INVALID_RESPONSE")
+    parts = rows[0].split("\t")
+    if len(parts) != 2 or parts[1] != TARGET_REF or SHA_RE.fullmatch(parts[0]) is None:
+        return receipt("READBACK_INVALID_RESPONSE")
+    if parts[0] != TARGET_SHA:
+        return receipt("READBACK_SHA_MISMATCH")
+    return receipt("SOURCE_AUTH_READY", readback=True)
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--confirm", default="")
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--diagnose-readback", action="store_true")
     args = parser.parse_args()
+    if args.diagnose_readback:
+        if args.preflight_only or args.confirm:
+            result = receipt("BLOCKED_AMBIGUOUS_DIAGNOSTIC")
+        elif not profile_ok(os_name=os.name, hostname=socket.gethostname(),
+                            localappdata=os.environ.get("LOCALAPPDATA")):
+            result = receipt("BLOCKED_HOST_OR_PROFILE")
+        elif not shutil.which("git"):
+            result = receipt("BLOCKED_GIT_UNAVAILABLE")
+        else:
+            result = diagnose_readback(git=shutil.which("git"),
+                                       runner=subprocess.run,
+                                       env=no_secret_environment(os.environ))
+        print(json.dumps(result, ensure_ascii=True, sort_keys=True))
+        # The diagnostic's exit 0 means classification completed, NOT authenticated.
+        return 0 if result["status"].startswith("READBACK_") or result["status"] == "SOURCE_AUTH_READY" else 28
     result = run(confirm=args.confirm, preflight_only=args.preflight_only,
                  os_name=os.name, hostname=socket.gethostname(),
                  localappdata=os.environ.get("LOCALAPPDATA"), environment=os.environ,

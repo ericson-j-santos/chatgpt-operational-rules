@@ -169,4 +169,47 @@ class TestarOAuthRestrito(unittest.TestCase):
         self.assertEqual(s.exit_for_status("BLOCKED_HOST_OR_PROFILE", preflight_only=False), 28)
 
 
+    def test_diagnostic_distinguishes_credential_permission_transport_and_reference(self):
+        samples = [
+            (128, "", "fatal: could not read Username for 'https://github.com'",
+             "READBACK_CREDENTIAL_UNAVAILABLE", False),
+            (128, "", "remote: HTTP 403 Permission denied",
+             "READBACK_AUTH_OR_PERMISSION_DENIED", False),
+            (128, "", "remote: Repository not found.",
+             "READBACK_PRIVATE_REPOSITORY_NOT_ACCESSIBLE", False),
+            (128, "", "SSL certificate problem",
+             "READBACK_TLS_OR_PROXY_BLOCKED", False),
+            (128, "", "Could not resolve host: github.com",
+             "READBACK_NETWORK_BLOCKED", False),
+            (128, "", "callback https://localhost/?code=SENSITIVE",
+             "READBACK_TRANSPORT_UNCLASSIFIED", False),
+            (0, "", "", "READBACK_REF_ABSENT", False),
+            (0, "f"*40 + "\\t" + s.TARGET_REF + "\\n", "",
+             "READBACK_SHA_MISMATCH", False),
+            (0, s.TARGET_SHA + "\\t" + s.TARGET_REF + "\\n", "",
+             "SOURCE_AUTH_READY", True),
+        ]
+        for rc, stdout, stderr, expected, verified in samples:
+            with self.subTest(expected=expected):
+                calls = []
+                def runner(args, **kw):
+                    calls.append((args, kw))
+                    return Result(returncode=rc, stdout=stdout.replace("\\t", "\t").replace("\\n", "\n"), stderr=stderr)
+                result = s.diagnose_readback(git="git", runner=runner, env={"GIT_TERMINAL_PROMPT": "0"})
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["source_head_verified"], verified)
+                self.assertFalse(result["oauth_browser_requested"])
+                self.assertNotIn("SENSITIVE", json.dumps(result))
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0][1]["env"]["GCM_INTERACTIVE"], "never")
+                self.assertEqual(calls[0][0][1:], ["-c", "credential.interactive=never",
+                    "ls-remote", "--heads", s.TARGET_URL, s.TARGET_REF])
+
+    def test_diagnostic_exception_returns_only_fixed_label(self):
+        def hanging(*args, **kwargs):
+            raise subprocess.TimeoutExpired(args, 20)
+        self.assertEqual(s.diagnose_readback(git="git", runner=hanging, env={})["status"],
+                         "READBACK_TRANSPORT_UNAVAILABLE")
+
+
 if __name__=="__main__":unittest.main()
