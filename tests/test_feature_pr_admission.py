@@ -114,6 +114,21 @@ class FeatureRepairClassificationTests(unittest.TestCase):
         p=payload();p["source_mode"]="unknown"
         self.blocked(p,"source_mode_invalid")
 
+    def test_solo_maintainer_review_keeps_independent_gates(self):
+        rule=(Path(__file__).resolve().parents[1]/"rules/github-workflow.md").read_text(encoding="utf-8")
+        for invariant in (
+            "required_approving_review_count=0",
+            "INDEPENDENT_TECHNICAL_REVIEW_PENDING",
+            "OWNER_DECISION_PENDING",
+            "READY_FOR_MERGE=false",
+            "INDEPENDENT_HUMAN_APPROVAL",
+            "SHA-bound",
+            "BLOQUEAR",
+            "Validator",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant,rule)
+
     def test_rules_repair_requirement_remains_present(self):
         root=Path(__file__).resolve().parents[1]
         rule=(root/"rules/agent-durable-pr-gate.md").read_text(encoding="utf-8")

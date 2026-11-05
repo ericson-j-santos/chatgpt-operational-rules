@@ -7,6 +7,7 @@
 - Pré-classificador `feature_pr_preclassification.py` valida **apenas esquema/consistência**; não emite `READY_FOR_PR`, autorização de host, merge ou deploy.
 - Versão de regras e três perfis Command Gateway sincronizados, sem ampliar suas permissões.
 - Migração da CI de PostgreSQL por serviço Docker para PostgreSQL 16 nativo na VM hospedada Ubuntu 24.04, com prova de versão, autenticação local e identidade do banco antes do E2E; não reduz testes.
+- Protocolo de mantenedor único: Validator externo ao Builder/autor, readback das proteções, decisão explícita do proprietário e manutenção da CI, sem simular review humano nem afirmar enforcement automático.
 
 ## Em preparação - 2026-10-30
 

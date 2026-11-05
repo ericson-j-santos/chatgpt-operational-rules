@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-04T19:53:00+00:00",
+  "generated_at": "2026-11-05T01:07:00+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -64,8 +64,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "4a92fa987f5081c4aea11f0e5c424793005210aac1c0b6dbadf1a11573e6f3d6",
-      "size": 22763
+      "sha256": "1bcde3e9f2710eea9857275ba0f0f57d7b9c6b42df533de37c349e89dc2e66df",
+      "size": 22981
     },
     {
       "path": "README.md",
@@ -254,8 +254,8 @@
     },
     {
       "path": "rules/github-workflow.md",
-      "sha256": "2efa64eb92c573ddb5502a24d9e5cea44e33091c4ac99b4e577a2a789d64bfb6",
-      "size": 1755
+      "sha256": "7fa5ab43484e2c73e9f3dd9042cefce1a88f767f0b8eb3d05f652a7f0cbfabeb",
+      "size": 4125
     },
     {
       "path": "rules/log-driven-improvement.md",
@@ -869,8 +869,8 @@
     },
     {
       "path": "tests/test_feature_pr_admission.py",
-      "sha256": "2453a07d38b57c7a0c16f910799ab293e8af0aa6de61ba1d3a1863fd96986ec4",
-      "size": 4987
+      "sha256": "3981ee982789fe2a67d0ab8229aaf438c47982d79e6f90d81759713efe6649b5",
+      "size": 5589
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
