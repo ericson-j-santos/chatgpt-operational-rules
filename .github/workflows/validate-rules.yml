@@ -110,6 +110,16 @@ jobs:
         run: python -m unittest -v tests/test_owner_remote_host_power_once.py
       - name: Run specific Risk 3 action authorization tests
         run: python -m unittest -v tests/test_owner_risk3_specific_action.py
+      - name: Run scoped GitHub GCM OAuth negative and replay tests (Linux)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_oauth.py
+      - name: Test sanitized GCM account and Windows identity context (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_context.py
+      - name: Validate fixed private GitHub CLI access probe (Linux)
+        run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
+      - name: Diagnose Noteri interactive console readiness (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_console_context.py
+      - name: Inspect Noteri visible window station (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_winsta_probe.py
       - name: Run PR CI Self Heal unit tests
         run: python -m unittest -v tests/test_pr_ci_self_heal.py
       - name: Run governed workflow dispatch unit tests
@@ -227,6 +237,16 @@ jobs:
           python-version: "3.12"
       - name: Validate native Windows policy loading and shared path controls
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
+      - name: Run scoped GitHub GCM OAuth negative and replay tests (Windows)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_oauth.py
+      - name: Test sanitized GCM account and Windows identity context (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_context.py
+      - name: Validate fixed private GitHub CLI access probe (Windows)
+        run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
+      - name: Diagnose Noteri interactive console readiness (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_console_context.py
+      - name: Inspect Noteri visible window station (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_winsta_probe.py
 
       - name: Validate TODO Gateway local inventory hermetic contracts (Windows)
         run: python -m unittest -v tests/test_todo_gateway_local_inventory.py
