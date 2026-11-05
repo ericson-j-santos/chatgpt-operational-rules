@@ -119,12 +119,15 @@ def run(*, confirm: str, preflight_only: bool, os_name: str, hostname: str,
     if confirm != CONFIRM:
         return receipt("BLOCKED_CONFIRMATION")
 
+    # Risk 3 consent must be exact. Re-authenticate explicitly when a prior
+    # account record exists but Git SHA-bound readback is unavailable.
+    # This can replace a cached login; never execute from read-only probes.
     # GCM itself handles the OAuth browser and the Windows Credential Manager.
     # GCM stdout is discarded; diagnostic stderr stays only in transient memory.
     # Neither raw stderr nor credentials are written to logs, files or receipts.
     try:
         cp = runner([git, "credential-manager", "github", "login", "--browser",
-                     "--url", "https://github.com"], stdin=subprocess.DEVNULL,
+                     "--url", "https://github.com", "--force"], stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                     text=True, encoding="utf-8", errors="replace",
                     timeout=120, check=False, shell=False,

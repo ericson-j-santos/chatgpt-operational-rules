@@ -73,7 +73,7 @@ class TestarOAuthRestrito(unittest.TestCase):
         self.assertEqual(r["status"],"SOURCE_AUTH_READY")
         self.assertTrue(r["oauth_browser_requested"])
         self.assertEqual(len(self.calls),3)
-        self.assertEqual(self.calls[1][0][1:], ["credential-manager","github","login","--browser","--url","https://github.com"])
+        self.assertEqual(self.calls[1][0][1:], ["credential-manager","github","login","--browser","--url","https://github.com","--force"])
         self.assertEqual(self.calls[1][1]["stdout"], subprocess.DEVNULL)
         self.assertEqual(self.calls[1][1]["stderr"], subprocess.PIPE)
         self.assertEqual(self.calls[1][1]["stdout"], subprocess.DEVNULL)
