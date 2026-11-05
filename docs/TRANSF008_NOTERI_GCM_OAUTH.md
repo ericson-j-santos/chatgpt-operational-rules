@@ -51,14 +51,32 @@ O modo `--diagnose-readback` executa somente `git -c credential.interactive=neve
 
 Um exit 0 dessa **consulta diagnóstica** significa apenas que a classificação foi executada; nunca significa que o acesso privado foi autorizado. Somente `status=SOURCE_AUTH_READY` e `source_head_verified=true` comprovam o ref SHA esperado. Proibido publicar stderr/stdout brutos, identidades, URL de callback ou credenciais. Executar somente em Noteri DEV com perfil NORMAL, Session Launcher e Command Gateway Risk1, worktree e SHA exclusivos.
 
-## Diagnóstico governado de contexto GCM (05/11/2026)
+## Diagnóstico governado da capacidade WinCred (05/11/2026)
 
-A capacidade `scripts/noteri_transferidor_gcm_context.py` é exclusivamente de leitura e restrita ao host Noteri com perfil NORMAL. Compara em memória o nome da conta do processo com o nome do usuário da sessão ativa do console Windows e retorna apenas um booleano e um indicador de disponibilidade. A coincidência de nomes é **candidata**, não demonstra identidade de token ou perfil de credenciais. Nenhum nome, SID, token ou caminho de perfil sai no recibo.
+A capability tipada scripts/noteri_transferidor_gcm_context.py foi reduzida
+a leitura somente de capacidade: a API nativa Windows CredGetSessionTypes
+retorna o limite de persistencia para credenciais genericas na sessao corrente.
+Nenhum nome de usuario, conta, SID, token, valor de credencial, stdout de GCM
+ou saida de Git e lido, enumerado ou registrado. A consulta acontece somente
+apos perfil NORMAL valido e comparacao do numero da sessao do processo com
+a sessao ativa do console. Nao cria credenciais nem muda configuracoes.
 
-Em seguida consulta somente `git credential-manager github list --url https://github.com --no-ui` com saída stdout/stderr capturada em memória e nunca persistida. Os resultados sanitizados indicam lista vazia, saída não vazia não verificada, erro ou consulta indisponível; uma lista não vazia **não** comprova credencial funcional, consentimento OAuth ou acesso ao repositório privado. A rotina não executa login e não altera credenciais. Requer Session Launcher, Command Gateway Risk1, SHA fixo, worktree exclusivo, CI/testes positivos/negativos e leitura independente. Sem execução no console do proprietário não há aceite de OAuth.
+Valores fixos de credential_persistence: NOT_CHECKED, NONE, SESSION,
+LOCAL_MACHINE, ENTERPRISE ou UNAVAILABLE. Somente os tres valores de
+persistencia positiva, com sessao ativa correspondente, produzem
+credential_store_candidate=true; mesmo esse resultado e NAO PROMOVENTE,
+nao equivale a autorizacao OAuth, a identidade correta ou a autenticao Git.
+Falha da API, perfil ESTUDO, sessao zero, console divergente ou valor
+desconhecido mantem o E2E bloqueado.
 
-## Recuperação de OAuth com conta cadastrada e Git sem acesso
+A versao anterior do diagnostico consultava GetUserNameW / WTSUserName e
+executava listagem GCM que poderia ler nomes de conta em memoria; isso foi
+removido por minimizacao de dados e controle negativo automatizado.
 
-O Noteri confirmou no mesmo checkout governado que o processo tem nome de usuário igual ao do console ativo (comparação candidata) e que `git credential-manager github list --url https://github.com --no-ui` retornou saída não vazia, **sem comprovar credencial utilizável**. O readback Git do repositório privado permanece `READBACK_CREDENTIAL_UNAVAILABLE`. A ajuda oficial do GCM 2.9.1 confirma que `github login --force` força nova autenticação mesmo quando existe uma conta cadastrada. Portanto, o código de login usa `--force` **somente após** preflight Git sem sucesso e confirmação explícita, por ação Risk 3 individual e temporária. É uma possível correção para o login que retornava sucesso sem acesso, não uma causa definitivamente estabelecida.
+Fonte oficial Microsoft:
+https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credgetsessiontypes
 
-**Risco e controle:** `--force` pode substituir a credencial existente e requer autorização específica atual do proprietário no console do Noteri para a reautenticação. Não iniciar automaticamente durante CI, leitura ou diagnóstico. O navegador e o consentimento pertencem exclusivamente à interface oficial, sem coletar senha, token ou código. Readback da referência privada exata permanece obrigatório; falha retém status bloqueado. Reverter apenas por mecanismos oficiais de gerenciamento de contas do proprietário, nunca apagando credenciais por automação.
+Executar exclusivamente por Session Launcher + Command Gateway Risk1,
+worktree exclusivo e SHA exato. Acesso do Transferidor privado exige
+separadamente SOURCE_AUTH_READY e ref Git SHA-bound conferida. Sem isso
+nao executar checkout do produto nem E2E NTFS.

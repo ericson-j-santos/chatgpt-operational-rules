@@ -1,9 +1,9 @@
-"""Unit tests for GCM inventory and user-context comparison without raw names."""
+"""Negative-first contracts: never inspect Windows accounts or credentials."""
+import inspect
 import json
-import subprocess
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 import sys
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -11,114 +11,112 @@ sys.path.insert(0, str(SCRIPTS))
 import noteri_transferidor_gcm_context as module
 
 
-class Proc:
-    def __init__(self, code=0, stdout="", stderr=""):
-        self.returncode = code
-        self.stdout = stdout
-        self.stderr = stderr
-
-
 class Tests(unittest.TestCase):
-    def execute(self, *, account="alice", console="alice", code=0, stdout="", stderr=""):
-        calls = []
-        def runner(args, **kwargs):
-            calls.append((args, kwargs))
-            return Proc(code, stdout, stderr)
+    def invoke(self, pair=(2, 2), persistence="LOCAL_MACHINE"):
         with patch.object(module, "profile_ok", return_value=True):
-            result = module.probe(platform="nt", hostname="Noteri",
-                                  localappdata="C:/Temp", git="git", environment={
-                                      "GH_TOKEN": "hidden_token",
-                                      "GIT_TRACE": "1", "GCM_TRACE_SECRETS": "1",
-                                  }, identity_reader=lambda: (account, console), runner=runner)
-        return result, calls
+            return module.probe(platform="nt", hostname="Noteri", localappdata="C:/Temp",
+                                session_reader=lambda: pair,
+                                persistence_reader=lambda: persistence)
 
-    def test_empty_inventory(self):
-        result, calls = self.execute()
-        self.assertEqual(result["result"], "GCM_ACCOUNT_LIST_EMPTY")
-        self.assertTrue(result["process_console_user_matches"])
-        self.assertTrue(result["identity_comparison_available"])
-        self.assertFalse(result["credentials_read"])
-        self.assertFalse(result["gcm_login_started"])
-        self.assertEqual(len(calls), 1)
-        command, kw = calls[0]
-        self.assertEqual(command, ["git", "credential-manager", "github", "list", "--url", "https://github.com", "--no-ui"])
-        self.assertEqual(kw["env"]["GCM_INTERACTIVE"], "never")
-        for key in ("GH_TOKEN", "GIT_TRACE", "GCM_TRACE_SECRETS"):
-            self.assertNotIn(key, kw["env"])
-        self.assertIs(kw["stdout"], subprocess.PIPE)
-        self.assertIs(kw["stderr"], subprocess.PIPE)
+    def test_positive_only_session_capability_candidate(self):
+        for label in ("SESSION", "LOCAL_MACHINE", "ENTERPRISE"):
+            with self.subTest(label=label):
+                result = self.invoke(persistence=label)
+                self.assertEqual(result["result"], "CREDENTIAL_PERSISTENCE_CANDIDATE")
+                self.assertTrue(result["credential_store_candidate"])
+                self.assertTrue(result["same_active_console_session"])
+                self.assertFalse(result["source_head_verified"])
+                self.assertFalse(result["oauth_browser_requested"])
+                self.assertFalse(result["credentials_read"])
+                self.assertFalse(result["state_changed"])
 
-    def test_inventory_nonempty_never_outputs_account(self):
-        value = "example.com: username=AliceImportantSecret"
-        result, _ = self.execute(stdout=value)
-        self.assertEqual(result["result"], "GCM_ACCOUNT_LIST_NONEMPTY_UNVERIFIED")
-        self.assertTrue(result["gcm_account_list_has_output"])
-        self.assertNotIn("AliceImportantSecret", json.dumps(result))
+    def test_no_persistence_blocks_candidate(self):
+        result = self.invoke(persistence="NONE")
+        self.assertEqual(result["result"], "CREDENTIAL_PERSISTENCE_NONE")
+        self.assertFalse(result["credential_store_candidate"])
 
-    def test_process_and_console_accounts_different(self):
-        result, _ = self.execute(account="ServiceAccountSecret", console="OwnerAccountSecret")
-        self.assertFalse(result["process_console_user_matches"])
-        self.assertNotIn("Secret", json.dumps(result))
+    def test_unknown_persistence_fails_closed(self):
+        for value in ("UNAVAILABLE", "SENSITIVE_NAME", None, 3, True):
+            with self.subTest(value=value):
+                result = self.invoke(persistence=value)
+                self.assertEqual(result["result"], "CREDENTIAL_PERSISTENCE_UNKNOWN")
+                self.assertFalse(result["credential_store_candidate"])
+                self.assertNotIn("SENSITIVE_NAME", json.dumps(result))
 
-    def test_names_case_insensitive(self):
-        result, _ = self.execute(account="USER", console="user")
-        self.assertTrue(result["process_console_user_matches"])
+    def test_no_console_rejects_without_persistence_query(self):
+        for pair in ((0, 0), (0, 2), (2, 0), (3, 2)):
+            with self.subTest(pair=pair), patch.object(module, "profile_ok", return_value=True):
+                result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
+                    session_reader=lambda: pair,
+                    persistence_reader=lambda: self.fail("must not query"))
+                self.assertEqual(result["result"], "PROCESS_NOT_IN_ACTIVE_CONSOLE")
+                self.assertEqual(result["credential_persistence"], "NOT_CHECKED")
 
-    def test_list_failure_does_not_echo_raw_stderr(self):
-        raw = "access denied: token=secret_value"
-        result, _ = self.execute(code=1, stderr=raw)
-        self.assertEqual(result["result"], "GCM_ACCOUNT_LIST_FAILED")
-        self.assertNotIn(raw, json.dumps(result))
+    def test_invalid_console_result_fails_closed(self):
+        for pair in (None, (), (2,), (2, "2"), (2, True), (0xFFFFFFFF, 3)):
+            with self.subTest(pair=pair), patch.object(module, "profile_ok", return_value=True):
+                result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
+                    session_reader=lambda: pair,
+                    persistence_reader=lambda: self.fail("must not query"))
+                self.assertEqual(result["result"], "SESSION_QUERY_UNAVAILABLE")
 
-    def test_identity_unavailable_does_not_claim_match(self):
-        with patch.object(module, "profile_ok", return_value=True):
-            result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
-                 git="git", environment={}, identity_reader=lambda: None,
-                 runner=lambda *a, **kw: Proc())
-        self.assertFalse(result["identity_comparison_available"])
-        self.assertFalse(result["process_console_user_matches"])
-
-    def test_timeout_fail_closed(self):
-        def timeout(*a, **kw):
-            raise subprocess.TimeoutExpired(a, 15)
-        with patch.object(module, "profile_ok", return_value=True):
-            result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
-                 git="git", environment={}, identity_reader=lambda: ("x", "x"),
-                 runner=timeout)
-        self.assertEqual(result["result"], "GCM_ACCOUNT_LIST_UNAVAILABLE")
-
-    def test_bad_host_prevents_subprocess(self):
+    def test_wrong_host_or_profile_never_queries_native_apis(self):
         with patch.object(module, "profile_ok", return_value=False):
             result = module.probe(platform="posix", hostname="other", localappdata=None,
-                git="git", environment={}, identity_reader=lambda: None,
-                runner=lambda *a, **kw: self.fail("subprocess must not execute"))
+                 session_reader=lambda: self.fail("must not read session"),
+                 persistence_reader=lambda: self.fail("must not query"))
         self.assertEqual(result["result"], "BLOCKED_HOST_OR_PROFILE")
 
-    def test_missing_git_prevents_subprocess(self):
+    def test_persistence_reader_errors_do_not_leak(self):
+        def bad():
+            raise OSError("SECRET must not leak")
         with patch.object(module, "profile_ok", return_value=True):
             result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
-                git=None, environment={}, identity_reader=lambda: None,
-                runner=lambda *a, **kw: self.fail("subprocess must not execute"))
-        self.assertEqual(result["result"], "BLOCKED_GIT_UNAVAILABLE")
+                session_reader=lambda: (2, 2), persistence_reader=bad)
+        self.assertEqual(result["result"], "CREDENTIAL_PERSISTENCE_UNKNOWN")
+        self.assertNotIn("SECRET", json.dumps(result))
 
-    def test_large_inventory_never_echoed(self):
-        result, _ = self.execute(stdout="s"*32769)
-        self.assertEqual(result["result"], "GCM_ACCOUNT_LIST_INVALID")
-        self.assertNotIn("s"*100, json.dumps(result))
+    def test_replay_no_side_effects(self):
+        a = self.invoke()
+        b = self.invoke()
+        self.assertEqual(a, b)
+        self.assertFalse(a["state_changed"])
 
-    def test_untrusted_identity_types_not_accepted(self):
-        with patch.object(module, "profile_ok", return_value=True):
-            result = module.probe(platform="nt", hostname="Noteri", localappdata="x",
-                git="git", environment={}, identity_reader=lambda: (123, "user"),
-                runner=lambda *a, **kw: Proc())
-        self.assertFalse(result["identity_comparison_available"])
+    def test_wincred_native_api_fake_positive(self):
+        for value, label in module.PERSISTENCE.items():
+            class CallableApi:
+                def __call__(self, count, levels):
+                    self.expected = count
+                    levels[1] = value
+                    return True
+            class Dll: pass
+            api = Dll()
+            api.CredGetSessionTypes = CallableApi()
+            self.assertEqual(module.credential_persistence(platform="nt",
+                dll_loader=lambda *a, **k: api), label)
+            self.assertEqual(api.CredGetSessionTypes.expected, module.CRED_TYPE_MAXIMUM)
 
-    def test_replay_is_readonly_and_deterministic(self):
-        one, _ = self.execute(stdout="Account: private")
-        two, _ = self.execute(stdout="Account: private")
-        self.assertEqual(one, two)
-        self.assertFalse(one["state_changed"])
+    def test_wincred_native_api_failure(self):
+        class Api:
+            def __call__(self, *args): return False
+        class Dll: pass
+        dll = Dll();dll.CredGetSessionTypes = Api()
+        self.assertEqual(module.credential_persistence(platform="nt", dll_loader=lambda *a,**k: dll), "UNAVAILABLE")
+        self.assertEqual(module.credential_persistence(platform="posix",
+            dll_loader=lambda *a,**k: self.fail("should not load native library")), "UNAVAILABLE")
 
+    def test_no_identity_or_credential_enumeration_in_source(self):
+        source = inspect.getsource(module)
+        for forbidden in ("GetUserName", "WTSUserName", "WTSQuerySessionInformation",
+                          "credential-manager", "CredRead", "CredEnumerate", "GCM_TRACE"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
+
+    def test_receipt_has_no_identity_fields_or_values(self):
+        result = self.invoke()
+        for forbidden in ("username", "user_name", "account", "sid", "token", "credential_value"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, json.dumps(result).lower())
 
 if __name__ == "__main__":
     unittest.main()
