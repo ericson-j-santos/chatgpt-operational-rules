@@ -24,3 +24,9 @@ O fluxo bloqueia outros hosts/SO, perfil `ESTUDO`, arquivo de perfil ausente ou 
 Não colocar a credencial, uma URL de callback, códigos ou resultados brutos do GCM em Issues/PRs/logs. Persistir apenas `action_id`, `correlation_id`, hash de script, SHA esperado, estado sanitizado, resultado de testes e check de integridade.
 
 **Aceite parcial:** código + testes locais + PR draft + readback remoto. **Aceite físico:** login autorizado e confirmado pelo proprietário, checkout SHA-bound admitido em novo worktree governado no Noteri, 65 testes e canário NTFS reais, testes negativos/replay, leitura independente, recibo vinculado ao SHA. Sem esse segundo aceite, TRANSF-008 permanece bloqueado/parcial.
+
+## Diagnóstico adicional: estação de janelas (somente leitura)
+
+A sonda `scripts/noteri_transferidor_winsta_probe.py` consulta somente o atributo Win32 `WSF_VISIBLE` da estação de janelas associada ao processo, além dos identificadores de sessão já verificados. Ela não consulta usuários, títulos de janelas, tokens ou códigos de autorização e não inicia navegador.
+
+`WINDOW_STATION_NOT_VISIBLE` indica que o processo não dispõe de estação visível; `VISIBLE_WINDOW_STATION_CANDIDATE` é apenas um candidato, **não** comprova desktop utilizável, janela exibida, consentimento humano ou autorização GitHub. Falhas de API retornam estado bloqueado, sem fallback por GUI, shell, credencial ou mudança de política. Validar a sonda no Noteri pelo Session Launcher e Command Gateway (risco 1) no SHA vigente.

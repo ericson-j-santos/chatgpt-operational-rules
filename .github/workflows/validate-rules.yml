@@ -116,6 +116,8 @@ jobs:
         run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
       - name: Diagnose Noteri interactive console readiness (Linux contracts)
         run: python -m unittest -v tests/test_noteri_transferidor_console_context.py
+      - name: Inspect Noteri visible window station (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_winsta_probe.py
       - name: Run PR CI Self Heal unit tests
         run: python -m unittest -v tests/test_pr_ci_self_heal.py
       - name: Run governed workflow dispatch unit tests
@@ -239,6 +241,8 @@ jobs:
         run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
       - name: Diagnose Noteri interactive console readiness (Windows contracts)
         run: python -m unittest -v tests/test_noteri_transferidor_console_context.py
+      - name: Inspect Noteri visible window station (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_winsta_probe.py
 
       - name: Validate TODO Gateway local inventory hermetic contracts (Windows)
         run: python -m unittest -v tests/test_todo_gateway_local_inventory.py
