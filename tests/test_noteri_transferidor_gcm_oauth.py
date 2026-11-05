@@ -16,8 +16,8 @@ s = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(s)
 
 class Result:
-    def __init__(self, returncode=0, stdout=""):
-        self.returncode, self.stdout = returncode, stdout
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
 
 class TestarOAuthRestrito(unittest.TestCase):
     def setUp(self):
@@ -75,7 +75,8 @@ class TestarOAuthRestrito(unittest.TestCase):
         self.assertEqual(len(self.calls),3)
         self.assertEqual(self.calls[1][0][1:], ["credential-manager","github","login","--browser","--url","https://github.com"])
         self.assertEqual(self.calls[1][1]["stdout"], subprocess.DEVNULL)
-        self.assertEqual(self.calls[1][1]["stderr"], subprocess.DEVNULL)
+        self.assertEqual(self.calls[1][1]["stderr"], subprocess.PIPE)
+        self.assertEqual(self.calls[1][1]["stdout"], subprocess.DEVNULL)
         self.assertNotIn("GH_TOKEN",self.calls[1][1]["env"])
         self.assertNotIn("GIT_CONFIG_COUNT",self.calls[1][1]["env"])
         self.assertNotIn("DO_NOT_LEAK",str(r))
@@ -109,5 +110,41 @@ class TestarOAuthRestrito(unittest.TestCase):
             if "login" in args:raise subprocess.TimeoutExpired(args,120)
             return Result(returncode=128)
         self.assertEqual(self.go(hanging)["status"],"OAUTH_BROWSER_UNAVAILABLE")
+
+    def test_classification_is_bounded_and_never_reveals_provider_text(self):
+        cases = [
+            ("Unrecognized option --browser", "OAUTH_GCM_ARGUMENT_UNSUPPORTED"),
+            ("Unable to open browser at https://127.0.0.1/?code=SENSITIVE", "OAUTH_BROWSER_UNAVAILABLE"),
+            ("User cancelled consent: code ABCD", "OAUTH_CONSENT_CANCELLED"),
+            ("Proxy authentication required password=SECRET", "OAUTH_NETWORK_OR_TLS_BLOCKED"),
+            ("Access is denied: token SECRET", "OAUTH_LOCAL_CREDENTIAL_STORE_BLOCKED"),
+            ("Unexpected failure: callback https://example/?token=SECRET", "OAUTH_NOT_COMPLETED"),
+        ]
+        for raw, label in cases:
+            with self.subTest(label=label):
+                result = s.classify_gcm_stderr(raw)
+                self.assertEqual(result, label)
+                self.assertNotIn("SECRET", result)
+                self.assertNotIn("SENSITIVE", result)
+        self.assertEqual(s.classify_gcm_stderr(None), "OAUTH_NOT_COMPLETED")
+
+    def test_login_error_is_sanitized_and_not_replayed(self):
+        calls = []
+        raw = "Unable to open browser; authorization: secret-token"
+        def runner(args, **kw):
+            calls.append((args, kw))
+            if len(calls) == 1:
+                return Result(returncode=128)
+            return Result(returncode=1, stderr=raw)
+        result = self.go(runner)
+        self.assertEqual(result["status"], "OAUTH_BROWSER_UNAVAILABLE")
+        self.assertTrue(result["oauth_browser_requested"])
+        self.assertFalse(result["source_head_verified"])
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn(raw, json.dumps(result))
+        self.assertEqual(calls[1][1]["stderr"], subprocess.PIPE)
+        self.assertEqual(calls[1][1]["stdout"], subprocess.DEVNULL)
+        self.assertNotIn("GH_TOKEN", calls[1][1]["env"])
+
 
 if __name__=="__main__":unittest.main()

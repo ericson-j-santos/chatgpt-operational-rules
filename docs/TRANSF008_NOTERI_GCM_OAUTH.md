@@ -30,3 +30,11 @@ Não colocar a credencial, uma URL de callback, códigos ou resultados brutos do
 A sonda `scripts/noteri_transferidor_winsta_probe.py` consulta somente o atributo Win32 `WSF_VISIBLE` da estação de janelas associada ao processo, além dos identificadores de sessão já verificados. Ela não consulta usuários, títulos de janelas, tokens ou códigos de autorização e não inicia navegador.
 
 `WINDOW_STATION_NOT_VISIBLE` indica que o processo não dispõe de estação visível; `VISIBLE_WINDOW_STATION_CANDIDATE` é apenas um candidato, **não** comprova desktop utilizável, janela exibida, consentimento humano ou autorização GitHub. Falhas de API retornam estado bloqueado, sem fallback por GUI, shell, credencial ou mudança de política. Validar a sonda no Noteri pelo Session Launcher e Command Gateway (risco 1) no SHA vigente.
+
+## Classificador sanitizado de falhas GCM
+
+A execução governada no Noteri confirmou que o GCM 2.9.1 aceita `github login --browser --url` e que o Git utiliza `credential.helper=manager`. Isso não comprova autenticação, mas descarta incompatibilidade desses parâmetros e ausência de helper como causas ativas.
+
+Em uma futura tentativa OAuth **explicitamente autorizada**, o stdout do GCM permanece descartado. O stderr é lido apenas em memória transitória para reconhecer categorias fixas (parâmetro incompatível, navegador indisponível, consentimento cancelado, rede/TLS, cofre indisponível ou não classificado). O texto bruto, códigos e URLs de callback jamais entram em recibos, arquivos, logs ou Issues. GCM_TRACE e GCM_TRACE_SECRETS permanecem desabilitados. A categoria não comprova janela exibida: consentimento humano e Git SHA-bound são gates independentes.
+
+Não é possível classificar retroativamente o erro anterior porque a saída foi descartada. Não repetir o login automaticamente sem precondição material alterada e proprietário presente no console.

@@ -47,6 +47,31 @@ def no_secret_environment(source: dict[str, str]) -> dict[str, str]:
     return env
 
 
+
+def classify_gcm_stderr(raw: str | None) -> str:
+    """Only fixed error categories leave this process; raw diagnostic text never does."""
+    if not isinstance(raw, str):
+        return "OAUTH_NOT_COMPLETED"
+    message = raw[:8192].casefold()
+    if any(x in message for x in ("unrecognized command", "unrecognized option",
+                                  "unknown option", "unrecognized argument")):
+        return "OAUTH_GCM_ARGUMENT_UNSUPPORTED"
+    if ("browser" in message or "gui" in message) and any(
+        x in message for x in ("not available", "not supported", "unable to open",
+                             "failed to launch", "could not launch",
+                             "no default browser", "cannot start")):
+        return "OAUTH_BROWSER_UNAVAILABLE"
+    if any(x in message for x in ("operation canceled", "operation cancelled",
+                                  "user canceled", "user cancelled")):
+        return "OAUTH_CONSENT_CANCELLED"
+    if any(x in message for x in ("certificate verify failed", "ssl handshake failed",
+                                  "proxy authentication required", "could not resolve host")):
+        return "OAUTH_NETWORK_OR_TLS_BLOCKED"
+    if any(x in message for x in ("access is denied", "permission denied",
+                                  "credential store is unavailable")):
+        return "OAUTH_LOCAL_CREDENTIAL_STORE_BLOCKED"
+    return "OAUTH_NOT_COMPLETED"
+
 def profile_ok(*, os_name: str, hostname: str, localappdata: str | None) -> bool:
     if os_name != "nt" or hostname.casefold() != "noteri" or not localappdata:
         return False
@@ -95,17 +120,20 @@ def run(*, confirm: str, preflight_only: bool, os_name: str, hostname: str,
         return receipt("BLOCKED_CONFIRMATION")
 
     # GCM itself handles the OAuth browser and the Windows Credential Manager.
-    # Never capture device codes, tokens, cookies or OAuth redirect URLs.
+    # GCM stdout is discarded; diagnostic stderr stays only in transient memory.
+    # Neither raw stderr nor credentials are written to logs, files or receipts.
     try:
         cp = runner([git, "credential-manager", "github", "login", "--browser",
                      "--url", "https://github.com"], stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    text=True, encoding="utf-8", errors="replace",
                     timeout=120, check=False, shell=False,
                     env={**env, "GCM_INTERACTIVE": "always"})
     except (OSError, subprocess.TimeoutExpired):
         return receipt("OAUTH_BROWSER_UNAVAILABLE", browser_invoked=True)
     if cp.returncode != 0:
-        return receipt("OAUTH_NOT_COMPLETED", browser_invoked=True)
+        # Categorize only in memory; do not emit any raw GCM diagnostic content.
+        return receipt(classify_gcm_stderr(getattr(cp, "stderr", None)), browser_invoked=True)
     if not safe_check_head(git, runner=runner, env=env):
         return receipt("BLOCKED_PRIVATE_REPO_READBACK", browser_invoked=True)
     return receipt("SOURCE_AUTH_READY", browser_invoked=True, readback=True)
