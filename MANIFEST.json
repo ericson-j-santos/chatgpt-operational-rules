@@ -49,8 +49,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "0b4f4e18a02aeb31ccf33dba2d4d4ca98f06bfef816810f9c4da6cf8e3b21847",
-      "size": 19167
+      "sha256": "a5f11c428f114afb8a14adba81d6c21e12cf3a85f9bd06fb4feef6a43ed0fe74",
+      "size": 19495
     },
     {
       "path": ".gitignore",
@@ -461,6 +461,11 @@
       "path": "scripts/noteri_state_dir_inventory.py",
       "sha256": "1c5e5243159fb9090efaf5db9ba82687a614e8c3a42448895151161daac2f695",
       "size": 6399
+    },
+    {
+      "path": "scripts/noteri_transferidor_console_context.py",
+      "sha256": "630d85a376035372be812e643c6a48fd89f7121f3a4f4c86ad374d4606f14d4c",
+      "size": 3063
     },
     {
       "path": "scripts/noteri_transferidor_gcm_oauth.py",
@@ -936,6 +941,11 @@
       "path": "tests/test_noteri_state_dir_inventory.py",
       "sha256": "b7ff42fe8e559298d7e2523983a4a458435943d2c4cee8918ec12e5f2a27b292",
       "size": 6231
+    },
+    {
+      "path": "tests/test_noteri_transferidor_console_context.py",
+      "sha256": "4ff307eb59313098b0785d196cf841a525def40fc33d11c06029a7d7aa9946ef",
+      "size": 4315
     },
     {
       "path": "tests/test_noteri_transferidor_gcm_oauth.py",
