@@ -112,6 +112,8 @@ jobs:
         run: python -m unittest -v tests/test_owner_risk3_specific_action.py
       - name: Run scoped GitHub GCM OAuth negative and replay tests (Linux)
         run: python -m unittest -v tests/test_noteri_transferidor_gcm_oauth.py
+      - name: Test sanitized GCM account and Windows identity context (Linux contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_context.py
       - name: Validate fixed private GitHub CLI access probe (Linux)
         run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
       - name: Diagnose Noteri interactive console readiness (Linux contracts)
@@ -237,6 +239,8 @@ jobs:
         run: python -m unittest -v tests/test_command_gateway_posix_policy.py
       - name: Run scoped GitHub GCM OAuth negative and replay tests (Windows)
         run: python -m unittest -v tests/test_noteri_transferidor_gcm_oauth.py
+      - name: Test sanitized GCM account and Windows identity context (Windows contracts)
+        run: python -m unittest -v tests/test_noteri_transferidor_gcm_context.py
       - name: Validate fixed private GitHub CLI access probe (Windows)
         run: python -m unittest -v tests/test_noteri_transferidor_gh_access_probe.py
       - name: Diagnose Noteri interactive console readiness (Windows contracts)
