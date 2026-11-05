@@ -144,7 +144,15 @@ class GovernedBranchPolicyTests(unittest.TestCase):
                 cg.validate_command([str(executable)], 1, policy, self.cwd)
 
     def assert_ci_contract(self, workflow: str) -> None:
-        self.assertIn("image: postgres:16", workflow)
+        # A CI deve usar PostgreSQL 16 nativo, nunca serviço Docker/espelho ECR.
+        self.assertIn("runs-on: ubuntu-24.04", workflow)
+        self.assertIn("Start and verify native PostgreSQL 16 without containers", workflow)
+        self.assertIn("sudo systemctl start postgresql.service", workflow)
+        self.assertIn("NATIVE_POSTGRES_VERSION_MISMATCH", workflow)
+        self.assertIn("NATIVE_POSTGRES_IDENTITY_MISMATCH", workflow)
+        self.assertIn("TRIAGE_TEST_DSN: host=127.0.0.1 port=5432", workflow)
+        self.assertNotIn("image: postgres:", workflow)
+        self.assertNotIn("job.services.", workflow)
         self.assertNotIn("public.ecr.aws/docker/library/postgres", workflow)
         self.assertIn(
             "run: python -m unittest -v tests/test_command_gateway.py "
@@ -174,7 +182,9 @@ class GovernedBranchPolicyTests(unittest.TestCase):
     def test_ci_contract_detects_previous_registry_and_omitted_tests(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(encoding="utf-8")
         for broken in (
-            workflow.replace("image: postgres:16", "image: public.ecr.aws/docker/library/postgres:16"),
+            workflow.replace("sudo systemctl start postgresql.service", "image: public.ecr.aws/docker/library/postgres:16"),
+            workflow.replace("NATIVE_POSTGRES_VERSION_MISMATCH", "UNVERIFIED_POSTGRES_VERSION"),
+            workflow.replace("NATIVE_POSTGRES_IDENTITY_MISMATCH", "UNVERIFIED_POSTGRES_IDENTITY"),
             workflow.replace(" tests/test_update_branch_fast_forward_governed.py", ""),
         ):
             with self.assertRaises(AssertionError):
