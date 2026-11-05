@@ -38,3 +38,9 @@ A execução governada no Noteri confirmou que o GCM 2.9.1 aceita `github login 
 Em uma futura tentativa OAuth **explicitamente autorizada**, o stdout do GCM permanece descartado. O stderr é lido apenas em memória transitória para reconhecer categorias fixas (parâmetro incompatível, navegador indisponível, consentimento cancelado, rede/TLS, cofre indisponível ou não classificado). O texto bruto, códigos e URLs de callback jamais entram em recibos, arquivos, logs ou Issues. GCM_TRACE e GCM_TRACE_SECRETS permanecem desabilitados. A categoria não comprova janela exibida: consentimento humano e Git SHA-bound são gates independentes.
 
 Não é possível classificar retroativamente o erro anterior porque a saída foi descartada. Não repetir o login automaticamente sem precondição material alterada e proprietário presente no console.
+
+## Contrato de códigos de saída do Owner Risk 3
+
+O gateway de risco 3 não transmite stdout de scripts que falham, preservando a confidencialidade. Para um diagnóstico governado, os erros classificados são representados por códigos **numéricos fixos**, sem alterar essa política: argumento GCM incompatível (31), navegador indisponível (32), consentimento cancelado (33), rede/TLS (34), cofre local indisponível (35), erro GCM não classificado (36), autenticação concluída mas leitura do repositório privado bloqueada (37). Outros bloqueios permanecem no código 28. Somente `SOURCE_AUTH_READY` (com SHA remoto conferido) é aceite; o preflight sem interação também pode retornar 0 com `OAUTH_HUMAN_CONSENT_REQUIRED`, sem conceder login.
+
+Mesmo que o processo retorne uma categoria numerada, nenhuma URL de callback, stdout/stderr bruto, token ou código de dispositivo poderá ser persistido. Cada nova execução real exige autorização Risk 3 individual vinculada ao SHA e consentimento do proprietário.

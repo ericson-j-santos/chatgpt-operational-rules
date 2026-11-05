@@ -129,8 +129,8 @@
     },
     {
       "path": "docs/TRANSF008_NOTERI_GCM_OAUTH.md",
-      "sha256": "6a89eaf6321db121f754adc099fbba9da85328231371560832c9bdb856100a1c",
-      "size": 5231
+      "sha256": "a11ca953eaedf76261c91fbcde93da882539cd514d67fa8d351c99add2d5e48a",
+      "size": 6259
     },
     {
       "path": "docs/host-readiness.md",
@@ -469,8 +469,8 @@
     },
     {
       "path": "scripts/noteri_transferidor_gcm_oauth.py",
-      "sha256": "e895fa8b3e4ddb92de89db945fa1c19b4f52d0eebf6342463dd73236fb82473c",
-      "size": 7528
+      "sha256": "135bde926cb3b5ed970591717c1e90ccd3dc4513dcf5e1a99651d95d389a8871",
+      "size": 8191
     },
     {
       "path": "scripts/noteri_transferidor_gh_access_probe.py",
@@ -954,8 +954,8 @@
     },
     {
       "path": "tests/test_noteri_transferidor_gcm_oauth.py",
-      "sha256": "43e8bba09743925b5e85222ccf1db64affdc33fbc05f7bbf99aedfa9d4808728",
-      "size": 7344
+      "sha256": "e1f797939ef653bbbe3e19052050ca25d0595cddedbd6edd591c6ea8546bcf03",
+      "size": 8517
     },
     {
       "path": "tests/test_noteri_transferidor_gh_access_probe.py",

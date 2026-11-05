@@ -139,6 +139,27 @@ def run(*, confirm: str, preflight_only: bool, os_name: str, hostname: str,
     return receipt("SOURCE_AUTH_READY", browser_invoked=True, readback=True)
 
 
+
+# The generic owner Risk 3 gateway intentionally drops child stdout on failure.
+# Fixed numeric exit codes preserve fail-closed behavior without leaking GCM text.
+GCM_FAILURE_EXIT_CODES = {
+    "OAUTH_GCM_ARGUMENT_UNSUPPORTED": 31,
+    "OAUTH_BROWSER_UNAVAILABLE": 32,
+    "OAUTH_CONSENT_CANCELLED": 33,
+    "OAUTH_NETWORK_OR_TLS_BLOCKED": 34,
+    "OAUTH_LOCAL_CREDENTIAL_STORE_BLOCKED": 35,
+    "OAUTH_NOT_COMPLETED": 36,
+    "BLOCKED_PRIVATE_REPO_READBACK": 37,
+}
+
+
+def exit_for_status(status: str, *, preflight_only: bool) -> int:
+    if status == "SOURCE_AUTH_READY":
+        return 0
+    if preflight_only and status == "OAUTH_HUMAN_CONSENT_REQUIRED":
+        return 0
+    return GCM_FAILURE_EXIT_CODES.get(status, 28)
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--confirm", default="")
@@ -149,7 +170,7 @@ def main() -> int:
                  localappdata=os.environ.get("LOCALAPPDATA"), environment=os.environ,
                  git=shutil.which("git"))
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))
-    return 0 if result["status"] == "SOURCE_AUTH_READY" or (args.preflight_only and result["status"] == "OAUTH_HUMAN_CONSENT_REQUIRED") else 28
+    return exit_for_status(result["status"], preflight_only=args.preflight_only)
 
 
 if __name__ == "__main__":

@@ -147,4 +147,26 @@ class TestarOAuthRestrito(unittest.TestCase):
         self.assertNotIn("GH_TOKEN", calls[1][1]["env"])
 
 
+    def test_exit_codes_preserve_fail_closed_and_are_unique(self):
+        expected = {
+            "OAUTH_GCM_ARGUMENT_UNSUPPORTED": 31,
+            "OAUTH_BROWSER_UNAVAILABLE": 32,
+            "OAUTH_CONSENT_CANCELLED": 33,
+            "OAUTH_NETWORK_OR_TLS_BLOCKED": 34,
+            "OAUTH_LOCAL_CREDENTIAL_STORE_BLOCKED": 35,
+            "OAUTH_NOT_COMPLETED": 36,
+            "BLOCKED_PRIVATE_REPO_READBACK": 37,
+        }
+        self.assertEqual(s.GCM_FAILURE_EXIT_CODES, expected)
+        self.assertEqual(len(set(expected.values())), len(expected))
+        for status, code in expected.items():
+            with self.subTest(status=status):
+                self.assertEqual(s.exit_for_status(status, preflight_only=False), code)
+                self.assertGreater(code, 0)
+        self.assertEqual(s.exit_for_status("SOURCE_AUTH_READY", preflight_only=False), 0)
+        self.assertEqual(s.exit_for_status("OAUTH_HUMAN_CONSENT_REQUIRED", preflight_only=True), 0)
+        self.assertEqual(s.exit_for_status("OAUTH_HUMAN_CONSENT_REQUIRED", preflight_only=False), 28)
+        self.assertEqual(s.exit_for_status("BLOCKED_HOST_OR_PROFILE", preflight_only=False), 28)
+
+
 if __name__=="__main__":unittest.main()
