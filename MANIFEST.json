@@ -1,6 +1,6 @@
 {
-  "version": "1.6.20",
-  "generated_at": "2026-11-05T14:47:41.300Z",
+  "version": "1.6.21",
+  "generated_at": "2026-11-10T00:19:49.639Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "12a5379b4d276f4076b319357b91fecf50d338fdb942ad052196ee4ce3fa139b",
-      "size": 20141
+      "sha256": "1e6b4dd01f4bf3c3b1a0813a48a7ee25d8b0587b2ee51e8588bf35dedace0677",
+      "size": 21294
     },
     {
       "path": ".gitignore",
@@ -59,32 +59,32 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "b8b7920d11c3dc549c8e64375ee22cb2ab00f82ea459f14ff76f0bfe0e2e4b7f",
-      "size": 3245
+      "sha256": "5bd4632befd56b85009b8f7968e511198c8f4a45f0e750b04d575ba741a509e3",
+      "size": 3496
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "cd9fcd5d462361661417fe64bd55c6f70892068228ea419dd8b7ed43c21d8dc7",
-      "size": 21893
+      "sha256": "1bcde3e9f2710eea9857275ba0f0f57d7b9c6b42df533de37c349e89dc2e66df",
+      "size": 22981
     },
     {
       "path": "README.md",
-      "sha256": "eb97fe883beaee204e53cf0f9c5a4068dcd4ebb1a83374255d06975bb15f4f1c",
-      "size": 11002
+      "sha256": "f34a659c84abea5908e3446c25c4a593aadd5edbc12bb3dde20cf1438246a338",
+      "size": 11555
     },
     {
       "path": "config/command-gateway.policy.json",
-      "sha256": "d5538a1ec6c6120d020ec9b2bb761f6d74f137d5176a713a74701add9ea4188b",
+      "sha256": "f4f00d4eae936db85550fe873f536aa752c460503f77b4bc0f65608e2cb87325",
       "size": 3406
     },
     {
       "path": "config/command-gateway.policy.noteri-wsl.json",
-      "sha256": "961b50c2cf24a3e57ea8915f9adc66a4e71d2196f489e6f0a5ec3df75304543d",
+      "sha256": "e08bb142f06afdb9efc8077ae6bb483a66a3cf920b5b4b942b1227dbfc403cfa",
       "size": 3210
     },
     {
       "path": "config/command-gateway.policy.posix.json",
-      "sha256": "d1a8ef2e7c9aadcf0985c25da355e08f10d1fbc3d37c7336ff5d60af4a5a443d",
+      "sha256": "70ee7cdda7244bfaa3c55aba96b2fec01314f2120f187b4391b30cd60c006d0d",
       "size": 2092
     },
     {
@@ -199,8 +199,8 @@
     },
     {
       "path": "rules/agent-durable-pr-gate.md",
-      "sha256": "bd25d60fa8a4baccd73d80632b20a2ec423dc94b021c29503a0ad273eb6fb13f",
-      "size": 6407
+      "sha256": "24116bd0ef362c81d7c9fde25bcea6a622ebbdea3ecedb4bc8c77a956f5d2c22",
+      "size": 7778
     },
     {
       "path": "rules/artifact-storage.md",
@@ -253,9 +253,14 @@
       "size": 842
     },
     {
+      "path": "rules/feature-pr-admission.md",
+      "sha256": "d0ba8641c114f743c52fec1321448066f1bb4a08cc76b13754e675ea9f158abf",
+      "size": 4070
+    },
+    {
       "path": "rules/github-workflow.md",
-      "sha256": "2efa64eb92c573ddb5502a24d9e5cea44e33091c4ac99b4e577a2a789d64bfb6",
-      "size": 1755
+      "sha256": "7fa5ab43484e2c73e9f3dd9042cefce1a88f767f0b8eb3d05f652a7f0cbfabeb",
+      "size": 4125
     },
     {
       "path": "rules/log-driven-improvement.md",
@@ -376,6 +381,11 @@
       "path": "scripts/execution_lane_e2e.py",
       "sha256": "a57f3753cc986500f3719842778d7287669a6d9724cf2ce5af042aa0a1739ed6",
       "size": 5570
+    },
+    {
+      "path": "scripts/feature_pr_preclassification.py",
+      "sha256": "abea8454d4d294b9cea5f576c0a292f663bf8719849c4f591fea541751941ee2",
+      "size": 3450
     },
     {
       "path": "scripts/generate_manifest.py",
@@ -744,8 +754,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "84a7eff9d0888385368dfb42840fc17cc8e0487430c1bf461d6320d3873c7d9d",
-      "size": 15883
+      "sha256": "30502f8358f3ed4b16607814dab2c8b2745d820deaf52fb6e6b844ef1a59724c",
+      "size": 16088
     },
     {
       "path": "services/__init__.py",
@@ -888,6 +898,11 @@
       "size": 3995
     },
     {
+      "path": "tests/test_feature_pr_admission.py",
+      "sha256": "3981ee982789fe2a67d0ab8229aaf438c47982d79e6f90d81759713efe6649b5",
+      "size": 5589
+    },
+    {
       "path": "tests/test_github_schedule_bridge.py",
       "sha256": "24083658a518f61c51056579331191f8182a18a127600f010a614a1b2818e9a0",
       "size": 9504
@@ -904,8 +919,8 @@
     },
     {
       "path": "tests/test_governed_branch_update_policy.py",
-      "sha256": "06b6afae34bc8fbe86dea902dab24021304e51d3d9411e0472a3e2ba22f91eaf",
-      "size": 15118
+      "sha256": "1ef16a945f73edf94a40a615ddc5f4f9bcc4da85b99c8c6a74d7869cacdfdb77",
+      "size": 15908
     },
     {
       "path": "tests/test_host_bootstrap.py",
@@ -941,6 +956,11 @@
       "path": "tests/test_native_host_capacity_probe.py",
       "sha256": "63842ecb4c9130970ec368e2681ece56158cda448a7a7764ffb1ab3728b2bd80",
       "size": 4572
+    },
+    {
+      "path": "tests/test_native_postgres_ci_contract.py",
+      "sha256": "681e0d7355836c017d29a13acb4eb4054d2d00f4ef31fc037c1d779ea5bfa2b8",
+      "size": 2582
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
