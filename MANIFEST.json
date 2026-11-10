@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-05T01:07:00+00:00",
+  "generated_at": "2026-11-10T00:19:49.639Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -49,8 +49,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "c0655d81d66b8dbc95775358dc106271fd6b4d2e491afb5d31304628320486eb",
-      "size": 19697
+      "sha256": "1e6b4dd01f4bf3c3b1a0813a48a7ee25d8b0587b2ee51e8588bf35dedace0677",
+      "size": 21294
     },
     {
       "path": ".gitignore",
@@ -126,6 +126,11 @@
       "path": "docs/OWNER_RISK3_EXCEPTION.md",
       "sha256": "5491ffbda946b4492ffe4c929c0e5503a430071361fb5b1b28be8203d4d7b8a4",
       "size": 4689
+    },
+    {
+      "path": "docs/TRANSF008_NOTERI_GCM_OAUTH.md",
+      "sha256": "db0379fa8f58d14ebbb80a4e857ea4a0f53a994c8329609b8ab76ce372db5439",
+      "size": 8863
     },
     {
       "path": "docs/host-readiness.md",
@@ -466,6 +471,31 @@
       "path": "scripts/noteri_state_dir_inventory.py",
       "sha256": "1c5e5243159fb9090efaf5db9ba82687a614e8c3a42448895151161daac2f695",
       "size": 6399
+    },
+    {
+      "path": "scripts/noteri_transferidor_console_context.py",
+      "sha256": "630d85a376035372be812e643c6a48fd89f7121f3a4f4c86ad374d4606f14d4c",
+      "size": 3063
+    },
+    {
+      "path": "scripts/noteri_transferidor_gcm_context.py",
+      "sha256": "3f669a72bd78b9ae9b1d9a97a0ee61f317c4b67d2ad8b2a7ec0e89ceed28e5c4",
+      "size": 3944
+    },
+    {
+      "path": "scripts/noteri_transferidor_gcm_oauth.py",
+      "sha256": "a7b57071e49ed726f2b87b3633081d934ed78f16b429f6425ac9f34e052e4212",
+      "size": 12009
+    },
+    {
+      "path": "scripts/noteri_transferidor_gh_access_probe.py",
+      "sha256": "ba2f5f503afba61b9d4c1197d747937534170048d78b53ee99e029aca65297b4",
+      "size": 3837
+    },
+    {
+      "path": "scripts/noteri_transferidor_winsta_probe.py",
+      "sha256": "c52940225c6998b636adc56cf22a4c13afb3da7a24158cf6f783ac113666dd17",
+      "size": 4068
     },
     {
       "path": "scripts/owner_host_power_once.py",
@@ -941,6 +971,31 @@
       "path": "tests/test_noteri_state_dir_inventory.py",
       "sha256": "b7ff42fe8e559298d7e2523983a4a458435943d2c4cee8918ec12e5f2a27b292",
       "size": 6231
+    },
+    {
+      "path": "tests/test_noteri_transferidor_console_context.py",
+      "sha256": "4ff307eb59313098b0785d196cf841a525def40fc33d11c06029a7d7aa9946ef",
+      "size": 4315
+    },
+    {
+      "path": "tests/test_noteri_transferidor_gcm_context.py",
+      "sha256": "2ed476a08cce352a95187faa70f2c82c3652b6b363efed5367c1832e92c4ac14",
+      "size": 6214
+    },
+    {
+      "path": "tests/test_noteri_transferidor_gcm_oauth.py",
+      "sha256": "437fc9f3ed149cb9fdce5ea890dd89782bbad4875153814d0079f9e091e631f8",
+      "size": 10951
+    },
+    {
+      "path": "tests/test_noteri_transferidor_gh_access_probe.py",
+      "sha256": "7ff232a082af11e299dbe442bb479285a3f855a9c559ae2513c1276ee9b5c0bb",
+      "size": 5081
+    },
+    {
+      "path": "tests/test_noteri_transferidor_winsta_probe.py",
+      "sha256": "c42d71bb940b1fd7da6a0d47487802d48e6869b6a6ebf0dc9b2b135067303981",
+      "size": 5423
     },
     {
       "path": "tests/test_noteri_wsl_running_status.py",
