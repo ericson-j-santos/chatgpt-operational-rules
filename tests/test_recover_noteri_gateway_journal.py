@@ -210,7 +210,7 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
         ):
             self.assertEqual(
                 recovery._confined(root, target, "OUTSIDE"),
-                root / "backup-v2" / "manifest.json",
+                Path(os.path.abspath(root)) / "backup-v2" / "manifest.json",
             )
 
     def test_confined_rejects_windows_alias_without_root_directory_identity(self) -> None:
