@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.21 - 2026-11-04
+
+- Adicionada a distinção `feature` / `repair` na pré-admissão de alterações por agentes, sem fabricar falha para funcionalidade nova (Issue #204).
+- Reparo continua exigindo defeito reproduzível, modelo realmente executado, digest e Validator independente; para funcionalidade nova, origem e ausência da capacidade precisam de comprovação externa, com os mesmos gates.
+- Pré-classificador `feature_pr_preclassification.py` valida **apenas esquema/consistência**; não emite `READY_FOR_PR`, autorização de host, merge ou deploy.
+- Versão de regras e três perfis Command Gateway sincronizados, sem ampliar suas permissões.
+- Migração da CI de PostgreSQL por serviço Docker para PostgreSQL 16 nativo na VM hospedada Ubuntu 24.04, com prova de versão, autenticação local e identidade do banco antes do E2E; não reduz testes.
+- Protocolo de mantenedor único: Validator externo ao Builder/autor, readback das proteções, decisão explícita do proprietário e manutenção da CI, sem simular review humano nem afirmar enforcement automático.
+
 ## Em preparação - 2026-10-30
 
 - Formalizada a contingência gratuita de monitoramentos quando não é possível agendar no ChatGPT: reaproveitamento primeiro, GitHub Actions público com runner padrão em seguida, host governado por último e bloqueio sem prova de custo zero, com deduplicação, teste e readback (issue #191). Sem novo agendamento ou alteração automática de sistema.
