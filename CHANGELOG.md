@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.22 - 2026-11-12
+
+- Corrige a atualização do Command Gateway no Windows para preservar arquivos já idênticos ao pacote de destino, com checagem de SHA-256, tamanho, metadados de segurança e releitura.
+- O preflight de substituição deixa de testar troca de arquivos inalterados, mantendo testes de permissão para destinos realmente modificados e rollback da transação.
+- Inclui regressão reproduzindo recusa de substituição em arquivo idêntico, alteração real de política, arquivo adulterado e verificações de preflight.
+- Incidente: issue #213 e Noteri ReqSys #3138; a falha física de WinError 5 foi preservada com rollback íntegro, mas o novo pacote não está integrado nem implantado.
+
 ## 1.6.21 - 2026-11-04
 
 - Adicionada a distinção `feature` / `repair` na pré-admissão de alterações por agentes, sem fabricar falha para funcionalidade nova (Issue #204).
