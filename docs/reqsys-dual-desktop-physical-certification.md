@@ -19,6 +19,17 @@ O verificador é **somente de consistência**: \`pair_candidate_consistent=true\
 
 Qualquer falta de recibo, job concluído há mais de cinco minutos, regras divergentes, perfil diferente de NORMAL, custo desconhecido ou identidade física não vinculada **bloqueia** o par. Host online/Idle, check verde ou texto de sucesso não substituem isso.
 
+## 2.1. Dois modos de operação que não podem ser confundidos
+
+O `scripts/reqsys_dual_desktop_guard.py` exige `mode` explícito:
+
+- `parallel_independent`: exige **tarefas diferentes**, branches diferentes, worktrees diferentes e reservas exclusivas diferentes. Mesmo que as máquinas estejam saudáveis, não autoriza automaticamente a execução física.
+- `validation_handoff`: permite a **mesma tarefa** mudar do Builder para o Validator somente quando o Builder liberou a reserva, a geração da reserva do Validator aumentou e ambos estão ligados ao **mesmo SHA produzido**. O checkpoint precisa estar fora de ambos os computadores e ter leitura integral e hash idênticos. Evidência ausente ou incorreta bloqueia.
+
+O verificador nunca autentica sozinho o produtor dos recibos, nem concede permissão para executar tarefas. A fila real precisa impor a exclusividade de posse: um campo `exclusive_lease_verified=true` enviado por um consumidor não é prova.
+
+**Validação local (12/11/2026):** 37 testes Python executados em ambiente isolado, incluindo cenário de papel malformado que anteriormente provocava exceção. Os arquivos testados correspondem aos blobs Git `fba311fe7305e0e963515c796d7a0f836710a1db` (verificador) e `ba0274738afa6d95977482883f89dc9b2ca0d1ab` (testes). Não foram executados em runner físico.
+
 ## 3. Proteções obrigatórias contra conflitos e perdas
 
 - **Fila durável e central**: cada tarefa tem identidade, chave de repetição e estado persistido; nenhuma tarefa depende só de RAM ou de arquivos locais.
