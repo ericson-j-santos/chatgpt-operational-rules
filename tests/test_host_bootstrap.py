@@ -225,6 +225,70 @@ class HostBootstrapTests(unittest.TestCase):
             self.assertIsNotNone(second["backup_dir"])
             self.assertTrue(Path(second["backup_dir"]).is_dir())
 
+    def test_policy_only_upgrade_never_replaces_identical_managed_scripts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_bundle(root)
+            install, workers = root / "install", root / "workers"
+            hb.install_bundle(bundle, install, workers, "a" * 40)
+
+            policy_source = next(
+                source for source, destination in hb.RUNTIME_MAP.items()
+                if destination == "config/policy.json"
+            )
+            desired = b'{"rules_version": "1.6.21"}\\n'.replace(b"\\\\n", b"\\n")
+            (bundle / policy_source).write_bytes(desired)
+            manifest = json.loads((bundle / "MANIFEST.json").read_text())
+            for entry in manifest["files"]:
+                if entry["path"] == policy_source:
+                    entry["sha256"] = hashlib.sha256(desired).hexdigest()
+                    entry["size"] = len(desired)
+            (bundle / "MANIFEST.json").write_text(json.dumps(manifest))
+
+            writes: list[str] = []
+            original_write = hb.atomic_write
+
+            def reject_unchanged_replacement(path: Path, payload: bytes) -> None:
+                relative = path.relative_to(install).as_posix()
+                writes.append(relative)
+                if relative == "bin/session_preflight.py":
+                    raise PermissionError("injected Windows replace denial")
+                original_write(path, payload)
+
+            with mock.patch.object(hb, "atomic_write",
+                                   side_effect=reject_unchanged_replacement):
+                receipt = hb.install_bundle(bundle, install, workers, "b" * 40)
+            self.assertEqual(
+                writes, ["config/policy.json", "install-receipt.json"]
+            )
+            self.assertEqual((install / "config/policy.json").read_bytes(), desired)
+            self.assertEqual(receipt["files"]["config/policy.json"]["sha256"],
+                             hashlib.sha256(desired).hexdigest())
+
+    def test_divergent_target_is_never_skipped_or_declared_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_bundle(root)
+            install, workers = root / "install", root / "workers"
+            hb.install_bundle(bundle, install, workers, "a" * 40)
+            target = install / "bin" / "session_preflight.py"
+            target.write_bytes(b"outside-modification")
+            original_write = hb.atomic_write
+            attempts: list[Path] = []
+
+            def deny_changed_target(path: Path, payload: bytes) -> None:
+                attempts.append(path)
+                if path == target:
+                    raise PermissionError("injected changed-target denial")
+                original_write(path, payload)
+
+            with mock.patch.object(hb, "atomic_write",
+                                   side_effect=deny_changed_target):
+                with self.assertRaises(hb.RuntimeInstallError):
+                    hb.install_bundle(bundle, install, workers, "b" * 40)
+            self.assertIn(target, attempts)
+            self.assertEqual(target.read_bytes(), b"outside-modification")
+
     def test_verify_file_rejects_wrong_hash_or_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "payload.zip"
