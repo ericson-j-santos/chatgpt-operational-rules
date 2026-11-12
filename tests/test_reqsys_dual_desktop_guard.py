@@ -24,7 +24,7 @@ def example():
             independent_readback_verified=True, artifact_bytes_verified=True,
             observed_at=NOW.isoformat(), job_completed_at=NOW.isoformat(),
             artifact_sha256=str(ordinal) * 64,
-            readback_sha256=str(ordinal + 2) * 64,
+            readback_sha256=str(ordinal) * 64,
             physical_identity_sha256=str(ordinal + 4) * 64,
             runner_id=ordinal, job_id=ordinal, run_id=ordinal, run_attempt=1,
             runner_name=name + "-runtime", host=name, role=role, rules_sha=SHA,
@@ -97,6 +97,10 @@ class GuardTests(unittest.TestCase):
     def test_false_readback_is_not_enough(self):
         self.blocked(lambda d: d["hosts"][1]["physical_proof"].update(
             independent_readback_verified=False), "validator:independent_proof_missing")
+
+    def test_independent_readback_digest_must_match_artifact_digest(self):
+        self.blocked(lambda d: d["hosts"][1]["physical_proof"].update(
+            readback_sha256="c" * 64), "validator:artifact_digest_mismatch")
 
     def test_unchecked_artifact_bytes_are_blocked(self):
         self.blocked(lambda d: d["hosts"][1]["physical_proof"].update(
