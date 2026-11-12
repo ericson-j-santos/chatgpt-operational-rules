@@ -494,6 +494,14 @@ def preflight_runtime_replaceability(install_root: Path, backup_dir: Path) -> di
     checked: list[str] = []
     for destination, entry in snapshot["entries"].items():
         target = bootstrap._managed_target(install_root, destination)
+        if bootstrap.verified_unchanged_managed_file(
+            target,
+            entry,
+            {"sha256": entry["desired_sha256"], "size": entry["desired_size"]},
+            windows_metadata=bootstrap._windows_metadata_required(),
+        ):
+            checked.append(destination)
+            continue
         first = target.with_name(target.name + f".replace-probe-{uuid.uuid4().hex}")
         second = target.with_name(target.name + f".replace-probe-{uuid.uuid4().hex}")
         first_owned = False
