@@ -139,6 +139,10 @@ def evaluate(payload: dict[str, Any], *, now: datetime | None = None) -> dict[st
     if len(runner_ids) == 2 and runner_ids[0] == runner_ids[1]:
         blockers.append("same_runner")
 
+    mode = payload.get("mode")
+    if mode not in ("parallel_independent", "validation_handoff"):
+        blockers.append("execution_mode_invalid")
+
     assignments = payload.get("assignments")
     if not isinstance(assignments, list) or len(assignments) != 2 or any(not isinstance(a, dict) for a in assignments):
         assignments = []
@@ -176,7 +180,48 @@ def evaluate(payload: dict[str, Any], *, now: datetime | None = None) -> dict[st
     for collection, label in ((tasks, "task"), (branches, "branch"),
                               (worktrees, "worktree"), (lease_digests, "lease")):
         if len(collection) == 2 and collection[0] == collection[1]:
+            if label == "task" and mode == "validation_handoff":
+                continue  # A mesma tarefa é permitida somente com transferência cercada.
             blockers.append(f"duplicate_{label}_ownership")
+
+    if mode == "validation_handoff":
+        if len(tasks) != 2 or tasks[0] != tasks[1]:
+            blockers.append("handoff_task_mismatch")
+        by_role = {a.get("role"): a for a in assignments if a.get("role") in ROLES}
+        handoff = payload.get("handoff")
+        if not isinstance(handoff, dict):
+            blockers.append("handoff_evidence_missing")
+        elif set(by_role) != set(ROLES):
+            blockers.append("handoff_assignments_missing")
+        else:
+            builder, validator = by_role["builder"], by_role["validator"]
+            produced = handoff.get("produced_sha")
+            if (not _sha(produced, SHA40)
+                    or builder.get("produced_sha") != produced
+                    or validator.get("task_source_sha") != produced
+                    or builder.get("task_source_sha") == produced):
+                blockers.append("handoff_sha_binding_invalid")
+            if (handoff.get("task_id") != builder.get("task_id")
+                    or handoff.get("task_id") != validator.get("task_id")
+                    or handoff.get("correlation_id") != correlation):
+                blockers.append("handoff_identity_mismatch")
+            bgen = builder.get("lease_generation")
+            vgen = validator.get("lease_generation")
+            if (not _positive_integer(bgen) or not _positive_integer(vgen)
+                    or vgen <= bgen
+                    or handoff.get("released_builder_generation") != bgen
+                    or handoff.get("claimed_validator_generation") != vgen
+                    or handoff.get("builder_lease_released_verified") is not True
+                    or handoff.get("validator_lease_acquired_verified") is not True):
+                blockers.append("handoff_lease_fencing_unverified")
+            digest = handoff.get("checkpoint_sha256")
+            if (not _sha(digest, SHA64)
+                    or handoff.get("independent_readback_sha256") != digest
+                    or handoff.get("checkpoint_ref") != f"cas:sha256:{digest}"
+                    or handoff.get("checkpoint_source_sha") != produced
+                    or handoff.get("independent_bytes_verified") is not True
+                    or handoff.get("checkpoint_external_to_hosts") is not True):
+                blockers.append("handoff_durable_checkpoint_unverified")
 
     return {
         "pair_candidate_consistent": len(blockers) == 0,
