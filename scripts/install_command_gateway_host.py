@@ -1780,6 +1780,41 @@ def restore_runtime_rollback(
             )
 
 
+
+def verified_unchanged_managed_file(
+    target: Path,
+    rollback_entry: dict[str, Any],
+    expected: dict[str, Any],
+    *,
+    windows_metadata: bool,
+) -> bool:
+    """Avoid replacing an already-correct managed file (including Windows metadata).
+
+    A snapshot alone is insufficient: re-read the live target and refuse a
+    shortcut for symlinks, altered bytes, sizes or persisted security metadata.
+    The ordinary post-installation verification still checks every target.
+    """
+    desired_sha = str(expected.get("sha256", "")).lower()
+    desired_size = expected.get("size")
+    if (
+        rollback_entry.get("existed") is not True
+        or rollback_entry.get("previous_sha256") != desired_sha
+        or rollback_entry.get("previous_size") != desired_size
+        or target.is_symlink()
+        or not target.is_file()
+    ):
+        return False
+    observed = target.stat()
+    if observed.st_size != desired_size or sha256_file(target) != desired_sha:
+        return False
+    if windows_metadata:
+        return _windows_path_matches_persisted_state(
+            target, rollback_entry["previous_windows_state"]
+        )
+    return stat.S_IMODE(observed.st_mode) == rollback_entry["previous_mode"]
+
+
+
 def install_bundle(
     bundle_dir: Path,
     install_root: Path,
@@ -1805,16 +1840,21 @@ def install_bundle(
         for source, destination in RUNTIME_MAP.items():
             payload = (bundle_dir / source).read_bytes()
             target = _managed_target(install_root, destination)
-            try:
-                atomic_write(target, payload)
-            except WindowsReplaceError as exc:
-                raise RuntimeInstallError(
-                    destination, exc.operation, exc
-                ) from exc
-            except OSError as exc:
-                raise RuntimeInstallError(
-                    destination, "atomic_write", exc
-                ) from exc
+            rollback_entry = rollback_snapshot["entries"][destination]
+            if not verified_unchanged_managed_file(
+                target, rollback_entry, index[source],
+                windows_metadata=windows_metadata,
+            ):
+                try:
+                    atomic_write(target, payload)
+                except WindowsReplaceError as exc:
+                    raise RuntimeInstallError(
+                        destination, exc.operation, exc
+                    ) from exc
+                except OSError as exc:
+                    raise RuntimeInstallError(
+                        destination, "atomic_write", exc
+                    ) from exc
             installed_file: dict[str, Any] = {
                 "sha256": sha256_file(target),
                 "size": target.stat().st_size,
