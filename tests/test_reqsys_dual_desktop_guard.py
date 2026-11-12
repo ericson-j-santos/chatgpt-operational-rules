@@ -203,6 +203,10 @@ class HandoffContractTests(unittest.TestCase):
     def test_unknown_mode_is_not_assumed_parallel(self):
         self.reject(lambda d: d.update(mode="other"), "execution_mode_invalid")
 
+    def test_non_string_role_fails_closed_without_exception(self):
+        self.reject(lambda d: d["assignments"][1].update(role=[]),
+                    "validator:assignment_missing_or_duplicate")
+
     def test_missing_handoff_blocks(self):
         self.reject(lambda d: d.pop("handoff"), "handoff_evidence_missing")
 
