@@ -236,7 +236,7 @@ class HostBootstrapTests(unittest.TestCase):
                 source for source, destination in hb.RUNTIME_MAP.items()
                 if destination == "config/policy.json"
             )
-            desired = b'{"rules_version": "1.6.21"}\\n'.replace(b"\\\\n", b"\\n")
+            desired = b'{"rules_version": "1.6.21"}'
             (bundle / policy_source).write_bytes(desired)
             manifest = json.loads((bundle / "MANIFEST.json").read_text())
             for entry in manifest["files"]:
