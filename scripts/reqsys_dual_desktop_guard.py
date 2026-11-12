@@ -187,7 +187,7 @@ def evaluate(payload: dict[str, Any], *, now: datetime | None = None) -> dict[st
     if mode == "validation_handoff":
         if len(tasks) != 2 or tasks[0] != tasks[1]:
             blockers.append("handoff_task_mismatch")
-        by_role = {a.get("role"): a for a in assignments if a.get("role") in ROLES}
+        by_role = {a["role"]: a for a in assignments if isinstance(a.get("role"), str) and a["role"] in ROLES}
         handoff = payload.get("handoff")
         if not isinstance(handoff, dict):
             blockers.append("handoff_evidence_missing")
