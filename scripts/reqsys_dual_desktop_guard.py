@@ -110,6 +110,10 @@ def evaluate(payload: dict[str, Any], *, now: datetime | None = None) -> dict[st
         for fld in ("artifact_sha256", "readback_sha256", "physical_identity_sha256"):
             if not _sha(proof.get(fld), SHA64):
                 blockers.append(f"{role}:{fld}_invalid")
+        if (_sha(proof.get("artifact_sha256"), SHA64)
+                and _sha(proof.get("readback_sha256"), SHA64)
+                and proof["artifact_sha256"] != proof["readback_sha256"]):
+            blockers.append(f"{role}:artifact_digest_mismatch")
         if _sha(proof.get("physical_identity_sha256"), SHA64):
             physical_ids.append(proof["physical_identity_sha256"])
         if not _positive_integer(proof.get("runner_id")):
