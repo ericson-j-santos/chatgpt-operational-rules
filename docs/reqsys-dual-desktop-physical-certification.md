@@ -28,7 +28,7 @@ O `scripts/reqsys_dual_desktop_guard.py` exige `mode` explícito:
 
 O verificador nunca autentica sozinho o produtor dos recibos, nem concede permissão para executar tarefas. A fila real precisa impor a exclusividade de posse: um campo `exclusive_lease_verified=true` enviado por um consumidor não é prova.
 
-**Validação local (12/11/2026):** 37 testes Python executados em ambiente isolado, incluindo cenário de papel malformado que anteriormente provocava exceção. Os arquivos testados correspondem aos blobs Git `fba311fe7305e0e963515c796d7a0f836710a1db` (verificador) e `ba0274738afa6d95977482883f89dc9b2ca0d1ab` (testes). Não foram executados em runner físico.
+**Validação local (12/11/2026):** 38 testes Python executados em ambiente isolado, incluindo bloqueio por divergência entre SHA-256 do artefato físico e SHA-256 da leitura independente, incluindo cenário de papel malformado que anteriormente provocava exceção. Os arquivos testados correspondem aos blobs Git `3f4aea719134b1663f4c60bf4c432a4243e0af04` (verificador) e `dea4d7ae12b8024915641fc5f819006725690439` (testes). Não foram executados em runner físico.
 
 ## 3. Proteções obrigatórias contra conflitos e perdas
 
