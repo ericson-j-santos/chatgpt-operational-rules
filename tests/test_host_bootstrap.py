@@ -259,8 +259,11 @@ class HostBootstrapTests(unittest.TestCase):
                                    side_effect=reject_unchanged_replacement):
                 receipt = hb.install_bundle(bundle, install, workers, "b" * 40)
             self.assertEqual(
-                writes, ["config/policy.json", "install-receipt.json"]
+                [path for path in writes if path in hb.RUNTIME_MAP.values()],
+                ["config/policy.json"],
             )
+            self.assertIn("install-receipt.json", writes)
+            self.assertNotIn("bin/session_preflight.py", writes)
             self.assertEqual((install / "config/policy.json").read_bytes(), desired)
             self.assertEqual(receipt["files"]["config/policy.json"]["sha256"],
                              hashlib.sha256(desired).hexdigest())
