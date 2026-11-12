@@ -151,6 +151,24 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(receipt["result"], "HOST_UPDATE_BLOCKED")
             self.assertTrue(receipt["rollback_succeeded"])
 
+    def test_replaceability_preflight_skips_verified_unchanged_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = self.make_current_bundle(root)
+            install, workers = root / "install", root / "workers"
+            updater.bootstrap.install_bundle(bundle, install, workers, "a" * 40)
+            backup = updater.bootstrap.prepare_runtime_rollback(bundle, install)
+
+            with mock.patch.object(
+                updater, "_exclusive_write",
+                side_effect=AssertionError("identical file was probed"),
+            ):
+                result = updater.preflight_runtime_replaceability(install, backup)
+            self.assertTrue(result["reconciliation"]["previous_state"])
+            self.assertEqual(
+                set(result["checked"]), set(updater.bootstrap.RUNTIME_MAP.values())
+            )
+
     def make_current_bundle(self, root: Path) -> Path:
         bundle = root / "current-bundle"
         bundle.mkdir()
