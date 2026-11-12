@@ -43,7 +43,7 @@ def example():
             exclusive_lease_verified=True, read_only=(role == "validator"),
             task_source_sha=SHA))
     return dict(required_rules_sha=SHA, correlation_id="reqsys-dual-host-test-20261112",
-        environment="DEV", cost_state="COST_ZERO_CONFIRMED",
+        mode="parallel_independent", environment="DEV", cost_state="COST_ZERO_CONFIRMED",
         independent_cost_verification=True, hosts=hosts, assignments=assignments)
 
 
@@ -155,6 +155,84 @@ class GuardTests(unittest.TestCase):
     def test_duplicate_assignment_role(self):
         self.blocked(lambda d: d["assignments"][1].update(role="builder"),
                      "validator:assignment_missing_or_duplicate")
+
+
+def handoff_example():
+    data = example()
+    data["mode"] = "validation_handoff"
+    builder, validator = data["assignments"]
+    validator["task_id"] = builder["task_id"]
+    validator["lease_generation"] = builder["lease_generation"] + 1
+    builder["produced_sha"] = "f" * 40
+    validator["task_source_sha"] = "f" * 40
+    data["handoff"] = {
+        "task_id": builder["task_id"],
+        "correlation_id": data["correlation_id"],
+        "produced_sha": "f" * 40,
+        "released_builder_generation": builder["lease_generation"],
+        "claimed_validator_generation": validator["lease_generation"],
+        "builder_lease_released_verified": True,
+        "validator_lease_acquired_verified": True,
+        "checkpoint_sha256": "e" * 64,
+        "checkpoint_ref": "cas:sha256:" + "e" * 64,
+        "independent_readback_sha256": "e" * 64,
+        "checkpoint_source_sha": "f" * 40,
+        "independent_bytes_verified": True,
+        "checkpoint_external_to_hosts": True,
+    }
+    return data
+
+
+class HandoffContractTests(unittest.TestCase):
+    def reject(self, mutator, reason):
+        data = handoff_example()
+        mutator(data)
+        result = gate.evaluate(data, now=NOW)
+        self.assertFalse(result["pair_candidate_consistent"])
+        self.assertIn(reason, result["blockers"])
+        self.assertFalse(result["ready_for_work"])
+        self.assertFalse(result["dispatch_authorized"])
+
+    def test_same_task_handoff_is_only_consistent_candidate(self):
+        result = gate.evaluate(handoff_example(), now=NOW)
+        self.assertTrue(result["pair_candidate_consistent"])
+        self.assertFalse(result["ready_for_work"])
+        self.assertFalse(result["cross_host_replay_verified"])
+        self.assertFalse(result["physical_simultaneity_verified"])
+
+    def test_unknown_mode_is_not_assumed_parallel(self):
+        self.reject(lambda d: d.update(mode="other"), "execution_mode_invalid")
+
+    def test_missing_handoff_blocks(self):
+        self.reject(lambda d: d.pop("handoff"), "handoff_evidence_missing")
+
+    def test_handoff_cannot_use_two_different_tasks(self):
+        self.reject(lambda d: d["assignments"][1].update(task_id="another-task"), "handoff_task_mismatch")
+
+    def test_validator_cannot_approve_builder_source_sha(self):
+        self.reject(lambda d: d["assignments"][1].update(task_source_sha=SHA), "handoff_sha_binding_invalid")
+
+    def test_builder_must_produce_a_real_new_sha(self):
+        self.reject(lambda d: d["assignments"][0].update(produced_sha=SHA), "handoff_sha_binding_invalid")
+
+    def test_validator_cannot_claim_old_lease_generation(self):
+        self.reject(lambda d: d["assignments"][1].update(lease_generation=1), "handoff_lease_fencing_unverified")
+
+    def test_builder_release_must_be_independently_confirmed(self):
+        self.reject(lambda d: d["handoff"].update(builder_lease_released_verified=False), "handoff_lease_fencing_unverified")
+
+    def test_checkpoint_tampering_blocks(self):
+        self.reject(lambda d: d["handoff"].update(independent_readback_sha256="d" * 64), "handoff_durable_checkpoint_unverified")
+
+    def test_checkpoint_only_on_builder_disk_blocks(self):
+        self.reject(lambda d: d["handoff"].update(checkpoint_external_to_hosts=False), "handoff_durable_checkpoint_unverified")
+
+    def test_checkpoint_unverified_bytes_block(self):
+        self.reject(lambda d: d["handoff"].update(independent_bytes_verified=False), "handoff_durable_checkpoint_unverified")
+
+    def test_handoff_replay_is_deterministic(self):
+        data = handoff_example()
+        self.assertEqual(gate.evaluate(data, now=NOW), gate.evaluate(copy.deepcopy(data), now=NOW))
 
 
 if __name__ == "__main__":
