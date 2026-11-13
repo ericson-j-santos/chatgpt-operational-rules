@@ -1,6 +1,6 @@
 {
   "version": "1.6.22",
-  "generated_at": "2026-11-12T23:14:59.139697+00:00",
+  "generated_at": "2026-11-13T00:23:41.157280+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -1129,8 +1129,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "253f78a9202abb871dc2eeff6fc80dd2abc64880e165ce9d9c398e112a0daa20",
-      "size": 15419
+      "sha256": "5ed00e47d41da82636d91a3d9da9cfbe29682977e0af8cff4b30358d8453502a",
+      "size": 15585
     },
     {
       "path": "tests/test_session_launcher_diagnostic.py",
