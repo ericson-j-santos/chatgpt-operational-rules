@@ -217,7 +217,7 @@ class SessionLauncherTests(unittest.TestCase):
 
     def test_github_actions_workspace_source_requires_exact_workspace_and_remote(self) -> None:
         policy = {"denied_segments": [".ssh"]}
-        repo = Path("/tmp/actions/work/repo/repo")
+        repo = Path(tempfile.gettempdir()) / "actions" / "work" / "repo" / "repo"
         env = {
             "GITHUB_ACTIONS": "true",
             "GITHUB_WORKSPACE": str(repo),
@@ -236,7 +236,7 @@ class SessionLauncherTests(unittest.TestCase):
 
     def test_github_actions_workspace_source_rejects_remote_mismatch(self) -> None:
         policy = {"denied_segments": []}
-        repo = Path("/tmp/actions/work/repo/repo")
+        repo = Path(tempfile.gettempdir()) / "actions" / "work" / "repo" / "repo"
         env = {
             "GITHUB_ACTIONS": "true",
             "GITHUB_WORKSPACE": str(repo),
@@ -258,20 +258,20 @@ class SessionLauncherTests(unittest.TestCase):
         policy = {"denied_segments": []}
         env = {
             "GITHUB_ACTIONS": "true",
-            "GITHUB_WORKSPACE": "/tmp/actions/work/repo/repo",
+            "GITHUB_WORKSPACE": str(Path(tempfile.gettempdir()) / "actions" / "work" / "repo" / "repo"),
             "GITHUB_SHA": "c" * 40,
             "GITHUB_REPOSITORY": "ericson-j-santos/example-repo",
         }
         with mock.patch.dict(sl.os.environ, env, clear=False):
             self.assertFalse(
                 sl._github_actions_workspace_source(
-                    Path("/tmp/actions/work/other/other"), policy
+                    Path(tempfile.gettempdir()) / "actions" / "work" / "other" / "other", policy
                 )
             )
 
     def test_github_actions_workspace_source_rejects_invalid_sha(self) -> None:
         policy = {"denied_segments": []}
-        repo = Path("/tmp/actions/work/repo/repo")
+        repo = Path(tempfile.gettempdir()) / "actions" / "work" / "repo" / "repo"
         env = {
             "GITHUB_ACTIONS": "true",
             "GITHUB_WORKSPACE": str(repo),
