@@ -1,0 +1,131 @@
+{
+  "schema": "rules213.validator-integrity-replay.v1",
+  "task_id": "github:ericson-j-santos/chatgpt-operational-rules#213",
+  "classification": "repair",
+  "base_sha": "58dcd4200f412a866278027ba9e433439a03f3b3",
+  "produced_sha": "8cdd61209af594d4c6034e697269c571808a332d",
+  "base_tree": "7dca5b78fee884ba209245589f36e4c914e8cd37",
+  "produced_tree": "4f84c62fa151756d7b3898ab541768b1ed8ff4fc",
+  "patch_sha256": "4bdfae388374cab1cca546ed16d22a6bcfa27bb42b0e30ddd1a31c931cc42e54",
+  "patch_blob_sha1": "3b5cc394df22d0a97638b603c0971bfda5d6f2e8",
+  "cas_index_blob_sha1": "b16fd6117c7d386251dd9b9ed0e078007f7f49c4",
+  "validator_method": "separate V8-process hunk replay, raw GitHub API compare, independent source Git blob SHA1 recomputation; original Builder did not execute this process",
+  "validator_actor_authentication": "not verified",
+  "model_calls_for_validator": 0,
+  "verified": {
+    "changed_files": 15,
+    "unchanged_files": 235,
+    "all_replayed_files": 250,
+    "git_hunks": 28,
+    "added": 4,
+    "modified": 11,
+    "source_blob_sha1_match": true,
+    "produced_blob_sha1_match": true,
+    "unchanged_tree_match": true,
+    "patch_matches_durable_blob": true,
+    "executable_mode_preserved": true
+  },
+  "prior_win_tests": {
+    "passed": 115,
+    "total": 115,
+    "sha": "8cdd61209af594d4c6034e697269c571808a332d",
+    "independent_worktree": "wt-chat-noteri213-independent-val-8cdd-20261114",
+    "source": "https://github.com/ericson-j-santos/chatgpt-operational-rules/issues/213#issuecomment-6886793602",
+    "rerun_in_current_process": false
+  },
+  "gate_result": {
+    "source_model_builder_provenance_verified": false,
+    "authenticated_validator_identity_verified": false,
+    "cost_hardstop_external_verified": false,
+    "pr_checks_current_sha": 0,
+    "ready_for_pr": false,
+    "risk2_journal_authorized": false,
+    "risk3_install_authorized": false
+  },
+  "reasons": [
+    "Validation proof is an independently executed process but lacks independently authenticated validator identity.",
+    "Builder/model repair provenance and current cost hard-stop are still unverified.",
+    "No CI on current SHA and no physical journal mutation/recovery."
+  ],
+  "protected_next_action": "Register authentic Builder and Validator source evidence; validate cost cap by authoritative source before triggering PR CI; no permissions or host mutations",
+  "event_id": "evt-rules213-independent-gitapi-replay-250-20261115-v1",
+  "correlation_id": "rules213-independent-replay-gitapi-20261115",
+  "idempotency_key": "rules:213:validator-replay:base58dcd420:head8cdd612:v1",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "git_blob_before": "3235de94169980b9601f5e88ce9f2b7f5a982274",
+      "git_blob_after": "9caffc658610c3d81e1677417e1b60ca57c3c82d"
+    },
+    {
+      "path": "MANIFEST.json",
+      "git_blob_before": "0cdd6b37936d751048c027f782a60beac3ad52f8",
+      "git_blob_after": "d57aa19c5e05dd51bd8defee4a43e1538c87d597"
+    },
+    {
+      "path": "README.md",
+      "git_blob_before": "d951d5f463b6b65dbcc8c55876cbd650d8005307",
+      "git_blob_after": "8bb90977384269b316a769187743085f126a883a"
+    },
+    {
+      "path": "config/command-gateway.policy.json",
+      "git_blob_before": "c0a1c892f02d6fa057befebe7c5899504f583db9",
+      "git_blob_after": "9d7a9d242b469bc0ae67b08f289e385d838923fa"
+    },
+    {
+      "path": "config/command-gateway.policy.noteri-wsl.json",
+      "git_blob_before": "07f9428c258f20461d440216ea59c4dc1e20172f",
+      "git_blob_after": "919dd3b05bc37df979520b479bca3259843d9318"
+    },
+    {
+      "path": "config/command-gateway.policy.posix.json",
+      "git_blob_before": "1831efd187fd62147dac2ee36a44ee75e9c709a5",
+      "git_blob_after": "04f35e0a3afb98c13c8d1482999bdbb53eaf697e"
+    },
+    {
+      "path": "scripts/install_command_gateway_host.py",
+      "git_blob_before": "a5500c9f67e6bcb69a888f8441c22066e0cdef92",
+      "git_blob_after": "e37f41fff1b94c369b3bf0f42ad3da1b405a44eb"
+    },
+    {
+      "path": "scripts/noteri_journal_50227f_readonly_pins.py",
+      "git_blob_before": null,
+      "git_blob_after": "162b7f5a5346abe303ccfad3089f47d81843a7c1"
+    },
+    {
+      "path": "scripts/recover_noteri_gateway_journal_50227f_candidate.py",
+      "git_blob_before": null,
+      "git_blob_after": "f01eb739640d62aaf78c77a2dbde51c2e3bef46d"
+    },
+    {
+      "path": "scripts/update_command_gateway_host.py",
+      "git_blob_before": "eea7da1b9aa8e4021ce45ec9cd6a13b6226bdeae",
+      "git_blob_after": "b5335e77a8b57645a46f95f6a0c9b00916f16713"
+    },
+    {
+      "path": "tests/test_host_bootstrap.py",
+      "git_blob_before": "9e191a7c26b1b1dd03de6d3d86722035a95f1b77",
+      "git_blob_after": "80fe77467b39dbf262f785d80ab31c172be33a83"
+    },
+    {
+      "path": "tests/test_noteri_journal_50227f_readonly_pins.py",
+      "git_blob_before": null,
+      "git_blob_after": "05e1be053f6d62feaed57186373c21c08506605f"
+    },
+    {
+      "path": "tests/test_recover_noteri_gateway_journal_50227f_candidate.py",
+      "git_blob_before": null,
+      "git_blob_after": "c1f5255b062962d3cb4bab3c5bd92e54c774050a"
+    },
+    {
+      "path": "tests/test_session_launcher.py",
+      "git_blob_before": "c7ef5ede62c0a12a4d1619af88bb56305d56484e",
+      "git_blob_after": "3cdbc3ccb6b430f41d5b1a8a49ef5861fb5c039e"
+    },
+    {
+      "path": "tests/test_update_command_gateway_host.py",
+      "git_blob_before": "e4cffd39117588505aa233966c3d923ae7ee74d6",
+      "git_blob_after": "d398ae513ab6a1b61cc96bf959e664ade9642642"
+    }
+  ]
+}
