@@ -448,9 +448,11 @@ def _fetch_and_verify_remote(
 
     remote_ref = f"refs/remotes/{remote}/{branch}^{{commit}}"
     advertised = cg.run_capture(["git", "rev-parse", "--verify", remote_ref], repo)
-    if advertised.returncode != 0:
-        # A restrictive remote.fetch refspec can make an otherwise successful
-        # fetch populate only FETCH_HEAD. Fetch exactly the pinned branch once,
+    if (advertised.returncode != 0 or advertised.stderr.strip()
+            or advertised.stdout.strip().lower() != expected):
+        # A restrictive remote.fetch refspec can leave a ref absent OR STALE.
+        # Refetch only the requested branch, then check the expected SHA.
+        # Never trust a previously cached ref merely because rev-parse succeeded. Fetch exactly the pinned branch once,
         # never a wildcard or arbitrary ref provided by an untrusted caller.
         exact_refspec = f"refs/heads/{branch}:refs/remotes/{remote}/{branch}"
         pinned_fetch = cg.run_capture(
