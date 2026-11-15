@@ -90,6 +90,40 @@ class SessionLauncherTests(unittest.TestCase):
         )
         self.assertEqual(len(commands), 5)
 
+    def test_restricted_fetch_stale_cached_ref_is_refreshed_and_verified(self) -> None:
+        expected = "a" * 40
+        stale = "b" * 40
+        ok = lambda out="": SimpleNamespace(returncode=0, stdout=out, stderr="")
+        calls = [
+            ok(), ok(stale + "\n"), ok(), ok(expected + "\n"),
+            ok("https://github.com/example/repo.git\n"),
+        ]
+        with mock.patch.object(sl.cg, "run_capture", side_effect=calls) as captured:
+            result = sl._fetch_and_verify_remote(
+                Path("/safe/source"), expected, "origin/diag/rules213-updater-contract-20261115"
+            )
+        self.assertEqual(result[0:2], ("origin", "diag/rules213-updater-contract-20261115"))
+        self.assertEqual(captured.call_count, 5)
+        self.assertEqual(
+            captured.call_args_list[2].args[0],
+            ["git", "fetch", "--no-tags", "origin",
+             "refs/heads/diag/rules213-updater-contract-20261115:"
+             "refs/remotes/origin/diag/rules213-updater-contract-20261115"],
+        )
+
+    def test_stale_cached_ref_still_denies_if_pinned_fetch_does_not_match(self) -> None:
+        expected = "a" * 40
+        stale = "b" * 40
+        ok = lambda out="": SimpleNamespace(returncode=0, stdout=out, stderr="")
+        with mock.patch.object(
+            sl.cg, "run_capture",
+            side_effect=[ok(), ok(stale + "\n"), ok(), ok(stale + "\n")],
+        ) as captured:
+            with self.assertRaises(cg.GatewayError) as captured_error:
+                sl._fetch_and_verify_remote(Path("/safe/source"), expected, "origin/main")
+        self.assertEqual(captured_error.exception.exit_code, cg.EXIT_STATE_CHANGED)
+        self.assertEqual(captured.call_count, 4)
+
     def test_restricted_fetch_missing_branch_fails_closed(self) -> None:
         expected = "a" * 40
         ok = SimpleNamespace(returncode=0, stdout="", stderr="")
