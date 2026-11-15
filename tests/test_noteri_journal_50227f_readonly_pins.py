@@ -52,7 +52,7 @@ class ReadonlyTests(unittest.TestCase):
 
     def test_positive_no_mutation_and_four_pins(self):
         before = {p: mod.digest(p.read_bytes()) for p in self.root.rglob('*') if p.is_file()}
-        result = mod.inspect(self.root)
+        result = mod.inspect(self.root, require_metadata=False)
         after = {p: mod.digest(p.read_bytes()) for p in self.root.rglob('*') if p.is_file()}
         self.assertEqual(before, after)
         self.assertEqual(result['result'], 'NOTERI_JOURNAL_50227F_READONLY_ATTESTED')
@@ -61,23 +61,34 @@ class ReadonlyTests(unittest.TestCase):
         self.assertFalse(result['windows_security_metadata_verified'])
         self.assertFalse(result['recovery_authorized'])
 
+    def test_metadata_gate_requires_native_verification(self):
+        with mock.patch.object(mod, 'attest_windows_security', return_value=True) as attest:
+            report = mod.inspect(self.root, require_metadata=True)
+        self.assertTrue(report['windows_security_metadata_verified'])
+        attest.assert_called_once()
+
+    def test_metadata_gate_fails_closed(self):
+        with mock.patch.object(mod, 'attest_windows_security', side_effect=mod.Blocked('WINDOWS_METADATA_CHANGED')):
+            with self.assertRaisesRegex(mod.Blocked, 'WINDOWS_METADATA_CHANGED'):
+                mod.inspect(self.root, require_metadata=True)
+
     def test_negative_wrong_incident(self):
         x = {'version': 1, 'transaction_id': 'f' * 32,
              'source_commit': mod.RULES, 'backup_dir': str(self.backup)}
         self.write_json('update-transaction.json', x)
         with self.assertRaisesRegex(mod.Blocked, 'JOURNAL_BINDING_INVALID'):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_missing_rollback(self):
         (self.backup / 'files' / mod.MANAGED[0]).unlink()
         with self.assertRaises(mod.Blocked):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_tampered_byte(self):
         target = self.root / mod.MANAGED[-1]
         save(target, b'altered\n')
         with self.assertRaisesRegex(mod.Blocked, 'ROLLBACK_FILE_DIVERGENT'):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_symlink_in_path(self):
         original = self.root / mod.MANAGED[0]
@@ -88,12 +99,12 @@ class ReadonlyTests(unittest.TestCase):
         except (NotImplementedError, OSError):
             self.skipTest('symlink unavailable on this machine')
         with self.assertRaises(mod.Blocked):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_duplicate_json_key(self):
         save(self.root / 'update-transaction.json', b'{"version": 1, "version": 2}')
         with self.assertRaisesRegex(mod.Blocked, 'INVALID_JSON'):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_wrong_manifest_shape(self):
         target = self.backup / 'rollback-manifest.json'
@@ -101,14 +112,14 @@ class ReadonlyTests(unittest.TestCase):
         obj['entries'].pop(mod.MANAGED[0])
         save(target, json.dumps(obj).encode())
         with self.assertRaisesRegex(mod.Blocked, 'MANIFEST_INVALID'):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_stale_receipt(self):
         self.write_json('update-receipt.json', {'result': 'HOST_UPDATE_OK',
                                                'rules_version': '1.6.21',
                                                'source_commit': mod.PREVIOUS})
         with self.assertRaisesRegex(mod.Blocked, 'PRIMARY_RECEIPT_INVALID'):
-            mod.inspect(self.root)
+            mod.inspect(self.root, require_metadata=False)
 
     def test_negative_read_race(self):
         original = mod.read_stable
@@ -121,7 +132,7 @@ class ReadonlyTests(unittest.TestCase):
             return v
         with mock.patch.object(mod, 'read_stable', side_effect=read):
             with self.assertRaisesRegex(mod.Blocked, 'EVIDENCE_CHANGED'):
-                mod.inspect(self.root)
+                mod.inspect(self.root, require_metadata=False)
 
 
 if __name__ == '__main__':

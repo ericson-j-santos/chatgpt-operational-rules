@@ -1,6 +1,6 @@
 {
   "version": "1.6.22",
-  "generated_at": "2026-11-15T00:24:00.874Z",
+  "generated_at": "2026-11-15T00:26:52.879Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -469,8 +469,8 @@
     },
     {
       "path": "scripts/noteri_journal_50227f_readonly_pins.py",
-      "sha256": "9e77bc431b4bee3b01fde0e4ebddcee1abd0ac48d821d98ceebafc68243604c9",
-      "size": 6535
+      "sha256": "4ed49ec62fb47920f27b2e839e63e54023a1c402a614a260ee90a482d5788c96",
+      "size": 8084
     },
     {
       "path": "scripts/noteri_state_dir_inventory.py",
@@ -974,8 +974,8 @@
     },
     {
       "path": "tests/test_noteri_journal_50227f_readonly_pins.py",
-      "sha256": "f63c017e510d5ed7aed6cf4fa7592fa6aa38bbcc1791571f279d321bbfcea208",
-      "size": 5856
+      "sha256": "12c7538ee851fedc41bb396a3bef17d1d3f23ae7cb1a2a639afae0249a63d3c3",
+      "size": 6711
     },
     {
       "path": "tests/test_noteri_state_dir_inventory.py",

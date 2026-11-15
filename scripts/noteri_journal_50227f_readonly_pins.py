@@ -13,6 +13,7 @@ import os
 import re
 import socket
 import stat
+import sys
 from pathlib import Path
 
 ROOT = Path(r"C:\dev\chatgpt-command-gateway")
@@ -85,7 +86,34 @@ def unique_keys(pairs):
     return out
 
 
-def inspect(root: Path) -> dict:
+def attest_windows_security(root: Path, backup: Path, entries: dict) -> bool:
+    """Double-read seven Windows owner/group/DACL/ADS snapshots, no writes."""
+    if os.name != "nt":
+        raise Blocked("WINDOWS_METADATA_REQUIRED")
+    scripts = str(Path(__file__).resolve().parent)
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import install_command_gateway_host as bootstrap
+    for rel in MANAGED:
+        entry = entries[rel]
+        expected = entry.get("previous_windows_state")
+        if not isinstance(expected, dict):
+            raise Blocked("WINDOWS_METADATA_MISSING")
+        try:
+            bootstrap._validate_windows_persisted_state(expected, rel)
+            for path in (root / rel, backup / "files" / rel):
+                first = bootstrap._windows_persisted_file_state(path)
+                second = bootstrap._windows_persisted_file_state(path)
+                if first != second:
+                    raise Blocked("WINDOWS_METADATA_CHANGED")
+                if not bootstrap._windows_persisted_state_equivalent(expected, first):
+                    raise Blocked("WINDOWS_METADATA_MISMATCH")
+        except (OSError, ValueError, KeyError, TypeError, bootstrap.HostBootstrapError) as exc:
+            raise Blocked("WINDOWS_METADATA_UNVERIFIED") from exc
+    return True
+
+
+def inspect(root: Path, *, require_metadata: bool = True) -> dict:
     backup = root / BACKUP_NAME
     paths = {
         "journal": root / "update-transaction.json",
@@ -130,6 +158,8 @@ def inspect(root: Path) -> dict:
             if digest(data) != expected or len(data) != size:
                 raise Blocked("ROLLBACK_FILE_DIVERGENT")
         verified += 1
+    # The content gate and Windows security gate are independent.
+    metadata_verified = attest_windows_security(root, backup, entries) if require_metadata else False
     # Detect writes between the first and last observations.
     for name, path in paths.items():
         if digest(read_stable(path, root)) != hashes[name]:
@@ -137,7 +167,7 @@ def inspect(root: Path) -> dict:
     return {"result": "NOTERI_JOURNAL_50227F_READONLY_ATTESTED",
             "transaction_id": TX, "source_commit": RULES,
             "hashes": hashes, "previous_files_content_verified": verified,
-            "windows_security_metadata_verified": False,
+            "windows_security_metadata_verified": metadata_verified,
             "recovery_authorized": False, "state_changed": False}
 
 
