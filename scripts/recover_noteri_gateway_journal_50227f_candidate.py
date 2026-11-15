@@ -223,7 +223,7 @@ def main() -> int:
             raise base.RecoveryBlocked('SELF_SHA_MISMATCH')
         if args.mode == 'recover' and args.confirm != CONFIRMATION:
             raise base.RecoveryBlocked('RECOVERY_CONFIRMATION_REQUIRED')
-        result = check(bootstrap.default_install_root(), recover=args.mode == 'recover')
+        result = check(EXPECTED_INSTALL, recover=args.mode == 'recover')
         print(json.dumps(result, sort_keys=True))
         return 0
     except Exception as exc:

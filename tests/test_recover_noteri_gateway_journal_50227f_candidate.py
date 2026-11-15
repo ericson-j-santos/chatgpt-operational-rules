@@ -1,12 +1,14 @@
 """Ensaios locais sem tocar no Windows, no journal real ou no GitHub."""
 import importlib.util
 import json
+import hashlib
+import io
 import os
 import sys
 import tempfile
 import types
 import unittest
-from contextlib import nullcontext
+from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -50,6 +52,17 @@ class RecoveryCandidateTests(unittest.TestCase):
         self.patcher = mock.patch.multiple(mod, os=self.fake_os, socket=types.SimpleNamespace(gethostname=lambda: "Noteri"), EXPECTED_INSTALL=self.root)
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
+
+    def test_cli_uses_only_pinned_install_root(self):
+        digest = hashlib.sha256(BASE.read_bytes()).hexdigest()
+        with mock.patch.object(mod, 'check', return_value={'result': 'FORENSIC_READONLY'}) as checked, \
+             mock.patch.object(bootstrap, 'default_install_root', create=True,
+                               side_effect=AssertionError('never use fallback root')), \
+             mock.patch.object(sys, 'argv', ['recover', '--mode', 'inspect',
+                                              '--expected-self-sha256', digest]), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(mod.main(), 0)
+        checked.assert_called_once_with(mod.EXPECTED_INSTALL, recover=False)
 
     def test_readonly_success_has_no_move(self):
         with mock.patch.object(mod, '_inspect', return_value=self.evidence), mock.patch.object(baseline, '_move_no_replace') as move:
