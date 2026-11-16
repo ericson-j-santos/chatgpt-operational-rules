@@ -2091,5 +2091,172 @@ class HostRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(move_mock.call_count, 1)
 
 
+class PreviousWin32ActivationDeniedGuardTests(unittest.TestCase):
+    """Regression: real Noteri denial must block before new installer/rollback."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name) / "gateway"
+        self.root.mkdir()
+        self.commit = "6f1dbb0a3c769f2c31ffa3b97ad57576f26ac27f"
+        self.tx = "7160b6fd6f8842b58643667f38c19b3f"
+        self.backup = self.root / "backup-test"
+        self.backup.mkdir()
+        self.journal = {
+            "version": 1,
+            "transaction_id": self.tx,
+            "source_commit": self.commit,
+            "backup_dir": str(self.backup),
+            "prepared_at": "2026-11-16T02:58:00+00:00",
+        }
+        self.sidecar = {
+            "result": "HOST_UPDATE_BLOCKED",
+            "transaction_id": self.tx,
+            "source_commit": self.commit,
+            "backup_dir": str(self.backup),
+            "phase": "install_runtime",
+            "mutation_started": True,
+            "rollback_attempted": True,
+            "rollback_succeeded": True,
+            "failure": {
+                "destination": "bin/session_preflight.py",
+                "operation": "activate_stage",
+                "os_error": {"errno": 13, "winerror": 5},
+                "type": "RuntimeInstallError",
+            },
+        }
+        self.journal_path = self.root / "update-transaction.json"
+        self.sidecar_path = self.root / f"update-recovery-{self.tx}.json"
+        self.receipt_path = self.root / "update-receipt.json"
+        self._write()
+
+    def _write(self) -> None:
+        self.journal_path.write_text(json.dumps(self.journal), encoding="utf-8")
+        self.sidecar_path.write_text(json.dumps(self.sidecar), encoding="utf-8")
+        self.receipt_path.write_bytes(b"original-receipt-do-not-overwrite")
+
+    def test_winerror5_prior_activation_is_identified_without_mutation(self) -> None:
+        before = [
+            (p.relative_to(self.root), hashlib.sha256(p.read_bytes()).hexdigest())
+            for p in sorted(self.root.rglob("*")) if p.is_file()
+        ]
+        for _ in range(2):
+            report = updater.preflight_previous_access_denied(
+                self.root, self.journal, self.commit,
+            )
+            self.assertEqual(report["result"], "HOST_UPDATE_RETRY_BLOCKED")
+            self.assertEqual(report["reason"], "PREVIOUS_ACTIVATE_STAGE_ACCESS_DENIED")
+            self.assertEqual(report["destination"], "bin/session_preflight.py")
+            self.assertFalse(report["installation_performed"])
+            self.assertFalse(report["mutation_performed"])
+        after = [
+            (p.relative_to(self.root), hashlib.sha256(p.read_bytes()).hexdigest())
+            for p in sorted(self.root.rglob("*")) if p.is_file()
+        ]
+        self.assertEqual(before, after)
+
+    def test_main_refuses_retry_before_download_and_keeps_journal(self) -> None:
+        args = [
+            "update_command_gateway_host.py",
+            "--commit", self.commit,
+            "--expected-self-sha256", "a" * 64,
+            "--install-root", str(self.root),
+            "--work-root", str(self.root / "workers"),
+        ]
+        report = io.StringIO()
+        with (
+            mock.patch.object(updater, "sha256_file", return_value="a" * 64),
+            mock.patch.object(updater.bootstrap, "download_bundle") as download,
+            mock.patch.object(updater.bootstrap, "install_bundle") as install,
+            mock.patch.object(sys, "argv", args),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(report),
+        ):
+            for _ in range(2):
+                self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        items = [json.loads(line) for line in report.getvalue().splitlines() if line.strip()]
+        self.assertEqual(len(items), 2)
+        self.assertEqual([x["result"] for x in items], ["HOST_UPDATE_RETRY_BLOCKED"] * 2)
+        self.assertTrue(self.journal_path.exists())
+        self.assertEqual(self.receipt_path.read_bytes(), b"original-receipt-do-not-overwrite")
+        download.assert_not_called()
+        install.assert_not_called()
+
+    def test_other_failure_not_misclassified_as_same_access_denial(self) -> None:
+        for key, value in (
+            ("winerror", 32),
+            ("winerror", None),
+            ("winerror", 87),
+        ):
+            with self.subTest(key=key, value=value):
+                self.sidecar["failure"]["os_error"][key] = value
+                self._write()
+                self.assertIsNone(updater.preflight_previous_access_denied(
+                    self.root, self.journal, self.commit,
+                ))
+        self.sidecar["failure"]["os_error"] = {"winerror": 5}
+        self.sidecar["failure"]["operation"] = "snapshot_destination"
+        self._write()
+        self.assertIsNone(updater.preflight_previous_access_denied(
+            self.root, self.journal, self.commit,
+        ))
+
+    def test_different_target_is_not_misclassified_as_same_retry(self) -> None:
+        self.assertIsNone(updater.preflight_previous_access_denied(
+            self.root, self.journal, "c" * 40,
+        ))
+
+    def test_sidecar_different_transaction_fails_closed(self) -> None:
+        for key, value in (
+            ("transaction_id", "a" * 32),
+            ("backup_dir", str(self.root / "backup-other")),
+            ("source_commit", "b" * 40),
+        ):
+            with self.subTest(key=key):
+                old = self.sidecar[key]
+                self.sidecar[key] = value
+                self._write()
+                with self.assertRaises(updater.bootstrap.HostBootstrapError):
+                    updater.preflight_previous_access_denied(
+                        self.root, self.journal, self.commit,
+                    )
+                self.sidecar[key] = old
+
+    def test_unsafe_record_and_duplicate_keys_fail_closed(self) -> None:
+        for data in (
+            b'{"result":"HOST_UPDATE_BLOCKED","result":"HOST_UPDATE_BLOCKED"}',
+            b'{not-json',
+            b'null',
+            b'[]',
+            b'x' * (129 * 1024),
+        ):
+            with self.subTest(length=len(data)):
+                self.sidecar_path.write_bytes(data)
+                with self.assertRaises(updater.bootstrap.HostBootstrapError):
+                    updater.preflight_previous_access_denied(
+                        self.root, self.journal, self.commit,
+                    )
+
+    def test_nonexistent_sidecar_preserves_existing_recovery_behavior(self) -> None:
+        self.sidecar_path.unlink()
+        self.assertIsNone(updater.preflight_previous_access_denied(
+            self.root, self.journal, self.commit,
+        ))
+        self.assertIsNone(updater.preflight_previous_access_denied(
+            self.root, None, self.commit,
+        ))
+
+    def test_unverified_rollback_fails_closed(self) -> None:
+        self.sidecar["rollback_succeeded"] = False
+        self._write()
+        with self.assertRaisesRegex(updater.bootstrap.HostBootstrapError,
+                                     "rollback anterior não comprovado"):
+            updater.preflight_previous_access_denied(
+                self.root, self.journal, self.commit,
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
