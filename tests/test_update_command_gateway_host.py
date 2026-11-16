@@ -2197,6 +2197,28 @@ class PreviousWin32ActivationDeniedGuardTests(unittest.TestCase):
         self.assertEqual(self.receipt_path.read_bytes(), b"original-receipt-do-not-overwrite")
         self.assertTrue(self.journal_path.exists())
 
+    def test_readonly_cli_requires_explicit_install_root(self) -> None:
+        argv = [
+            "update_command_gateway_host.py",
+            "--commit", self.commit,
+            "--expected-self-sha256", "a" * 64,
+            "--inspect-prior-access-denied-only",
+        ]
+        with (
+            mock.patch.object(updater, "sha256_file", return_value="a" * 64),
+            mock.patch.object(updater, "inspect_previous_access_denied_readonly") as probe,
+            mock.patch.object(updater, "acquire_update_lock") as lock,
+            mock.patch.object(updater.bootstrap, "download_bundle") as download,
+            mock.patch.object(sys, "argv", argv),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        probe.assert_not_called()
+        lock.assert_not_called()
+        download.assert_not_called()
+        self.assertTrue(self.journal_path.exists())
+
     def test_readonly_cli_refuses_mutating_profile_flags(self) -> None:
         argv = [
             "update_command_gateway_host.py",
