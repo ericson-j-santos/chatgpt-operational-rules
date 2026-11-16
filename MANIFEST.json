@@ -749,8 +749,8 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "fa5d03b0cecb46cf02477af4a75c81c57b92d7b609d4bd4abd54f28a7b22b1a2",
-      "size": 50287
+      "sha256": "5c6d7ce43154299c5b6ec8bb3cac76463c8f484f78f507dfa20cf1296ea1f1dd",
+      "size": 59539
     },
     {
       "path": "scripts/validate_rules.py",
@@ -1224,8 +1224,8 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "3978930b023f470a73b1ebb608381af8b707091df68cebb9b4dbeb7a3630aebe",
-      "size": 90458
+      "sha256": "296af69cb0451dd6831984738f328767aac81545a99eb58bf32fc8ce07d6f4ee",
+      "size": 101732
     },
     {
       "path": "tests/test_validate_rules_policy_profiles.py",
