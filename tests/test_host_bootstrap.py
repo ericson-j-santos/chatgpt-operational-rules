@@ -37,6 +37,48 @@ class HostBootstrapTests(unittest.TestCase):
             "56d7b226b7693196cfc71fef26568f536c4a021ab6c37ff2db4287bed908e96e",
         )
 
+    def test_pre_pr_mingit_gate_is_scoped_to_issue_215_and_sha(self) -> None:
+        source = (ROOT / ".github" / "workflows" / "validate-rules.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("      - repair/host-bootstrap-mingit-release-215", source)
+        pre_pr = source.split("  pre-pr-mingit-215:", 1)[1].split(
+            "  validate:", 1
+        )[0]
+        for required in (
+            "github.event_name == 'push'",
+            "github.ref == 'refs/heads/repair/host-bootstrap-mingit-release-215'",
+            "github.actor == github.repository_owner",
+            "github.triggering_actor == github.repository_owner",
+            "github.run_attempt == 1",
+            'BASE_SHA: 58dcd4200f412a866278027ba9e433439a03f3b3',
+            'test "$current_ref" = "$EXPECTED_SHA"',
+            'test "$current_main" = "$BASE_SHA"',
+            'test "$issue_state" = "open"',
+            'test "$pulls" = "0"',
+            "PRE_PR_UNAUTHORIZED_PATH",
+            "PRE_PR_REQUIRED_PATCH_MISSING",
+            'ref: ${{ github.sha }}',
+            "persist-credentials: false",
+            "python -m unittest -v tests/test_host_bootstrap.py",
+            "python scripts/validate_rules.py --self-test",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, pre_pr)
+        self.assertIn("runs-on: ubuntu-24.04", pre_pr)
+        self.assertNotIn("actions/upload-artifact", pre_pr)
+        self.assertNotIn("secrets.", pre_pr)
+        self.assertNotIn("self-hosted", pre_pr)
+        self.assertIn(
+            "if: github.event_name != 'push' || github.ref == 'refs/heads/main'",
+            source.split("  validate:", 1)[1].split("  gateway-windows-policy:", 1)[0],
+        )
+        self.assertIn(
+            "if: github.event_name != 'push' || github.ref == 'refs/heads/main'",
+            source.split("  gateway-windows-policy:", 1)[1].split("  debian-installer-isolated:", 1)[0],
+        )
+        self.assertIn("Manual non-main dispatch requires one exact owner draft PR", source)
+
     def make_bundle(self, root: Path, version: str = "1.6.1") -> Path:
         bundle = root / "bundle"
         entries = []

@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - repair/host-bootstrap-mingit-release-215
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -22,7 +23,79 @@ permissions:
   pull-requests: read
 
 jobs:
+  pre-pr-mingit-215:
+    name: Owner-only pre-PR MinGit SHA-bound validation
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/repair/host-bootstrap-mingit-release-215' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.run_attempt == 1
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Re-read owner, main, issue, branch SHA, changed paths and absent PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE_SHA: 58dcd4200f412a866278027ba9e433439a03f3b3
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "ericson-j-santos/chatgpt-operational-rules"
+          test "$GITHUB_EVENT_NAME" = "push"
+          test "$GITHUB_REF" = "refs/heads/repair/host-bootstrap-mingit-release-215"
+          test "$GITHUB_ACTOR" = "ericson-j-santos"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          current_ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/repair/host-bootstrap-mingit-release-215" --jq '.object.sha')"
+          test "$current_ref" = "$EXPECTED_SHA"
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')"
+          test "$current_main" = "$BASE_SHA"
+          issue_state="$(gh api "repos/$GITHUB_REPOSITORY/issues/215" --jq '.state')"
+          test "$issue_state" = "open"
+          pulls="$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --jq '[.[] | select(.head.ref == "repair/host-bootstrap-mingit-release-215" and .head.repo.full_name == "ericson-j-santos/chatgpt-operational-rules")] | length')"
+          test "$pulls" = "0"
+          files="$(gh api "repos/$GITHUB_REPOSITORY/compare/${BASE_SHA}...${EXPECTED_SHA}" --jq '.files[].filename')"
+          test -n "$files"
+          while IFS= read -r path; do
+            case "$path" in
+              scripts/install_command_gateway_host.py|tests/test_host_bootstrap.py|.github/workflows/validate-rules.yml) ;;
+              *) echo "PRE_PR_UNAUTHORIZED_PATH" >&2; exit 1 ;;
+            esac
+          done <<< "$files"
+          for mandatory in scripts/install_command_gateway_host.py tests/test_host_bootstrap.py .github/workflows/validate-rules.yml; do
+            if ! grep -Fxq -- "$mandatory" <<< "$files"; then
+              echo "PRE_PR_REQUIRED_PATCH_MISSING" >&2
+              exit 1
+            fi
+          done
+          echo "PRE_PR_SHA_BOUND_ADMISSION_OK"
+      - name: Checkout exact candidate without credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Confirm checked out commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate MinGit regression and pre-PR security contract
+        run: python -m unittest -v tests/test_host_bootstrap.py
+      - name: Validate canonical rules without changing host
+        run: python scripts/validate_rules.py --self-test
+
   validate:
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     name: Rules, Gateway, Session Bootstrap and E2E gate
     outputs:
       manual_pr_verified: ${{ steps.bind.outputs.manual_pr_verified }}
@@ -233,6 +306,7 @@ jobs:
           retention-days: 7
 
   gateway-windows-policy:
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     name: Command Gateway Windows policy compatibility
     runs-on: windows-latest
     timeout-minutes: 10
