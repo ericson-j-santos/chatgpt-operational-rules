@@ -786,6 +786,113 @@ def readback_existing_legacy_v2_stage(
         raise bootstrap.HostBootstrapError("mais de um stage legado confirmado")
     return verified[0] if verified else None
 
+def _strict_stable_failure_sidecar(path: Path) -> dict[str, Any]:
+    """Read bounded, unchanged prior-failure evidence without following reparse points.
+
+    A leftover journal from a verified rollback is not permission to repeat an
+    update. The sidecar can record an ACCESS_DENIED that the ordinary
+    clone-based replaceability probe did not reproduce on the live target.
+    """
+    try:
+        before = os.lstat(path)
+        if (not stat.S_ISREG(before.st_mode)
+                or stat.S_ISLNK(before.st_mode)
+                or bool(getattr(before, "st_file_attributes", 0) & 0x400)
+                or not 0 < before.st_size <= 128 * 1024):
+            raise bootstrap.HostBootstrapError("sidecar de falha anterior inseguro")
+        first = path.read_bytes()
+        second = path.read_bytes()
+        after = os.lstat(path)
+        if (first != second
+                or len(first) != before.st_size
+                or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
+            raise bootstrap.HostBootstrapError("sidecar de falha anterior mudou")
+        def no_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise bootstrap.HostBootstrapError(
+                        "sidecar de falha anterior possui chaves duplicadas"
+                    )
+                result[key] = value
+            return result
+        record = json.loads(
+            first.decode("utf-8"),
+            object_pairs_hook=no_duplicate_pairs,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                bootstrap.HostBootstrapError("sidecar contém constante inválida")
+            ),
+        )
+        if not isinstance(record, dict):
+            raise bootstrap.HostBootstrapError("sidecar de falha anterior inválido")
+        return record
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise bootstrap.HostBootstrapError(
+            "sidecar de falha anterior indisponível ou inválido"
+        ) from exc
+
+
+def preflight_previous_access_denied(
+    install_root: Path, journal: dict[str, Any] | None, target_commit: str
+) -> dict[str, Any] | None:
+    """Fail before any recovery/installation if the exact previous Win32 denial persists.
+
+    This guards repeat attempts on the same journal; it does not predict all
+    new antivirus, ACL or sharing errors (Windows operations remain racy).
+    Never removes the journal, modifies a receipt or changes ACLs.
+    """
+    if journal is None:
+        return None
+    transaction_id = journal.get("transaction_id")
+    if (not isinstance(transaction_id, str)
+            or len(transaction_id) != 32
+            or any(c not in "0123456789abcdef" for c in transaction_id)):
+        raise bootstrap.HostBootstrapError("identidade do journal inválida")
+    sidecar_path = install_root / f"update-recovery-{transaction_id}.json"
+    if not os.path.lexists(sidecar_path):
+        return None
+    receipt = _strict_stable_failure_sidecar(sidecar_path)
+    if (receipt.get("transaction_id") != transaction_id
+            or receipt.get("source_commit") != journal.get("source_commit")
+            or receipt.get("backup_dir") != journal.get("backup_dir")):
+        raise bootstrap.HostBootstrapError(
+            "journal e registro de falha anterior não correspondem"
+        )
+    failure = receipt.get("failure")
+    if receipt.get("result") != "HOST_UPDATE_BLOCKED":
+        raise bootstrap.HostBootstrapError("registro de falha anterior inesperado")
+    if not isinstance(failure, dict):
+        raise bootstrap.HostBootstrapError("registro de erro anterior inválido")
+    os_error = failure.get("os_error")
+    if (journal.get("source_commit") != target_commit
+            or receipt.get("phase") != "install_runtime"
+            or failure.get("operation") != "activate_stage"
+            or not isinstance(os_error, dict)
+            or os_error.get("winerror") != 5):
+        return None
+    destination = failure.get("destination")
+    if (not isinstance(destination, str)
+            or destination not in DEFAULT_RUNTIME_MAP.values()):
+        raise bootstrap.HostBootstrapError("destino de falha anterior não reconhecido")
+    if (receipt.get("mutation_started") is not True
+            or receipt.get("rollback_attempted") is not True
+            or receipt.get("rollback_succeeded") is not True):
+        raise bootstrap.HostBootstrapError("rollback anterior não comprovado")
+    return {
+        "result": "HOST_UPDATE_RETRY_BLOCKED",
+        "reason": "PREVIOUS_ACTIVATE_STAGE_ACCESS_DENIED",
+        "source_commit": target_commit,
+        "transaction_id": transaction_id,
+        "destination": destination,
+        "winerror": 5,
+        "previous_rollback_succeeded": True,
+        "installation_performed": False,
+        "mutation_performed": False,
+        "retry_policy": "requires_changed_precondition_and_new_transaction",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Atualização governada do runtime Command Gateway")
     parser.add_argument("--commit", required=True, help="SHA completo aprovado do repositório canônico")
@@ -845,8 +952,15 @@ def main() -> int:
 
         phase = "acquire_update_lock"
         update_lock = acquire_update_lock(install_root)
-        phase = "recover_transaction_journal"
+        phase = "preflight_prior_activation_denial"
         journal = _read_transaction_journal(journal_path)
+        denied = preflight_previous_access_denied(install_root, journal, commit)
+        if denied is not None:
+            # Do not consume the journal, retry installer or overwrite receipts.
+            # The operator must prove and authorize a changed precondition.
+            print(json.dumps(denied, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+            return EXIT_HOST_UPDATE
+        phase = "recover_transaction_journal"
         if journal is not None:
             if legacy_requested:
                 raise bootstrap.HostBootstrapError(
