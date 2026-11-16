@@ -749,7 +749,7 @@
     },
     {
       "path": "scripts/update_command_gateway_host.py",
-      "sha256": "0000000000000000000000000000000027bd9f26186b480682ab6eddf18ba75d",
+      "sha256": "5c6d7ce43154299c5b6ec8bb3cac76463c8f484f78f507dfa20cf1296ea1f1dd",
       "size": 59539
     },
     {
@@ -1224,7 +1224,7 @@
     },
     {
       "path": "tests/test_update_command_gateway_host.py",
-      "sha256": "000000000000000000000000000000002bc8e1da069469165e590f2bf238bf6f",
+      "sha256": "296af69cb0451dd6831984738f328767aac81545a99eb58bf32fc8ce07d6f4ee",
       "size": 101732
     },
     {
