@@ -162,6 +162,28 @@ class RecheckTests(TestCase):
         self.assertEqual(order[1:4], ["lock", "recheck", "git"])
 
 
+    def test_cli_main_always_requests_recheck_under_lock(self):
+        argv = [
+            "command_gateway.py", "--policy", "synthetic-policy",
+            "--correlation-id", "rules213-main-binding-20261115",
+            "run", "--cwd", str(self.repo),
+            "--session-id", self.session_id,
+            "--risk", "1", "--expected-head", "a" * 40,
+            "--", "python", "-B", "--version",
+        ]
+        with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(gateway, "load_policy", return_value=self.policy), \
+             mock.patch.object(gateway, "canonical_existing_directory",
+                               return_value=self.repo), \
+             mock.patch.object(gateway, "enforce_session",
+                               return_value={"session_id": self.session_id}), \
+             mock.patch.object(gateway, "execute", return_value=0) as called:
+            self.assertEqual(gateway.main(), 0)
+        self.assertEqual(called.call_count, 1)
+        self.assertTrue(called.call_args.kwargs["session_admitted_at_entry"])
+        self.assertEqual(called.call_args.kwargs["session_id"], self.session_id)
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()
