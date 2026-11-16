@@ -900,7 +900,9 @@ def inspect_previous_access_denied_readonly(
     install_root: Path, target_commit: str
 ) -> dict[str, Any]:
     """One fixed Windows Noteri diagnostic: no lock creation, backup or installer."""
-    fixed_root = bootstrap.default_install_root()
+    # The deployed Noteri DEV Gateway lives here, NOT under
+    # LOCALAPPDATA/ReqSys/CommandGateway (bootstrap's generic default).
+    fixed_root = Path(r"C:\dev\chatgpt-command-gateway")
     if (os.name != "nt" or socket.gethostname() != "Noteri"
             or os.path.normcase(os.path.abspath(install_root))
             != os.path.normcase(os.path.abspath(fixed_root))):
@@ -961,8 +963,11 @@ def main() -> int:
                     "SHA-256 do updater divergente no modo inspeção"
                 )
             commit = bootstrap.validate_commit(ns.commit)
-            install = ns.install_root or bootstrap.default_install_root()
-            result = inspect_previous_access_denied_readonly(install, commit)
+            if ns.install_root is None:
+                raise bootstrap.HostBootstrapError(
+                    "inspeção exige install-root explícito do Noteri DEV"
+                )
+            result = inspect_previous_access_denied_readonly(ns.install_root, commit)
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
         except (bootstrap.HostBootstrapError, OSError, ValueError) as exc:
