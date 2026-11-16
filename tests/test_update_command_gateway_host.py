@@ -2156,6 +2156,70 @@ class PreviousWin32ActivationDeniedGuardTests(unittest.TestCase):
         ]
         self.assertEqual(before, after)
 
+    def test_legacy_id_without_same_transaction_sidecar_stays_recoverable(self) -> None:
+        old = dict(self.journal)
+        old["transaction_id"] = "interrupted-transaction"
+        self.assertIsNone(updater.preflight_previous_access_denied(
+            self.root, old, self.commit,
+        ))
+        self.assertTrue(self.sidecar_path.exists())
+
+    def test_readonly_cli_never_acquires_lock_or_downloads_bundle(self) -> None:
+        arguments = [
+            "update_command_gateway_host.py",
+            "--commit", self.commit,
+            "--expected-self-sha256", "a" * 64,
+            "--install-root", str(self.root),
+            "--inspect-prior-access-denied-only",
+        ]
+        expected = {
+            "result": "HOST_UPDATE_RETRY_PREFLIGHT_BLOCKED",
+            "blocked_before_update": True,
+            "mutation_performed": False,
+        }
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(updater, "sha256_file", return_value="a" * 64),
+            mock.patch.object(updater, "inspect_previous_access_denied_readonly",
+                              return_value=expected) as probe,
+            mock.patch.object(updater, "acquire_update_lock") as lock,
+            mock.patch.object(updater.bootstrap, "download_bundle") as download,
+            mock.patch.object(updater.bootstrap, "install_bundle") as install,
+            mock.patch.object(sys, "argv", arguments),
+            contextlib.redirect_stdout(stdout),
+        ):
+            self.assertEqual(updater.main(), 0)
+        self.assertEqual(json.loads(stdout.getvalue()), expected)
+        probe.assert_called_once_with(self.root, self.commit)
+        lock.assert_not_called()
+        download.assert_not_called()
+        install.assert_not_called()
+        self.assertEqual(self.receipt_path.read_bytes(), b"original-receipt-do-not-overwrite")
+        self.assertTrue(self.journal_path.exists())
+
+    def test_readonly_cli_refuses_mutating_profile_flags(self) -> None:
+        argv = [
+            "update_command_gateway_host.py",
+            "--commit", self.commit,
+            "--expected-self-sha256", "a" * 64,
+            "--install-root", str(self.root),
+            "--inspect-prior-access-denied-only",
+            "--noteri-wsl-inventory-profile",
+        ]
+        with (
+            mock.patch.object(updater, "sha256_file", return_value="a" * 64),
+            mock.patch.object(updater, "inspect_previous_access_denied_readonly") as probe,
+            mock.patch.object(updater, "acquire_update_lock") as lock,
+            mock.patch.object(updater.bootstrap, "download_bundle") as download,
+            mock.patch.object(sys, "argv", argv),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(updater.main(), updater.EXIT_HOST_UPDATE)
+        probe.assert_not_called()
+        lock.assert_not_called()
+        download.assert_not_called()
+
     def test_main_refuses_retry_before_download_and_keeps_journal(self) -> None:
         args = [
             "update_command_gateway_host.py",
