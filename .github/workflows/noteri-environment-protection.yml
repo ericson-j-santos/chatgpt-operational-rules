@@ -1,0 +1,90 @@
+name: Noteri Environment Protection — One Target Only
+
+# Changes GitHub repository settings, NEVER the physical Noteri.
+# Auto-apply only after an owner-merged change to this exact automation
+# reaches protected main. Manual invocations default to read-only plan.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/noteri_environment_admin_once.py'
+      - '.github/workflows/noteri-environment-protection.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Plan (read-only) or apply the one fixed environment
+        type: choice
+        options: [plan, apply]
+        default: plan
+        required: true
+      expected_rules_sha:
+        description: Exact branch SHA on which this workflow is running
+        type: string
+        required: true
+      confirm:
+        description: Fixed confirmation required for manual apply only
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rules-noteri-environment-protection
+  cancel-in-progress: false
+
+jobs:
+  exact-environment:
+    if: >-
+      github.repository == 'ericson-j-santos/chatgpt-operational-rules' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'ericson-j-santos' &&
+      github.triggering_actor == 'ericson-j-santos'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      REPOSITORY_GOVERNANCE_TOKEN: ${{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}
+      EXPECTED_SHA: ${{ github.sha }}
+      REQUESTED_SHA: ${{ inputs.expected_rules_sha }}
+      REQUESTED_MODE: ${{ inputs.mode }}
+      REQUESTED_CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - name: Checkout exact trusted source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Run exact-target GitHub API automation (no physical host)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$REPOSITORY_GOVERNANCE_TOKEN" ]]; then
+            echo 'NOTERI_ENV_ADMIN_TOKEN_UNAVAILABLE' >&2
+            exit 20
+          fi
+          observed="$(git rev-parse HEAD)"
+          if [[ "$observed" != "$EXPECTED_SHA" ]]; then
+            echo 'NOTERI_ENV_SOURCE_SHA_MISMATCH' >&2
+            exit 20
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == 'push' ]]; then
+            mode='apply'
+            confirm='CONFIGURE-NOTERI-REVIEW-ONLY-DEV'
+          elif [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            if [[ "$REQUESTED_SHA" != "$EXPECTED_SHA" ]]; then
+              echo 'NOTERI_ENV_DISPATCH_SHA_MISMATCH' >&2
+              exit 20
+            fi
+            mode="$REQUESTED_MODE"
+            confirm="$REQUESTED_CONFIRM"
+          else
+            echo 'NOTERI_ENV_EVENT_NOT_ALLOWED' >&2
+            exit 20
+          fi
+          python3 -B scripts/noteri_environment_admin_once.py \
+            --mode "$mode" --expected-rules-sha "$EXPECTED_SHA" --confirm "$confirm"
