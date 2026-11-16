@@ -896,6 +896,37 @@ def preflight_previous_access_denied(
     }
 
 
+def inspect_previous_access_denied_readonly(
+    install_root: Path, target_commit: str
+) -> dict[str, Any]:
+    """One fixed Windows Noteri diagnostic: no lock creation, backup or installer."""
+    fixed_root = bootstrap.default_install_root()
+    if (os.name != "nt" or socket.gethostname() != "Noteri"
+            or os.path.normcase(os.path.abspath(install_root))
+            != os.path.normcase(os.path.abspath(fixed_root))):
+        raise bootstrap.HostBootstrapError(
+            "inspeção de falha anterior limitada a Noteri DEV e root fixo"
+        )
+    journal = _read_transaction_journal(install_root / "update-transaction.json")
+    denied = preflight_previous_access_denied(
+        install_root, journal, target_commit
+    )
+    return {
+        "result": ("HOST_UPDATE_RETRY_PREFLIGHT_BLOCKED"
+                   if denied is not None
+                   else "HOST_UPDATE_RETRY_PREFLIGHT_NO_MATCH"),
+        "target_commit": target_commit,
+        "journal_present": journal is not None,
+        "blocked_before_update": denied is not None,
+        "denial_reason": denied.get("reason") if denied else None,
+        "denied_destination": denied.get("destination") if denied else None,
+        "denied_winerror": denied.get("winerror") if denied else None,
+        "transaction_id": denied.get("transaction_id") if denied else None,
+        "installation_performed": False,
+        "mutation_performed": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Atualização governada do runtime Command Gateway")
     parser.add_argument("--commit", required=True, help="SHA completo aprovado do repositório canônico")
@@ -907,7 +938,41 @@ def main() -> int:
     parser.add_argument("--expected-legacy-receipt-sha256")
     parser.add_argument("--expected-legacy-manifest-sha256")
     parser.add_argument("--noteri-wsl-inventory-profile", action="store_true")
+    parser.add_argument("--inspect-prior-access-denied-only", action="store_true")
     ns = parser.parse_args()
+
+    if ns.inspect_prior_access_denied_only:
+        # An explicitly read-only route, usable under Gateway Risk1. It never
+        # acquires/creates update.lock or enters the installer exception path
+        # (which would otherwise be allowed to write a blocked receipt).
+        try:
+            if (ns.noteri_legacy_v1_rebaseline
+                    or ns.noteri_legacy_v1_stage_only
+                    or ns.expected_legacy_receipt_sha256 is not None
+                    or ns.expected_legacy_manifest_sha256 is not None
+                    or ns.noteri_wsl_inventory_profile):
+                raise bootstrap.HostBootstrapError(
+                    "inspeção read-only recusa flags de mutação ou perfil"
+                )
+            expected = ns.expected_self_sha256.strip().lower()
+            if (len(expected) != 64
+                    or sha256_file(Path(__file__).resolve()) != expected):
+                raise bootstrap.HostBootstrapError(
+                    "SHA-256 do updater divergente no modo inspeção"
+                )
+            commit = bootstrap.validate_commit(ns.commit)
+            install = ns.install_root or bootstrap.default_install_root()
+            result = inspect_previous_access_denied_readonly(install, commit)
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
+        except (bootstrap.HostBootstrapError, OSError, ValueError) as exc:
+            print(json.dumps({
+                "result": "HOST_UPDATE_RETRY_PREFLIGHT_UNAVAILABLE",
+                "reason": type(exc).__name__,
+                "installation_performed": False,
+                "mutation_performed": False,
+            }, sort_keys=True), file=sys.stderr)
+            return EXIT_HOST_UPDATE
 
     install_root = ns.install_root or bootstrap.default_install_root()
     receipt_path = install_root / "update-receipt.json"
