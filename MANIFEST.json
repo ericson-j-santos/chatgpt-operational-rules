@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-10T00:19:49.639Z",
+  "generated_at": "2026-11-16T23:58:00Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -16,6 +16,11 @@
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
       "sha256": "6d383b09af5f04d5cdcf1b805a90dd66ea0a493ff457412076041f152d8789a5",
       "size": 14806
+    },
+    {
+      "path": ".github/workflows/noteri-environment-protection.yml",
+      "sha256": "c9e9a946814cc922bf193417b5d017f7f225b48c5fdf7f4e7a9fa5fd06e75169",
+      "size": 3162
     },
     {
       "path": ".github/workflows/powerplatform-alm-official-monitor.yml",
@@ -463,9 +468,19 @@
       "size": 6892
     },
     {
+      "path": "scripts/noteri_environment_admin_once.py",
+      "sha256": "d60e861c8b44ef0a28820d6a4900585835f8d64ca06d33be7ded5b955a287310",
+      "size": 10831
+    },
+    {
       "path": "scripts/noteri_gateway_legacy_v1_rebaseline.py",
       "sha256": "b792692d6c86bccccfba9037596d3a7cbd4996e7d560f257194efa020357bef4",
       "size": 9657
+    },
+    {
+      "path": "scripts/noteri_github_review_readonly.py",
+      "sha256": "e99eeb1729c25d1fc81b5155097d92ffa23f067255919aef6ca13c38bb098e39",
+      "size": 8235
     },
     {
       "path": "scripts/noteri_state_dir_inventory.py",
@@ -963,9 +978,19 @@
       "size": 2582
     },
     {
+      "path": "tests/test_noteri_environment_admin_once.py",
+      "sha256": "fdd37e9d8e3f2e78424e6420bb26224c91018d71cb1fa82133407ff168ff49ab",
+      "size": 9399
+    },
+    {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
       "sha256": "e86c08f2ac2a8d2800c6ebad81ac606fa2ab517b0fb47e0fd34e0f7e4b51f5e5",
       "size": 19982
+    },
+    {
+      "path": "tests/test_noteri_github_review_readonly.py",
+      "sha256": "d7fcae17cd675eaa6923416f402bc6d7594dfaf6d2c5ba53a4fa5a1ae377c3d9",
+      "size": 5508
     },
     {
       "path": "tests/test_noteri_state_dir_inventory.py",
