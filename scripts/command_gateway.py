@@ -1631,6 +1631,12 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
 
     started = time.monotonic()
     with repository_lock(before, policy, correlation_id):
+        # A session may have been retired by the control plane after main()
+        # checked its reservation but before this repository lock was acquired.
+        # Re-check under the same lock that fencing/retirement must hold,
+        # immediately before any subprocess can start. The initial admission
+        # alone is not a durable lease.
+        enforce_session(policy, session_id, cwd, risk)
         locked_state = git_state(cwd, True, policy)
         if locked_state != before:
             raise GatewayError("estado mudou antes da execução; possível concorrência", EXIT_STATE_CHANGED)
