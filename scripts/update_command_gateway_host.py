@@ -848,7 +848,10 @@ def preflight_previous_access_denied(
     if (not isinstance(transaction_id, str)
             or len(transaction_id) != 32
             or any(c not in "0123456789abcdef" for c in transaction_id)):
-        raise bootstrap.HostBootstrapError("identidade do journal inválida")
+        # Older legitimate recovery journals may use other IDs and have no
+        # matching immutable sidecar. This new gate is narrow: it only applies
+        # to a proven modern failure, never replaces legacy recovery.
+        return None
     sidecar_path = install_root / f"update-recovery-{transaction_id}.json"
     if not os.path.lexists(sidecar_path):
         return None
