@@ -39,9 +39,10 @@ RUNTIME_MAP = {
     "config/command-gateway.policy.json": "config/policy.json",
 }
 MINGIT_VERSION = "2.55.0.5"
+MINGIT_RELEASE_TAG = "v2.55.0.windows.5"
 MINGIT_URL = (
     "https://github.com/git-for-windows/git/releases/download/"
-    f"v{MINGIT_VERSION}.windows.5/MinGit-{MINGIT_VERSION}-64-bit.zip"
+    f"{MINGIT_RELEASE_TAG}/MinGit-{MINGIT_VERSION}-64-bit.zip"
 )
 MINGIT_SHA256 = "56d7b226b7693196cfc71fef26568f536c4a021ab6c37ff2db4287bed908e96e"
 MINGIT_SIZE = 38_989_688

@@ -22,6 +22,21 @@ import install_command_gateway_host as hb
 
 
 class HostBootstrapTests(unittest.TestCase):
+    def test_mingit_release_url_and_integrity_pins_match_official_asset(self) -> None:
+        expected_url = (
+            "https://github.com/git-for-windows/git/releases/download/"
+            "v2.55.0.windows.5/MinGit-2.55.0.5-64-bit.zip"
+        )
+        self.assertEqual(hb.MINGIT_VERSION, "2.55.0.5")
+        self.assertEqual(hb.MINGIT_RELEASE_TAG, "v2.55.0.windows.5")
+        self.assertEqual(hb.MINGIT_URL, expected_url)
+        self.assertNotIn("v2.55.0.5.windows.5", hb.MINGIT_URL)
+        self.assertEqual(hb.MINGIT_SIZE, 38_989_688)
+        self.assertEqual(
+            hb.MINGIT_SHA256,
+            "56d7b226b7693196cfc71fef26568f536c4a021ab6c37ff2db4287bed908e96e",
+        )
+
     def make_bundle(self, root: Path, version: str = "1.6.1") -> Path:
         bundle = root / "bundle"
         entries = []
