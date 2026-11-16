@@ -58,6 +58,7 @@ class HostBootstrapTests(unittest.TestCase):
             'test "$pulls" = "0"',
             "PRE_PR_UNAUTHORIZED_PATH",
             "PRE_PR_REQUIRED_PATCH_MISSING",
+            "MANIFEST.json",
             'ref: ${{ github.sha }}',
             "persist-credentials: false",
             "python -m unittest -v tests/test_host_bootstrap.py",
