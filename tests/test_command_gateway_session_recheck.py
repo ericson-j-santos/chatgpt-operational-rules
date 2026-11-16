@@ -88,6 +88,7 @@ class RecheckTests(TestCase):
                     allow_dirty=False, allow_head_change=False,
                     correlation_id="rules213-recheck-locked-20261115",
                     session_id=session_id or self.session_id,
+                    session_admitted_at_entry=True,
                 )
                 return result, calls, sp.run.call_count
             except gateway.GatewayError as exc:
@@ -111,7 +112,7 @@ class RecheckTests(TestCase):
         self.assertEqual(len(calls), 2)
         self.assertTrue(all(c[2] for c in calls))
 
-    def test_direct_execute_cannot_skip_session_id(self):
+    def test_admitted_cli_execution_cannot_use_wrong_session_id(self):
         result, calls, spawned = self._execute(
             admitted_before_lock=False, admitted_inside_lock=True,
             session_id="unknown-session",
@@ -155,6 +156,7 @@ class RecheckTests(TestCase):
                 allow_dirty=False, allow_head_change=False,
                 correlation_id="rules213-recheck-order-20261115",
                 session_id=self.session_id,
+                session_admitted_at_entry=True,
             )
         self.assertEqual(order[0], "git")
         self.assertEqual(order[1:4], ["lock", "recheck", "git"])
