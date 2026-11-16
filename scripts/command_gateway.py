@@ -1611,7 +1611,8 @@ def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str, session_id: 
 
 def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             timeout: int, expected_head: str | None, allow_dirty: bool,
-            allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
+            allow_head_change: bool, correlation_id: str, session_id: str | None = None,
+            session_admitted_at_entry: bool = False) -> int:
     cwd = canonical_existing_directory(cwd)
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy, cwd)
@@ -1636,7 +1637,11 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
         # Re-check under the same lock that fencing/retirement must hold,
         # immediately before any subprocess can start. The initial admission
         # alone is not a durable lease.
-        enforce_session(policy, session_id, cwd, risk)
+        # The CLI main() has already admitted the session. Internal bootstrap
+        # may call execute() while the reservation is not yet materialized;
+        # that internal transition is not a CLI-admitted command.
+        if session_admitted_at_entry:
+            enforce_session(policy, session_id, cwd, risk)
         locked_state = git_state(cwd, True, policy)
         if locked_state != before:
             raise GatewayError("estado mudou antes da execução; possível concorrência", EXIT_STATE_CHANGED)
@@ -1744,6 +1749,7 @@ def main() -> int:
             timeout=ns.timeout, expected_head=ns.expected_head,
             allow_dirty=ns.allow_dirty, allow_head_change=ns.allow_head_change,
             correlation_id=correlation_id, session_id=getattr(ns, "session_id", None),
+            session_admitted_at_entry=True,
         )
     except (GatewayError, json.JSONDecodeError, OSError) as exc:
         code = exc.exit_code if isinstance(exc, GatewayError) else EXIT_POLICY
