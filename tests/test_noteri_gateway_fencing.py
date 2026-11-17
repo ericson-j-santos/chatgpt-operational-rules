@@ -220,6 +220,40 @@ class LocalFencingTests(unittest.TestCase):
                     session_id="session-a", correlation_id="run-a",
                 )
 
+    def test_persisted_claim_is_bound_to_issued_sequence(self):
+        self.provision_synthetic_counter()
+        lease = self.issue()
+        claim = json.loads(gateway.read_state_text(self.policy, self.active_path))
+        self.assertEqual(claim["sequence"], lease.sequence)
+        self.assertEqual(claim["nonce"], lease.nonce)
+        claim["sequence"] = 999
+        gateway.atomic_write_state_text(
+            self.policy, self.active_path, fencing._serial(claim)
+        )
+        with self.assertRaisesRegex(fencing.FencingBlocked, "not_current_owner"):
+            fencing.verify_active_token(
+                policy=self.policy, sequence=lease.sequence, nonce=lease.nonce,
+                session_id="session-a", correlation_id="run-a",
+            )
+
+    def test_failed_claim_sequence_write_remains_reserved(self):
+        self.provision_synthetic_counter()
+        real_atomic = gateway.atomic_write_state_text
+        def fail_claim_write(policy, path, content):
+            if path == self.active_path:
+                raise OSError("synthetic claim write failure")
+            return real_atomic(policy, path, content)
+        with mock.patch.object(gateway, "atomic_write_state_text",
+                               side_effect=fail_claim_write):
+            with self.assertRaisesRegex(fencing.FencingBlocked, "failed"):
+                self.issue()
+        self.assertTrue(self.active_path.exists())
+        self.assertEqual(
+            fencing._read_counter(self.policy, self.counter_path, HOST), 1
+        )
+        with self.assertRaisesRegex(fencing.FencingBlocked, "already_claimed"):
+            self.issue(second=True)
+
     def test_no_cli_no_auto_repair_no_cost_attestation(self):
         import inspect
         source = inspect.getsource(fencing)
