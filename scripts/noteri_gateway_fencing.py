@@ -159,6 +159,7 @@ def verify_active_token(*, policy: dict[str, Any], sequence: int, nonce: str,
         raise FencingBlocked("fence_readback_unavailable") from exc
     if (not isinstance(claim, dict) or claim.get("kind") != KIND
         or claim.get("host") != host or claim.get("target") != TARGET
+        or claim.get("pid") != os.getpid()
         or claim.get("session_id") != session_id
         or claim.get("correlation_id") != correlation_id
         or claim.get("nonce") != nonce or current != sequence):
