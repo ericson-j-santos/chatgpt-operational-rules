@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -42,6 +43,11 @@ def save(stage: str, **extra: object) -> None:
         **extra,
     }
     EVIDENCE_FILE.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({
+        "event": "probe_progress",
+        "stage": stage,
+        "observed_at_epoch": payload["observed_at_epoch"],
+    }, sort_keys=True), flush=True)
 
 
 def query(conn: psycopg.Connection, sql: str, params: tuple[object, ...] = ()) -> list[tuple]:
@@ -205,6 +211,11 @@ def docker(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Ciclo físico Noteri/Desktop")
+    parser.add_argument("--completion-timeout-seconds", type=int, default=75)
+    args = parser.parse_args()
+    if not 15 <= args.completion_timeout_seconds <= 900:
+        raise SystemExit("completion timeout must be between 15 and 900 seconds")
     if socket.gethostname().casefold() != DESKTOP.casefold():
         raise SystemExit(f"must run on {DESKTOP}")
     if not ENV_FILE.is_file():
@@ -231,7 +242,10 @@ def main() -> int:
                 raise AssertionError(f"Desktop unhealthy while Noteri offline: {after_offline}")
 
             req_desktop, corr_desktop = create_continuation(conn, "desktop-survival")
-            desktop_survival = wait_completion(conn, req_desktop, corr_desktop)
+            desktop_survival = wait_completion(
+                conn, req_desktop, corr_desktop,
+                timeout_seconds=args.completion_timeout_seconds,
+            )
             assert_execution(desktop_survival, DESKTOP)
             save("desktop_survival_completed", proof=desktop_survival, health=health(conn))
 
@@ -274,7 +288,10 @@ def main() -> int:
                 raise AssertionError(f"Noteri unhealthy before takeover: {after_desktop_worker_stop}")
 
             req_noteri, corr_noteri = create_continuation(conn, "noteri-takeover")
-            noteri_takeover = wait_completion(conn, req_noteri, corr_noteri)
+            noteri_takeover = wait_completion(
+                conn, req_noteri, corr_noteri,
+                timeout_seconds=args.completion_timeout_seconds,
+            )
             assert_execution(noteri_takeover, NOTERI)
 
             repeated = query(
