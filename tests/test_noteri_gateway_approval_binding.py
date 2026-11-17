@@ -274,6 +274,20 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
             env = self.call(args=self.args[:6], risk=1)
         self.assertNotIn(m.ENVIRONMENT_VARIABLE, env)
 
+    def test_fixed_script_parent_symlink_blocks_before_approval(self):
+        import os
+        original = self.cwd / "scripts"
+        actual = self.cwd / "actual_scripts"
+        original.rename(actual)
+        try:
+            original.symlink_to(actual, target_is_directory=True)
+        except (NotImplementedError, OSError) as exc:
+            self.skipTest(f"symlink unavailable: {type(exc).__name__}")
+        with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            with self.assertRaisesRegex(self.gateway.GatewayError, "symlink|junction"):
+                self.call()
+            lookup.assert_not_called()
+
     def test_other_gateway_child_cannot_inherit_maintenance_approval_flag(self):
         import contextlib
         import os
@@ -301,7 +315,8 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
              mock.patch.object(g, "emit_json"), \
              mock.patch.object(g.subprocess, "run", return_value=
                  subprocess.CompletedProcess(["python"], 0, "", "")) as spawn, \
-             mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA}):
+             mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA,
+                                      "NOTERI_APPROVAL_READ_TOKEN": "synthetic-read-token"}):
             code = g.execute(
                 cwd=self.cwd, policy={"max_timeout_seconds": 10},
                 args=["python", "scripts/unrelated.py"], risk=1,
@@ -311,6 +326,7 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(spawn.call_count, 1)
         self.assertNotIn(m.ENVIRONMENT_VARIABLE, spawn.call_args.kwargs["env"])
+        self.assertNotIn("NOTERI_APPROVAL_READ_TOKEN", spawn.call_args.kwargs["env"])
 
     def test_apply_disabled_prevents_any_external_approval_lookup(self):
         with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
