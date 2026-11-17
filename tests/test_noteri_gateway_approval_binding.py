@@ -318,7 +318,12 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
              mock.patch.object(g.subprocess, "run", return_value=
                  subprocess.CompletedProcess(["python"], 0, "", "")) as spawn, \
              mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA,
-                                      "NOTERI_APPROVAL_READ_TOKEN": "synthetic-read-token"}):
+                                      "NOTERI_APPROVAL_READ_TOKEN": "synthetic-read-token",
+                                      "NOTERI_POOL_MAINTENANCE_FENCE_SEQUENCE": "123",
+                                      "NOTERI_POOL_MAINTENANCE_FENCE_NONCE": "a" * 32,
+                                      "NOTERI_POOL_MAINTENANCE_SESSION_ID": "fake-session",
+                                      "NOTERI_POOL_MAINTENANCE_CORRELATION_ID": "fake-correlation",
+                                      "NOTERI_POOL_MAINTENANCE_SNAPSHOT_SHA256": "b" * 64}):
             code = g.execute(
                 cwd=self.cwd, policy={"max_timeout_seconds": 10},
                 args=["python", "scripts/unrelated.py"], risk=1,
@@ -329,6 +334,12 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
         self.assertEqual(spawn.call_count, 1)
         self.assertNotIn(m.ENVIRONMENT_VARIABLE, spawn.call_args.kwargs["env"])
         self.assertNotIn("NOTERI_APPROVAL_READ_TOKEN", spawn.call_args.kwargs["env"])
+        for name in ("NOTERI_POOL_MAINTENANCE_FENCE_SEQUENCE",
+                     "NOTERI_POOL_MAINTENANCE_FENCE_NONCE",
+                     "NOTERI_POOL_MAINTENANCE_SESSION_ID",
+                     "NOTERI_POOL_MAINTENANCE_CORRELATION_ID",
+                     "NOTERI_POOL_MAINTENANCE_SNAPSHOT_SHA256"):
+            self.assertNotIn(name, spawn.call_args.kwargs["env"])
 
     def test_apply_disabled_prevents_any_external_approval_lookup(self):
         with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
