@@ -19,7 +19,7 @@ def amostra():
            "actor": {"id": m.USUARIO_PROPRIETARIO_ID},
            "event": "workflow_dispatch", "path": m.WORKFLOW,
            "head_branch": "main", "head_sha": SHA, "run_attempt": 1,
-           "status": "in_progress", "conclusion": None,
+           "status": "completed", "conclusion": "success",
            "created_at": (NOW - timedelta(minutes=5)).isoformat()}
     reviews = [{"state": "approved", "user": {"id": m.USUARIO_PROPRIETARIO_ID},
                 "environments": [{"id": ENV_ID, "name": m.AMBIENTE}]}]
@@ -44,6 +44,26 @@ class ReviewReadOnlyTests(unittest.TestCase):
         self.assertTrue(d["review_provenance_verified"])
         self.assertFalse(d["execution_authorized"])
         self.assertFalse(d["state_changed"])
+
+    def test_revisao_concluida_success_comprova_sem_autorizar_manutencao(self):
+        run, _, _ = amostra()
+        run["status"] = "completed"
+        run["conclusion"] = "success"
+        result = validar(run=run)
+        self.assertEqual(result["result"], "REVIEW_PROVENANCE_VERIFIED")
+        self.assertIs(result["execution_authorized"], False)
+
+    def test_revisao_em_andamento_nao_comprova_resultado_final(self):
+        run, _, _ = amostra()
+        run["status"] = "in_progress"
+        run["conclusion"] = None
+        self.assertEqual(validar(run=run)["result"], "BLOCKED")
+
+    def test_revisao_concluida_com_erro_bloqueia(self):
+        run, _, _ = amostra()
+        run["status"] = "completed"
+        run["conclusion"] = "failure"
+        self.assertEqual(validar(run=run)["result"], "BLOCKED")
 
     def test_sem_approval_bloqueia(self):
         self.assertEqual(validar(reviews=[])["reason"], "aprovacao_unica_ausente")
