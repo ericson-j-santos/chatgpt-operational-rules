@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T02:06:38.085Z",
+  "generated_at": "2026-11-17T02:09:30.538Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/issue217-prepr-verify.yml",
-      "sha256": "e3c6f1ae807c04d38032f39d427cca85a2e5183b34f9a40cd066ecb1ff80d0ae",
-      "size": 2557
+      "sha256": "761869503869afca24382f6cbf9ef0f7e499215174faa82949fa00667bca5496",
+      "size": 2699
     },
     {
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
@@ -59,8 +59,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "bdd150e5ddc51ef01c81e2baf02711607eb8b3504386e10f45085e2ba42e2054",
-      "size": 21583
+      "sha256": "b017ca325b85d18a807d469ac34fd4766c692e42d59835c9a9482dffb9b265d7",
+      "size": 21620
     },
     {
       "path": ".gitignore",
@@ -481,6 +481,11 @@
       "path": "scripts/noteri_gateway_approval_binding.py",
       "sha256": "1c42ed9ca5f22401ad5eca4bde3ebb943a3b6044a4984a2ce7a97e91331cdbda",
       "size": 6718
+    },
+    {
+      "path": "scripts/noteri_gateway_fencing.py",
+      "sha256": "f1ee5e96b27ece086daa39781735cb4ebc7c71faca00e041f4996ae25dbf6025",
+      "size": 7287
     },
     {
       "path": "scripts/noteri_gateway_legacy_v1_rebaseline.py",
@@ -1001,6 +1006,11 @@
       "path": "tests/test_noteri_gateway_approval_binding.py",
       "sha256": "754aaa6599968cbbf9dd6b911d34ee866351fab407b73e53589933f3bae1861f",
       "size": 23844
+    },
+    {
+      "path": "tests/test_noteri_gateway_fencing.py",
+      "sha256": "60b5325f8afe6793aa3202f2d94d2a34fac7b2523778cb550d8da0a3a58b0617",
+      "size": 9613
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
