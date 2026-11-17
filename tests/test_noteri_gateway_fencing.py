@@ -209,6 +209,17 @@ class LocalFencingTests(unittest.TestCase):
                     fields.update(props)
                     fencing.verify_active_token(**fields)
 
+    def test_owner_pid_cannot_be_reused_by_different_process(self):
+        self.provision_synthetic_counter()
+        lease = self.issue()
+        actual_pid = os.getpid()
+        with mock.patch.object(fencing.os, "getpid", return_value=actual_pid + 1):
+            with self.assertRaisesRegex(fencing.FencingBlocked, "not_current_owner"):
+                fencing.verify_active_token(
+                    policy=self.policy, sequence=lease.sequence, nonce=lease.nonce,
+                    session_id="session-a", correlation_id="run-a",
+                )
+
     def test_no_cli_no_auto_repair_no_cost_attestation(self):
         import inspect
         source = inspect.getsource(fencing)
