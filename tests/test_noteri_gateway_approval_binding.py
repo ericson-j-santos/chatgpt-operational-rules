@@ -173,5 +173,157 @@ class ApprovalBindingTests(unittest.TestCase):
         self.assertFalse(hasattr(m, "main"))
 
 
+class GatewayIntegratedHandoffTests(unittest.TestCase):
+    """Contrato do Gateway real, com API e host simulados; nenhum spawn."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from scripts import command_gateway
+        self.gateway = command_gateway
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.cwd = Path(self.temp.name)
+        (self.cwd / "scripts").mkdir()
+        (self.cwd / "scripts" / "noteri_worker_pool_inplace_maintenance.py").write_text(
+            "# synthetic-only\n", encoding="utf-8"
+        )
+        self.args = [
+            "python", "scripts/noteri_worker_pool_inplace_maintenance.py",
+            "--mode", "apply", "--expected-head", m.MAINTENANCE_SHA,
+            "--confirm", m.CONFIRM,
+        ]
+        self.before = SimpleNamespace(head=m.MAINTENANCE_SHA, status_count=0)
+        self.policy = {
+            m.POLICY_FLAG: True,
+            "require_preflight_snapshot": True,
+            "noteri_approval_workflow_sha": SHA,
+            "noteri_approval_run_id": RID,
+            "noteri_maintenance_exact_sha": m.MAINTENANCE_SHA,
+        }
+
+    def call(self, *, args=None, risk=2, policy=None, expected_head=None,
+             session_id="noteri-session-01", allow_dirty=False,
+             allow_head_change=False):
+        return self.gateway.noteri_inplace_maintenance_spawn_environment(
+            args=args if args is not None else self.args,
+            cwd=self.cwd, policy=policy if policy is not None else self.policy,
+            risk=risk, session_id=session_id,
+            correlation_id="noteri-approval-01", before=self.before,
+            expected_head=expected_head or m.MAINTENANCE_SHA,
+            allow_dirty=allow_dirty, allow_head_change=allow_head_change,
+        )
+
+    def test_unrelated_command_never_intercepts(self):
+        self.assertIsNone(self.call(args=["python", "tests/other.py"]))
+
+    def test_plan_sanitizes_untrusted_environment(self):
+        import os
+        p = self.args.copy()
+        p[3] = "plan"
+        with mock.patch.dict(os.environ, {
+            m.ENVIRONMENT_VARIABLE: "forged",
+            "NOTERI_APPROVAL_READ_TOKEN": "synthetic-token",
+            "REPOSITORY_GOVERNANCE_TOKEN": "synthetic-other-token",
+        }):
+            env = self.call(args=p, risk=1)
+        for key in (m.ENVIRONMENT_VARIABLE, "NOTERI_APPROVAL_READ_TOKEN",
+                    "REPOSITORY_GOVERNANCE_TOKEN"):
+            self.assertNotIn(key, env)
+
+    def test_apply_disabled_prevents_any_external_approval_lookup(self):
+        with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            with self.assertRaisesRegex(self.gateway.GatewayError, "CAPABILITY_DISABLED"):
+                self.call(policy={})
+            lookup.assert_not_called()
+
+    def test_malformed_commands_cannot_trigger_approval(self):
+        alternatives = [
+            self.args + ["--extra", "oops"],
+            ["python", "-m", "scripts.noteri_worker_pool_inplace_maintenance",
+             "--mode", "apply"],
+            [*self.args[:6], "--confirm", "wrong"],
+            ["python", "elsewhere/noteri_worker_pool_inplace_maintenance.py",
+             *self.args[2:]],
+        ]
+        with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            for argv in alternatives:
+                with self.subTest(argv=argv):
+                    with self.assertRaises(self.gateway.GatewayError):
+                        self.call(args=argv)
+            lookup.assert_not_called()
+
+    def test_dirty_or_head_change_flags_never_authorize_apply(self):
+        for flags in ({"allow_dirty": True}, {"allow_head_change": True},
+                      {"expected_head": "b" * 40}):
+            with self.subTest(flags=flags):
+                with self.assertRaisesRegex(self.gateway.GatewayError, "GIT_STATE_MISMATCH"):
+                    self.call(**flags)
+
+    def test_missing_authenticated_session_fails_before_github(self):
+        with mock.patch.object(self.gateway, "enforce_session", return_value={
+                "status": "materialized", "fencing_token": 3}), \
+             mock.patch.object(self.gateway, "validate_session_snapshot",
+                 return_value={"snapshot_sha256": "a" * 64}), \
+             mock.patch.object(self.gateway, "run_capture") as capture, \
+             mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            import subprocess
+            capture.return_value = subprocess.CompletedProcess(
+                ["git"], 0,
+                "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                         "NOTERI_APPROVAL_NOT_ATTESTED"):
+                self.call()
+            lookup.assert_not_called()
+
+    def test_prevalidated_handoff_passes_only_scoped_environment(self):
+        import os
+        import subprocess
+        snapshot = {
+            "snapshot_sha256": "a" * 64,
+            "session_launch_ok": True,
+            "state_validated": True,
+            "zero_incremental_cost_verified": True,
+        }
+        with mock.patch.object(self.gateway, "enforce_session", return_value={
+                 "status": "materialized", "fencing_token": 3}), \
+             mock.patch.object(self.gateway, "validate_session_snapshot",
+                               return_value=snapshot), \
+             mock.patch.object(self.gateway, "run_capture", return_value=
+                 subprocess.CompletedProcess(
+                     ["git"], 0,
+                     "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")), \
+             mock.patch.object(m, "bind_once",
+                               return_value={m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA}) as binding, \
+             mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: "untrusted",
+                                         "NOTERI_APPROVAL_READ_TOKEN": "read-only-synthetic"}):
+            env = self.call()
+        self.assertEqual(env[m.ENVIRONMENT_VARIABLE], m.MAINTENANCE_SHA)
+        self.assertNotIn("NOTERI_APPROVAL_READ_TOKEN", env)
+        self.assertEqual(binding.call_count, 1)
+        bound_facts = binding.call_args.kwargs["facts"]
+        self.assertTrue(bound_facts.state_validated)
+        self.assertTrue(bound_facts.exclusive_lease)
+        self.assertEqual(bound_facts.expected_head, m.MAINTENANCE_SHA)
+        self.assertEqual(binding.call_args.kwargs["workflow_run_id"], RID)
+
+    def test_binder_may_never_return_arbitrary_environment(self):
+        import subprocess
+        with mock.patch.object(self.gateway, "enforce_session", return_value={
+                 "status": "materialized", "fencing_token": 3}), \
+             mock.patch.object(self.gateway, "validate_session_snapshot", return_value={
+                 "snapshot_sha256": "a" * 64,
+                 "session_launch_ok": True, "state_validated": True,
+                 "zero_incremental_cost_verified": True}), \
+             mock.patch.object(self.gateway, "run_capture", return_value=
+                 subprocess.CompletedProcess(
+                     ["git"], 0, "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")), \
+             mock.patch.object(m, "bind_once", return_value={"PATH": "untrusted"}):
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                         "BINDING_RESULT_INVALID"):
+                self.call()
+
+
 if __name__ == "__main__":
     unittest.main()
