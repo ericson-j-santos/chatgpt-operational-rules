@@ -113,7 +113,7 @@ def workflow_context(env: dict[str, str], *, expected_sha: str) -> None:
     for key, value in fixed.items():
         if env.get(key) != value:
             raise Blocked("trusted_workflow_context_invalid")
-    if env.get("GITHUB_EVENT_NAME") not in {"push", "workflow_dispatch"}:
+    if env.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
         raise Blocked("workflow_event_not_allowed")
     if not re.fullmatch(r"[1-9][0-9]{0,19}", env.get("GITHUB_RUN_ID", "")):
         raise Blocked("workflow_run_id_invalid")
