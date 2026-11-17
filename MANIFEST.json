@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T02:09:30.538Z",
+  "generated_at": "2026-11-17T02:10:50.058Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -484,8 +484,8 @@
     },
     {
       "path": "scripts/noteri_gateway_fencing.py",
-      "sha256": "f1ee5e96b27ece086daa39781735cb4ebc7c71faca00e041f4996ae25dbf6025",
-      "size": 7287
+      "sha256": "86b7c20a15d0c664f6dea817ff9e5698b46f588a1c9f9170d6011f2d935f8980",
+      "size": 7330
     },
     {
       "path": "scripts/noteri_gateway_legacy_v1_rebaseline.py",
@@ -1009,8 +1009,8 @@
     },
     {
       "path": "tests/test_noteri_gateway_fencing.py",
-      "sha256": "60b5325f8afe6793aa3202f2d94d2a34fac7b2523778cb550d8da0a3a58b0617",
-      "size": 9613
+      "sha256": "acb6aac7db9ea2116263b00e91dd53347cdc54c5bd81ba4d651de7654ea9b12f",
+      "size": 10171
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
