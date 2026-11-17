@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-10T00:19:49.639Z",
+  "generated_at": "2026-11-17T02:22:08.144Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -389,8 +389,8 @@
     },
     {
       "path": "scripts/generate_manifest.py",
-      "sha256": "eb3d634bf478e20f2399547e26eb27f8c82c3bdcc210ec5a074e52489f675716",
-      "size": 1962
+      "sha256": "001e052388d74ba6b54fea84e2585312555aae71056984e36198ac2921185355",
+      "size": 5114
     },
     {
       "path": "scripts/github_schedule_bridge.py",
@@ -901,6 +901,11 @@
       "path": "tests/test_feature_pr_admission.py",
       "sha256": "3981ee982789fe2a67d0ab8229aaf438c47982d79e6f90d81759713efe6649b5",
       "size": 5589
+    },
+    {
+      "path": "tests/test_generate_manifest_builder.py",
+      "sha256": "a096aaf34707901937cb008292c77b2178e15a845c380c3ba331490b2be5cf7b",
+      "size": 6293
     },
     {
       "path": "tests/test_github_schedule_bridge.py",
