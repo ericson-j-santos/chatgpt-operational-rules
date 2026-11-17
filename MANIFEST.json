@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T01:53:29.382Z",
+  "generated_at": "2026-11-17T02:01:14.618Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/issue217-prepr-verify.yml",
-      "sha256": "26bb9d16dcc49e10967b6d469ad81295b32f8e99547e1c4791832314e0cf5cec",
-      "size": 2406
+      "sha256": "e3c6f1ae807c04d38032f39d427cca85a2e5183b34f9a40cd066ecb1ff80d0ae",
+      "size": 2557
     },
     {
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
@@ -59,8 +59,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "5cd268a5f48d47b83ab321ed4e011f5eef4bd0c8398ced4c3e98f673d7fe8821",
-      "size": 21543
+      "sha256": "bdd150e5ddc51ef01c81e2baf02711607eb8b3504386e10f45085e2ba42e2054",
+      "size": 21583
     },
     {
       "path": ".gitignore",
@@ -349,8 +349,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "a8fa519f8e57415a12cffab778e96e11e7939fdb87cfecd4734d089610cb6771",
-      "size": 82868
+      "sha256": "d7e9d691c7fa2feda30cac471925ccd9924d170078a053180817c052afdc2119",
+      "size": 83993
     },
     {
       "path": "scripts/configure_pc24x7_gitlab_webhook.py",
@@ -491,6 +491,11 @@
       "path": "scripts/noteri_github_review_readonly.py",
       "sha256": "e7eb003fd4adcc4869515cb19576b4a83dd39298224ea243227bcbd2d349fb6d",
       "size": 8234
+    },
+    {
+      "path": "scripts/noteri_session_provenance.py",
+      "sha256": "a21ba58ff683c738ec1620a59eaccfe64073cea3d068e1f7269cde8a0a5be95c",
+      "size": 6183
     },
     {
       "path": "scripts/noteri_state_dir_inventory.py",
@@ -994,8 +999,8 @@
     },
     {
       "path": "tests/test_noteri_gateway_approval_binding.py",
-      "sha256": "79605941f4c7c72dbf8a47ea653b593a02e4a511ac5b16bfdec98c66d4e27c51",
-      "size": 19599
+      "sha256": "ed997f69087ceaa2fda5477f0286076692eeb8bc29caed98eb78890b799c8168",
+      "size": 22513
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
@@ -1006,6 +1011,11 @@
       "path": "tests/test_noteri_github_review_readonly.py",
       "sha256": "b1230622701a1dc1f67aac17c90b8fd340501b94f543b5aa12b0cff012f1a3a7",
       "size": 6325
+    },
+    {
+      "path": "tests/test_noteri_session_provenance.py",
+      "sha256": "17261f9f4b264df5773eb7ee53422beafcdab314fe5459cc220bd4e653e04a22",
+      "size": 6768
     },
     {
       "path": "tests/test_noteri_state_dir_inventory.py",
