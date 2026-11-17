@@ -213,6 +213,7 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
             correlation_id="noteri-approval-01", before=self.before,
             expected_head=expected_head or m.MAINTENANCE_SHA,
             allow_dirty=allow_dirty, allow_head_change=allow_head_change,
+            lock_path=self.cwd / "gateway.lock", policy_file_sha256="b" * 64,
         )
 
     def test_unrelated_command_never_intercepts(self):
@@ -369,9 +370,35 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
                 ["git"], 0,
                 "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")
             with self.assertRaisesRegex(self.gateway.GatewayError,
-                                         "NOTERI_APPROVAL_NOT_ATTESTED"):
+                                         "NOTERI_SESSION_PROVENANCE_BLOCKED"):
                 self.call()
             lookup.assert_not_called()
+
+    def test_risk2_requires_launcher_lock_and_policy_digest(self):
+        with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            with self.assertRaisesRegex(self.gateway.GatewayError, "TRUSTED_INPUT_MISSING"):
+                self.gateway.noteri_inplace_maintenance_spawn_environment(
+                    args=self.args, cwd=self.cwd, policy=self.policy, risk=2,
+                    session_id="noteri-session-01",
+                    correlation_id="noteri-approval-01", before=self.before,
+                    expected_head=m.MAINTENANCE_SHA, allow_dirty=False,
+                    allow_head_change=False,
+                )
+            lookup.assert_not_called()
+
+    def test_broken_session_proof_blocks_before_approval(self):
+        from scripts import noteri_session_provenance as proof
+        with mock.patch.object(self.gateway, "enforce_session", return_value={
+                 "status": "materialized", "fencing_token": 3}), \
+             mock.patch.object(self.gateway, "validate_session_snapshot",
+                               return_value={"snapshot_sha256": "a" * 64}), \
+             mock.patch.object(proof, "verify_launcher_and_lock",
+                 side_effect=proof.ProvenanceBlocked("launcher_event_invalid")), \
+             mock.patch.object(m, "bind_once") as binding:
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                         "NOTERI_SESSION_PROVENANCE_BLOCKED"):
+                self.call()
+            binding.assert_not_called()
 
     def test_prevalidated_handoff_passes_only_scoped_environment(self):
         import os
@@ -390,6 +417,14 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
                  subprocess.CompletedProcess(
                      ["git"], 0,
                      "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")), \
+             mock.patch.object(__import__("scripts.noteri_session_provenance",
+                                fromlist=["verify_launcher_and_lock"]),
+                               "verify_launcher_and_lock",
+                               return_value={"state_validated": True,
+                                             "session_launch_ok": True,
+                                             "exclusive_lease": True,
+                                             "session_snapshot_sha256": "a" * 64,
+                                             "policy_sha256": "b" * 64}), \
              mock.patch.object(m, "bind_once",
                                return_value={m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA}) as binding, \
              mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: "untrusted",
@@ -401,6 +436,8 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
         bound_facts = binding.call_args.kwargs["facts"]
         self.assertTrue(bound_facts.state_validated)
         self.assertTrue(bound_facts.exclusive_lease)
+        self.assertEqual(bound_facts.fencing_token, 0)
+        self.assertFalse(bound_facts.zero_incremental_cost_verified)
         self.assertEqual(bound_facts.expected_head, m.MAINTENANCE_SHA)
         self.assertEqual(binding.call_args.kwargs["workflow_run_id"], RID)
 
@@ -415,6 +452,14 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
              mock.patch.object(self.gateway, "run_capture", return_value=
                  subprocess.CompletedProcess(
                      ["git"], 0, "https://github.com/ericson-j-santos/noteri-runtime.git\n", "")), \
+             mock.patch.object(__import__("scripts.noteri_session_provenance",
+                                fromlist=["verify_launcher_and_lock"]),
+                               "verify_launcher_and_lock",
+                               return_value={"state_validated": True,
+                                             "session_launch_ok": True,
+                                             "exclusive_lease": True,
+                                             "session_snapshot_sha256": "a" * 64,
+                                             "policy_sha256": "b" * 64}), \
              mock.patch.object(m, "bind_once", return_value={"PATH": "untrusted"}):
             with self.assertRaisesRegex(self.gateway.GatewayError,
                                          "BINDING_RESULT_INVALID"):
