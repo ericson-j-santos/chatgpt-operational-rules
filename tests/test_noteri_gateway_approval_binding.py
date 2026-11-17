@@ -263,6 +263,55 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
                                      "PLAN_ARGUMENTS_INVALID"):
             self.call(args=args, risk=1)
 
+    def test_plan_does_not_require_installed_approval_module(self):
+        import builtins
+        importer = builtins.__import__
+        def deny_binding_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if (name == "scripts" and "noteri_gateway_approval_binding" in fromlist):
+                raise AssertionError("Risk1 plan attempted to load Risk2 binding")
+            return importer(name, globals, locals, fromlist, level)
+        with mock.patch("builtins.__import__", side_effect=deny_binding_import):
+            env = self.call(args=self.args[:6], risk=1)
+        self.assertNotIn(m.ENVIRONMENT_VARIABLE, env)
+
+    def test_other_gateway_child_cannot_inherit_maintenance_approval_flag(self):
+        import contextlib
+        import os
+        import subprocess
+        from pathlib import Path
+        g = self.gateway
+        state = g.GitState(
+            repo_root=str(self.cwd), branch="DETACHED",
+            head=m.MAINTENANCE_SHA, status_digest="0" * 64, status_count=0,
+        )
+        @contextlib.contextmanager
+        def lock(*args, **kwargs):
+            yield Path(self.cwd) / "synthetic-only-lock"
+        @contextlib.contextmanager
+        def anchored(*args, **kwargs):
+            yield str(self.cwd), {}
+        with mock.patch.object(g, "canonical_existing_directory", return_value=self.cwd), \
+             mock.patch.object(g, "assert_allowed_path"), \
+             mock.patch.object(g, "validate_command"), \
+             mock.patch.object(g, "assert_safe_gui_automation"), \
+             mock.patch.object(g, "git_state", return_value=state), \
+             mock.patch.object(g, "repository_lock", side_effect=lock), \
+             mock.patch.object(g, "anchored_subprocess_cwd", side_effect=anchored), \
+             mock.patch.object(g, "append_event"), \
+             mock.patch.object(g, "emit_json"), \
+             mock.patch.object(g.subprocess, "run", return_value=
+                 subprocess.CompletedProcess(["python"], 0, "", "")) as spawn, \
+             mock.patch.dict(os.environ, {m.ENVIRONMENT_VARIABLE: m.MAINTENANCE_SHA}):
+            code = g.execute(
+                cwd=self.cwd, policy={"max_timeout_seconds": 10},
+                args=["python", "scripts/unrelated.py"], risk=1,
+                timeout=5, expected_head=None, allow_dirty=False,
+                allow_head_change=False, correlation_id="synthetic-only",
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(spawn.call_count, 1)
+        self.assertNotIn(m.ENVIRONMENT_VARIABLE, spawn.call_args.kwargs["env"])
+
     def test_apply_disabled_prevents_any_external_approval_lookup(self):
         with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
             with self.assertRaisesRegex(self.gateway.GatewayError, "CAPABILITY_DISABLED"):
