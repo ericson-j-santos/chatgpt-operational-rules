@@ -6,6 +6,7 @@ on:
       - feat/issue219-builder-manifest-staging-20261116
     paths:
       - scripts/generate_manifest.py
+      - scripts/builder_manifest_stage.py
       - tests/test_generate_manifest_builder.py
       - MANIFEST.json
       - .github/workflows/issue219-manifest-prepr.yml
@@ -44,6 +45,7 @@ jobs:
               '.github/workflows/issue219-manifest-prepr.yml',
               'MANIFEST.json',
               'scripts/generate_manifest.py',
+              'scripts/builder_manifest_stage.py',
               'tests/test_generate_manifest_builder.py',
           }
           changed = set(subprocess.check_output(

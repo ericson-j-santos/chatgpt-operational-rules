@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[1] / 'scripts/generate_manifest.py'
+WRAPPER = SOURCE.with_name('builder_manifest_stage.py')
 
 
 class ManifestBuilderStageTests(unittest.TestCase):
@@ -20,6 +21,7 @@ class ManifestBuilderStageTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / 'scripts').mkdir()
         shutil.copyfile(SOURCE, self.root / 'scripts/generate_manifest.py')
+        shutil.copyfile(WRAPPER, self.root / 'scripts/builder_manifest_stage.py')
         (self.root / 'scripts/validate_rules.py').write_text(
             'REQUIRED_PATHS = set()\n'
             'if __name__ == "__main__":\n'
@@ -45,6 +47,12 @@ class ManifestBuilderStageTests(unittest.TestCase):
 
     def builder(self):
         return subprocess.run([sys.executable, str(self.root/'scripts/generate_manifest.py'),'--stage-for-builder'], cwd=self.root, text=True, capture_output=True)
+
+    def wrapper(self, *extra_args):
+        return subprocess.run(
+            [sys.executable, str(self.root/'scripts/builder_manifest_stage.py'), *extra_args],
+            cwd=self.root, text=True, capture_output=True,
+        )
 
     def test_source_and_manifest_staged_in_one_index(self):
         (self.root/'code.py').write_text('print("b")\n')
@@ -126,6 +134,41 @@ class ManifestBuilderStageTests(unittest.TestCase):
         run = self.builder()
         self.assertNotEqual(run.returncode,0)
         self.assertIn('BUILDER_MANIFEST_VALIDATION_FAILED',run.stderr)
+        self.assertNotIn('MANIFEST.json',self.git('diff','--cached','--name-only').stdout)
+
+
+    def test_pinned_wrapper_stages_manifest_with_existing_two_arg_python_contract(self):
+        (self.root/'code.py').write_text('print("b")\n')
+        self.git('add','code.py')
+        run=self.wrapper()
+        self.assertEqual(run.returncode,0,run.stderr)
+        self.assertIn('BUILDER_MANIFEST_STAGED',run.stdout)
+        self.assertEqual(set(self.git('diff','--cached','--name-only').stdout.splitlines()),
+                         {'code.py','MANIFEST.json'})
+        self.assertEqual((self.root/'MANIFEST.json').read_bytes(),
+                         self.git('show',':MANIFEST.json').stdout.encode())
+
+    def test_pinned_wrapper_rejects_caller_arguments_before_mutation(self):
+        (self.root/'code.py').write_text('print("b")\n')
+        self.git('add','code.py')
+        previous=(self.root/'MANIFEST.json').read_bytes()
+        run=self.wrapper('--mode','apply')
+        self.assertNotEqual(run.returncode,0)
+        self.assertIn('BUILDER_MANIFEST_ARGUMENTS_FORBIDDEN',run.stderr)
+        self.assertEqual(previous,(self.root/'MANIFEST.json').read_bytes())
+        self.assertNotIn('MANIFEST.json',self.git('diff','--cached','--name-only').stdout)
+
+    def test_pinned_wrapper_rejects_changed_generator_even_if_staged(self):
+        (self.root/'code.py').write_text('print("b")\n')
+        (self.root/'scripts/generate_manifest.py').write_text(
+            (self.root/'scripts/generate_manifest.py').read_text()+'# change\n'
+        )
+        self.git('add','code.py','scripts/generate_manifest.py')
+        previous=(self.root/'MANIFEST.json').read_bytes()
+        run=self.wrapper()
+        self.assertNotEqual(run.returncode,0)
+        self.assertIn('BUILDER_MANIFEST_SOURCE_HASH_MISMATCH',run.stderr)
+        self.assertEqual(previous,(self.root/'MANIFEST.json').read_bytes())
         self.assertNotIn('MANIFEST.json',self.git('diff','--cached','--name-only').stdout)
 
 
