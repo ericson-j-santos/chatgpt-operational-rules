@@ -80,8 +80,8 @@ def validar_evidencia(
         if (run.get("id") != run_id or repo.get("full_name") != REPOSITORIO or
             run.get("event") != "workflow_dispatch" or run.get("path") != WORKFLOW or
             run.get("head_branch") != "main" or run.get("head_sha") != sha_workflow_instalado or
-            run.get("run_attempt") != 1 or run.get("status") != "in_progress" or
-            run.get("conclusion") is not None or
+            run.get("run_attempt") != 1 or run.get("status") != "completed" or
+            run.get("conclusion") != "success" or
             actor.get("id") != USUARIO_PROPRIETARIO_ID):
             raise RecusaDeAutorizacao("identidade_da_execucao_divergente")
         now = agora or datetime.now(timezone.utc)
