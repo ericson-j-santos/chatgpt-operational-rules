@@ -42,6 +42,9 @@ jobs:
               "MANIFEST.json",
               "scripts/noteri_environment_admin_once.py",
               "scripts/noteri_github_review_readonly.py",
+              "scripts/noteri_gateway_approval_binding.py",
+              "scripts/command_gateway.py",
+              "tests/test_noteri_gateway_approval_binding.py",
               "tests/test_noteri_environment_admin_once.py",
               "tests/test_noteri_github_review_readonly.py",
           }
@@ -54,6 +57,6 @@ jobs:
           print("ISSUE217_SCOPE_OK", len(changed))
           PY
       - name: Mandatory authorisation safety tests
-        run: python3 -m unittest -v tests/test_noteri_environment_admin_once.py tests/test_noteri_github_review_readonly.py
+        run: python3 -m unittest -v tests/test_noteri_environment_admin_once.py tests/test_noteri_github_review_readonly.py tests/test_noteri_gateway_approval_binding.py
       - name: Manifest checks and negative controls
         run: python3 scripts/validate_rules.py --self-test
