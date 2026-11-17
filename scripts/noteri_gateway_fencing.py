@@ -12,6 +12,7 @@ import os
 import re
 import secrets
 import socket
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,12 @@ HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 
 class FencingBlocked(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class LocalFence:
+    sequence: int
+    nonce: str
 
 
 def _local_host() -> bool:
@@ -76,7 +83,7 @@ def _owned_lock(policy: dict[str, Any], lock_path: Path, cwd: Path,
 
 def issue_local_token(*, policy: dict[str, Any], gateway_lock_path: Path,
                       cwd: Path, correlation_id: str, session_id: str,
-                      snapshot_sha256: str) -> int:
+                      snapshot_sha256: str) -> LocalFence:
     """Consume a persistent target-wide claim and increase the saved counter.
 
     Only call after a validated Gateway session and under its exclusive repo
@@ -125,7 +132,7 @@ def issue_local_token(*, policy: dict[str, Any], gateway_lock_path: Path,
             raise FencingBlocked("fence_counter_readback_mismatch")
         if json.loads(gateway.read_state_text(policy, active)) != claim:
             raise FencingBlocked("fence_claim_changed")
-        return next_sequence
+        return LocalFence(next_sequence, claim["nonce"])
     except (OSError, ValueError, gateway.GatewayError) as exc:
         raise FencingBlocked("fence_write_or_readback_failed") from exc
 
