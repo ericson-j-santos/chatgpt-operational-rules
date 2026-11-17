@@ -60,7 +60,7 @@ def _read_counter(policy: dict[str, Any], path: Path, host: str) -> int:
     if (not isinstance(data, dict) or set(data) !=
             {"kind", "target", "host", "sequence", "sha256"}
         or type(data.get("sequence")) is not int
-        or not 0 <= data["sequence"] < MAX_SEQUENCE
+        or not 0 <= data["sequence"] <= MAX_SEQUENCE
         or data != _counter(data["sequence"], host)):
         raise FencingBlocked("fence_counter_invalid")
     return data["sequence"]
@@ -106,7 +106,8 @@ def issue_local_token(*, policy: dict[str, Any], gateway_lock_path: Path,
     counter_path = gateway.secure_state_path(policy, DIR, COUNTER)
 
     # Preflight first: missing state must not poison the active claim.
-    _read_counter(policy, counter_path, host)
+    if _read_counter(policy, counter_path, host) >= MAX_SEQUENCE:
+        raise FencingBlocked("fence_counter_exhausted")
     claim = {
         "kind": KIND, "target": TARGET, "host": host,
         "pid": os.getpid(), "session_id": session_id,
@@ -124,6 +125,8 @@ def issue_local_token(*, policy: dict[str, Any], gateway_lock_path: Path,
         if json.loads(gateway.read_state_text(policy, active)) != claim:
             raise FencingBlocked("fence_claim_readback_mismatch")
         current = _read_counter(policy, counter_path, host)
+        if current >= MAX_SEQUENCE:
+            raise FencingBlocked("fence_counter_exhausted")
         next_sequence = current + 1
         gateway.atomic_write_state_text(
             policy, counter_path, _serial(_counter(next_sequence, host))
