@@ -97,7 +97,9 @@ def verify_launcher_and_lock(*, policy: dict[str, Any], reservation: dict[str, A
             item = json.loads(line)
         except (ValueError, TypeError) as exc:
             raise ProvenanceBlocked("launcher_event_log_corrupt") from exc
-        if not isinstance(item, dict) or item.get("action") != "session_launcher":
+        if not isinstance(item, dict):
+            raise ProvenanceBlocked("launcher_event_log_corrupt")
+        if item.get("action") != "session_launcher":
             continue
         if item.get("session_id") != session_id:
             continue
