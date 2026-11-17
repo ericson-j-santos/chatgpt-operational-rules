@@ -92,6 +92,8 @@ jobs:
         run: python scripts/validate_rules.py --self-test
       - name: Validate feature/repair gate and native PostgreSQL CI contracts
         run: python -m unittest -v tests/test_feature_pr_admission.py tests/test_native_postgres_ci_contract.py
+      - name: Run Noteri GitHub approval provenance and environment admin tests
+        run: python -m unittest -v tests/test_noteri_github_review_readonly.py tests/test_noteri_environment_admin_once.py
       - name: Run one-time host power exception tests
         run: python -m unittest -v tests/test_owner_host_power_once.py
       - name: Run one-time remote host power exception tests
