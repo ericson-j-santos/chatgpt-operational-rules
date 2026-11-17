@@ -1,14 +1,9 @@
 name: Noteri Environment Protection — One Target Only
 
 # Changes GitHub repository settings, NEVER the physical Noteri.
-# Auto-apply only after an owner-merged change to this exact automation
-# reaches protected main. Manual invocations default to read-only plan.
+# Administrative changes are NEVER triggered by a push or merge.
+# A separate owner-authenticated manual dispatch is required; plan is default.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/noteri_environment_admin_once.py'
-      - '.github/workflows/noteri-environment-protection.yml'
   workflow_dispatch:
     inputs:
       mode:
@@ -72,19 +67,15 @@ jobs:
             echo 'NOTERI_ENV_SOURCE_SHA_MISMATCH' >&2
             exit 20
           fi
-          if [[ "$GITHUB_EVENT_NAME" == 'push' ]]; then
-            mode='apply'
-            confirm='CONFIGURE-NOTERI-REVIEW-ONLY-DEV'
-          elif [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
-            if [[ "$REQUESTED_SHA" != "$EXPECTED_SHA" ]]; then
-              echo 'NOTERI_ENV_DISPATCH_SHA_MISMATCH' >&2
-              exit 20
-            fi
-            mode="$REQUESTED_MODE"
-            confirm="$REQUESTED_CONFIRM"
-          else
-            echo 'NOTERI_ENV_EVENT_NOT_ALLOWED' >&2
+          if [[ "$GITHUB_EVENT_NAME" != 'workflow_dispatch' ]]; then
+            echo 'NOTERI_ENV_MANUAL_DISPATCH_REQUIRED' >&2
             exit 20
           fi
+          if [[ "$REQUESTED_SHA" != "$EXPECTED_SHA" ]]; then
+            echo 'NOTERI_ENV_DISPATCH_SHA_MISMATCH' >&2
+            exit 20
+          fi
+          mode="$REQUESTED_MODE"
+          confirm="$REQUESTED_CONFIRM"
           python3 -B scripts/noteri_environment_admin_once.py \
             --mode "$mode" --expected-rules-sha "$EXPECTED_SHA" --confirm "$confirm"
