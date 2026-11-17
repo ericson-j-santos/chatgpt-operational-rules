@@ -19,8 +19,8 @@
     },
     {
       "path": ".github/workflows/noteri-environment-protection.yml",
-      "sha256": "c9e9a946814cc922bf193417b5d017f7f225b48c5fdf7f4e7a9fa5fd06e75169",
-      "size": 3162
+      "sha256": "a72423cef4b5279a1fb6f0301322179c74f650e4c6cd3912507d09b3a656e70e",
+      "size": 2851
     },
     {
       "path": ".github/workflows/powerplatform-alm-official-monitor.yml",
@@ -469,8 +469,8 @@
     },
     {
       "path": "scripts/noteri_environment_admin_once.py",
-      "sha256": "2bfa0bd5db49469388293ca72ac58f2ec2ac7b538d76c617dfc713dde82ece30",
-      "size": 11271
+      "sha256": "1cad4859858bf9d6e2040ae82aeb7fcb80b4ea89ec476ecf53a4b2871fdd0ab8",
+      "size": 11257
     },
     {
       "path": "scripts/noteri_gateway_legacy_v1_rebaseline.py",
@@ -979,8 +979,8 @@
     },
     {
       "path": "tests/test_noteri_environment_admin_once.py",
-      "sha256": "4f407c03c81b9c18bf9a17f9175b45a60e1a27ef52e3ca5e4918729163b88832",
-      "size": 10042
+      "sha256": "06213d1322d4949951f577fa9fe3bc7198213de003310ac061bdbd87d6e8d099",
+      "size": 10611
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
