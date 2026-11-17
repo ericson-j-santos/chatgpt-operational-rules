@@ -54,8 +54,8 @@
     },
     {
       "path": ".github/workflows/validate-rules.yml",
-      "sha256": "1e6b4dd01f4bf3c3b1a0813a48a7ee25d8b0587b2ee51e8588bf35dedace0677",
-      "size": 21294
+      "sha256": "ad029ad6fffe377f506a9d557cbfe12ddb5556f2d6cf88c10d52a091d2e3b037",
+      "size": 21497
     },
     {
       "path": ".gitignore",
