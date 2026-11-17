@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T02:00:00Z",
+  "generated_at": "2026-11-17T01:46:59.796Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -349,8 +349,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "fb1c0a76144a6def7e136a3ecce707f75c2407736b0f4775109564cc9846c7e5",
-      "size": 81871
+      "sha256": "2946db13ea6ce8da6cf0dac5b80d258cf74e9edd54baf7fc5689b750ab35367f",
+      "size": 82220
     },
     {
       "path": "scripts/configure_pc24x7_gitlab_webhook.py",
@@ -994,8 +994,8 @@
     },
     {
       "path": "tests/test_noteri_gateway_approval_binding.py",
-      "sha256": "e4599425b19fe099e85b5070422bc186869d248e99464c8a8d09b01d61606cbc",
-      "size": 14761
+      "sha256": "8353484607aec28bc1d34cb09fd4f4e9073a397e3c1d34a1c0d3a22e1578bb0a",
+      "size": 16181
     },
     {
       "path": "tests/test_noteri_gateway_legacy_v1_rebaseline.py",
