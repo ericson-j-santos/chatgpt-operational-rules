@@ -7,7 +7,11 @@ on:
     paths:
       - scripts/generate_manifest.py
       - scripts/builder_manifest_stage.py
+      - scripts/rules219_model_propose.py
+      - scripts/rules219_model_apply.py
+      - scripts/rules219_validator.py
       - tests/test_generate_manifest_builder.py
+      - tests/test_rules219_native_scripts.py
       - MANIFEST.json
       - .github/workflows/issue219-manifest-prepr.yml
 
@@ -46,7 +50,11 @@ jobs:
               'MANIFEST.json',
               'scripts/generate_manifest.py',
               'scripts/builder_manifest_stage.py',
+              'scripts/rules219_model_propose.py',
+              'scripts/rules219_model_apply.py',
+              'scripts/rules219_validator.py',
               'tests/test_generate_manifest_builder.py',
+              'tests/test_rules219_native_scripts.py',
           }
           changed = set(subprocess.check_output(
               ['git', 'diff', '--name-only',
@@ -59,5 +67,7 @@ jobs:
           PY
       - name: Exercise Builder staging, negative controls and replay
         run: python3 -B -m unittest -v tests/test_generate_manifest_builder.py
+      - name: Exercise fixed Qwen scripts without real network and validate isolated Git E2E
+        run: python3 -B -m unittest -v tests/test_rules219_native_scripts.py
       - name: Verify hashes and independent negative controls
         run: python3 -B scripts/validate_rules.py --self-test
