@@ -1609,6 +1609,110 @@ def inspect(cwd: Path, policy: dict[str, Any], correlation_id: str, session_id: 
     return 0
 
 
+
+def noteri_inplace_maintenance_spawn_environment(
+    *, args: Sequence[str], cwd: Path, policy: dict[str, Any], risk: int,
+    session_id: str | None, correlation_id: str, before: GitState,
+    expected_head: str | None, allow_dirty: bool, allow_head_change: bool,
+) -> dict[str, str] | None:
+    """Only exact Noteri Worker Pool maintenance is eligible for typed env.
+
+    Called inside the Gateway's repository lock.  Never trust an inherited
+    APPROVED_SHA or requester-supplied GitHub run, privilege or cost flag.
+    The capability remains disabled unless independently installed and
+    approved with a pinned policy and authenticated GitHub review.
+    """
+    marker = "noteri_worker_pool_inplace_maintenance"
+    if not any(marker in str(item).casefold() for item in args):
+        return None
+    child = dict(os.environ)
+    for key in (
+        "NOTERI_POOL_MAINTENANCE_APPROVED_SHA",
+        "NOTERI_APPROVAL_READ_TOKEN",
+        "REPOSITORY_GOVERNANCE_TOKEN",
+    ):
+        child.pop(key, None)
+    script = python_script_path(args, cwd)
+    expected_script = cwd / "scripts" / "noteri_worker_pool_inplace_maintenance.py"
+    if (script is None or lexical_norm(script) != lexical_norm(expected_script)
+            or len(args) != 8):
+        raise GatewayError("NOTERI_APPROVAL_EXACT_COMMAND_REQUIRED")
+    if not expected_script.is_file() or expected_script.is_symlink():
+        raise GatewayError("NOTERI_APPROVAL_SOURCE_NOT_VERIFIED")
+    # Fixed options only; no free command, environment or alternate script.
+    try:
+        from scripts import noteri_gateway_approval_binding as binding
+    except ImportError as exc:
+        raise GatewayError("NOTERI_APPROVAL_BINDING_UNAVAILABLE") from exc
+    mode = args[3] if args[2] == "--mode" else None
+    if (args[4] != "--expected-head" or args[5] != binding.MAINTENANCE_SHA
+            or args[6] != "--confirm" or args[7] != binding.CONFIRM
+            or mode not in {"plan", "apply"}):
+        raise GatewayError("NOTERI_APPROVAL_EXACT_ARGUMENTS_REQUIRED")
+    if (expected_head != binding.MAINTENANCE_SHA
+            or before.head != binding.MAINTENANCE_SHA
+            or before.status_count != 0
+            or allow_dirty or allow_head_change):
+        raise GatewayError("NOTERI_APPROVAL_GIT_STATE_MISMATCH")
+    if mode == "plan":
+        if risk != 1:
+            raise GatewayError("NOTERI_PLAN_RISK1_REQUIRED")
+        return child
+    if risk != 2 or not session_id:
+        raise GatewayError("NOTERI_APPLY_RISK2_SESSION_REQUIRED")
+    if policy.get(binding.POLICY_FLAG) is not True:
+        raise GatewayError("NOTERI_APPROVAL_CAPABILITY_DISABLED")
+    # Re-validate the session under the existing exclusive repository lock.
+    reservation = enforce_session(policy, session_id, cwd, risk)
+    snapshot = validate_session_snapshot(policy, session_id, reservation)
+    if not isinstance(snapshot, dict) or not policy.get("require_preflight_snapshot"):
+        raise GatewayError("NOTERI_APPROVAL_SESSION_SNAPSHOT_REQUIRED")
+    source = run_capture(["git", "remote", "get-url", "origin"], cwd, timeout=15)
+    if (source.returncode != 0 or source.stderr.strip()
+            or source.stdout.strip() not in {
+                "https://github.com/ericson-j-santos/noteri-runtime",
+                "https://github.com/ericson-j-santos/noteri-runtime.git",
+            }):
+        raise GatewayError("NOTERI_APPROVAL_SOURCE_REPO_MISMATCH")
+    # This digest identifies the loaded policy; the install gate must compare
+    # it with the independently approved and read-back installed policy.
+    policy_digest = hashlib.sha256(
+        json.dumps(policy, ensure_ascii=True, sort_keys=True,
+                   separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    fencing = reservation.get("fencing_token")
+    facts = binding.TrustedGatewayFacts(
+        session_id=session_id,
+        correlation_id=correlation_id,
+        source_repo=binding.REPOSITORY,
+        expected_head=before.head,
+        task_name=binding.TASK,
+        risk=risk, mode=mode, command_confirm=binding.CONFIRM,
+        state_validated=snapshot.get("state_validated") is True,
+        session_launch_ok=snapshot.get("session_launch_ok") is True,
+        clean_worktree=True,
+        exclusive_lease=reservation.get("status") == "materialized",
+        fencing_token=fencing if type(fencing) is int else 0,
+        session_snapshot_sha256=str(snapshot.get("snapshot_sha256", "")),
+        policy_sha256=policy_digest,
+        zero_incremental_cost_verified=snapshot.get("zero_incremental_cost_verified") is True,
+    )
+    try:
+        typed = binding.bind_once(
+            facts=facts, policy=policy,
+            workflow_run_id=policy.get("noteri_approval_run_id"),
+            workflow_sha=policy.get("noteri_approval_workflow_sha", ""),
+            github_token=os.environ.get("NOTERI_APPROVAL_READ_TOKEN", ""),
+        )
+    except binding.BindingBlocked as exc:
+        # No credentials or raw review body may appear in the Gateway log.
+        raise GatewayError("NOTERI_APPROVAL_NOT_ATTESTED:" + str(exc)) from None
+    if typed != {"NOTERI_POOL_MAINTENANCE_APPROVED_SHA": binding.MAINTENANCE_SHA}:
+        raise GatewayError("NOTERI_APPROVAL_BINDING_RESULT_INVALID")
+    child.update(typed)
+    return child
+
+
 def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             timeout: int, expected_head: str | None, allow_dirty: bool,
             allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
@@ -1641,6 +1745,15 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
                 EXIT_STATE_CHANGED,
             )
         with anchored_subprocess_cwd(spawn_cwd) as (anchored_cwd, spawn_options):
+            noteri_env = noteri_inplace_maintenance_spawn_environment(
+                args=args, cwd=cwd, policy=policy, risk=risk,
+                session_id=session_id, correlation_id=correlation_id,
+                before=before, expected_head=expected_head,
+                allow_dirty=allow_dirty, allow_head_change=allow_head_change,
+            )
+            if noteri_env is not None:
+                spawn_options = dict(spawn_options)
+                spawn_options["env"] = noteri_env
             try:
                 if wsl_running_status:
                     # The trusted helper only executes --list --running --quiet,
