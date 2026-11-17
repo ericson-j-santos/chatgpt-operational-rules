@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T02:22:08.144Z",
+  "generated_at": "2026-11-17T02:23:32.488Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -11,6 +11,11 @@
       "path": ".github/workflows/data-analytics-weekly-radar.yml",
       "sha256": "ea1b48ef28d64bcdd06bf4ee37deb32af931be593e21e0c7abbe0bd646e0eb92",
       "size": 4286
+    },
+    {
+      "path": ".github/workflows/issue219-manifest-prepr.yml",
+      "sha256": "a108d03b062f05e07adb941cb60ef08dbb66ff191d2836ff421105a2169de53b",
+      "size": 2153
     },
     {
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",

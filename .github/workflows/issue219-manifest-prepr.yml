@@ -1,0 +1,60 @@
+name: Issue 219 Builder manifest pre-PR (read-only)
+
+on:
+  push:
+    branches:
+      - feat/issue219-builder-manifest-staging-20261116
+    paths:
+      - scripts/generate_manifest.py
+      - tests/test_generate_manifest_builder.py
+      - MANIFEST.json
+      - .github/workflows/issue219-manifest-prepr.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue219-manifest-prepr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-builder-manifest:
+    if: github.repository == 'ericson-j-santos/chatgpt-operational-rules'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact revision without credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify source SHA, ancestry and exact change scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = 'refs/heads/feat/issue219-builder-manifest-staging-20261116'
+          git merge-base --is-ancestor 58dcd4200f412a866278027ba9e433439a03f3b3 "$GITHUB_SHA"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/issue219-manifest-prepr.yml',
+              'MANIFEST.json',
+              'scripts/generate_manifest.py',
+              'tests/test_generate_manifest_builder.py',
+          }
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only',
+               '58dcd4200f412a866278027ba9e433439a03f3b3', 'HEAD'],
+              text=True,
+          ).splitlines())
+          if changed != expected:
+              raise SystemExit('ISSUE219_SCOPE_MISMATCH')
+          print('ISSUE219_SCOPE_OK', len(changed))
+          PY
+      - name: Exercise Builder staging, negative controls and replay
+        run: python3 -B -m unittest -v tests/test_generate_manifest_builder.py
+      - name: Verify hashes and independent negative controls
+        run: python3 -B scripts/validate_rules.py --self-test
