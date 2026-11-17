@@ -1614,6 +1614,7 @@ def noteri_inplace_maintenance_spawn_environment(
     *, args: Sequence[str], cwd: Path, policy: dict[str, Any], risk: int,
     session_id: str | None, correlation_id: str, before: GitState,
     expected_head: str | None, allow_dirty: bool, allow_head_change: bool,
+    lock_path: Path | None = None, policy_file_sha256: str | None = None,
 ) -> dict[str, str] | None:
     """Only exact Noteri Worker Pool maintenance is eligible for typed env.
 
@@ -1674,6 +1675,21 @@ def noteri_inplace_maintenance_spawn_environment(
     snapshot = validate_session_snapshot(policy, session_id, reservation)
     if not isinstance(snapshot, dict) or not policy.get("require_preflight_snapshot"):
         raise GatewayError("NOTERI_APPROVAL_SESSION_SNAPSHOT_REQUIRED")
+    # The original preflight does not contain session_launch_ok. Join the
+    # existing durable Session Launcher event with this exact session,
+    # checkpoint, installed policy/source and the active Gateway lock.
+    if lock_path is None or policy_file_sha256 is None:
+        raise GatewayError("NOTERI_SESSION_TRUSTED_INPUT_MISSING")
+    try:
+        from scripts import noteri_session_provenance as provenance
+        session_proof = provenance.verify_launcher_and_lock(
+            policy=policy, reservation=reservation, snapshot=snapshot,
+            lock_path=lock_path, cwd=cwd, expected_head=before.head,
+            session_id=session_id, correlation_id=correlation_id,
+            policy_file_sha256=policy_file_sha256,
+        )
+    except provenance.ProvenanceBlocked as exc:
+        raise GatewayError("NOTERI_SESSION_PROVENANCE_BLOCKED:" + str(exc)) from None
     source = run_capture(["git", "remote", "get-url", "origin"], cwd, timeout=15)
     if (source.returncode != 0 or source.stderr.strip()
             or source.stdout.strip() not in {
@@ -1681,13 +1697,10 @@ def noteri_inplace_maintenance_spawn_environment(
                 "https://github.com/ericson-j-santos/noteri-runtime.git",
             }):
         raise GatewayError("NOTERI_APPROVAL_SOURCE_REPO_MISMATCH")
-    # This digest identifies the loaded policy; the install gate must compare
-    # it with the independently approved and read-back installed policy.
-    policy_digest = hashlib.sha256(
-        json.dumps(policy, ensure_ascii=True, sort_keys=True,
-                   separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    fencing = reservation.get("fencing_token")
+    # A local worktree reservation is NOT a distributed fencing token.
+    # The original preflight also does NOT attest incremental cost.  Neither
+    # property may be converted to True by adding a caller-supplied flag.
+    fencing = 0
     facts = binding.TrustedGatewayFacts(
         session_id=session_id,
         correlation_id=correlation_id,
@@ -1695,14 +1708,14 @@ def noteri_inplace_maintenance_spawn_environment(
         expected_head=before.head,
         task_name=binding.TASK,
         risk=risk, mode=mode, command_confirm=binding.CONFIRM,
-        state_validated=snapshot.get("state_validated") is True,
-        session_launch_ok=snapshot.get("session_launch_ok") is True,
+        state_validated=session_proof.get("state_validated") is True,
+        session_launch_ok=session_proof.get("session_launch_ok") is True,
         clean_worktree=True,
-        exclusive_lease=reservation.get("status") == "materialized",
-        fencing_token=fencing if type(fencing) is int else 0,
-        session_snapshot_sha256=str(snapshot.get("snapshot_sha256", "")),
-        policy_sha256=policy_digest,
-        zero_incremental_cost_verified=snapshot.get("zero_incremental_cost_verified") is True,
+        exclusive_lease=session_proof.get("exclusive_lease") is True,
+        fencing_token=fencing,
+        session_snapshot_sha256=str(session_proof.get("session_snapshot_sha256", "")),
+        policy_sha256=str(session_proof.get("policy_sha256", "")),
+        zero_incremental_cost_verified=False,
     )
     try:
         typed = binding.bind_once(
@@ -1722,7 +1735,8 @@ def noteri_inplace_maintenance_spawn_environment(
 
 def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             timeout: int, expected_head: str | None, allow_dirty: bool,
-            allow_head_change: bool, correlation_id: str, session_id: str | None = None) -> int:
+            allow_head_change: bool, correlation_id: str, session_id: str | None = None,
+            policy_file_sha256: str | None = None) -> int:
     cwd = canonical_existing_directory(cwd)
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy, cwd)
@@ -1741,7 +1755,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
         raise GatewayError("risco 2 exige árvore limpa; use allow-dirty somente com autorização explícita")
 
     started = time.monotonic()
-    with repository_lock(before, policy, correlation_id):
+    with repository_lock(before, policy, correlation_id) as active_lock:
         locked_state = git_state(cwd, True, policy)
         if locked_state != before:
             raise GatewayError("estado mudou antes da execução; possível concorrência", EXIT_STATE_CHANGED)
@@ -1757,6 +1771,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
                 session_id=session_id, correlation_id=correlation_id,
                 before=before, expected_head=expected_head,
                 allow_dirty=allow_dirty, allow_head_change=allow_head_change,
+                lock_path=active_lock, policy_file_sha256=policy_file_sha256,
             )
             # All Gateway subprocesses discard caller-supplied approval.
             # Only a verified exact Risk2 maintenance call may reinsert it.
@@ -1864,6 +1879,7 @@ def main() -> int:
             timeout=ns.timeout, expected_head=ns.expected_head,
             allow_dirty=ns.allow_dirty, allow_head_change=ns.allow_head_change,
             correlation_id=correlation_id, session_id=getattr(ns, "session_id", None),
+            policy_file_sha256=sha256_file(ns.policy.resolve()),
         )
     except (GatewayError, json.JSONDecodeError, OSError) as exc:
         code = exc.exit_code if isinstance(exc, GatewayError) else EXIT_POLICY
