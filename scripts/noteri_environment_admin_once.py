@@ -160,6 +160,9 @@ def _environment_state(value: Any) -> dict[str, Any] | None:
         "ready": bypass is False and len(review) == 1
         and review[0].get("prevent_self_review") is False and is_owner,
         "bypass": bypass,
+        "reviewer_conflict": bool(review) and not is_owner,
+        "prevent_self_review_conflict": bool(review) and
+        review[0].get("prevent_self_review") is not False,
         "wait_timer": timer[0] if timer else 0,
         "deployment_branch_policy": branch,
     }
@@ -191,13 +194,17 @@ def reconcile(client: Any, *, mode: str, context: dict[str, str],
                 "execution_authorized": False}
     if confirm != CONFIRM:
         raise Blocked("apply_confirmation_missing")
+    if before is not None and before["reviewer_conflict"]:
+        raise Blocked("existing_required_reviewers_must_be_preserved")
+    if before is not None and before["prevent_self_review_conflict"]:
+        raise Blocked("existing_self_review_protection_must_be_preserved")
     payload = {
         "wait_timer": before["wait_timer"] if before else 0,
         "prevent_self_review": False,
         "reviewers": [{"type": "User", "id": OWNER_ID}],
         "deployment_branch_policy": before["deployment_branch_policy"] if before else None,
-        # This field is supported by GitHub in practice but is NOT documented
-        # in the REST input schema. Never assume it worked without GET readback.
+        # The REST input schema does not document this field; fail closed
+        # unless the subsequent independent GET confirms bypass disabled.
         "can_admins_bypass": False,
     }
     applied_status, _ = client.request("PUT", ENV_PATH, payload)
