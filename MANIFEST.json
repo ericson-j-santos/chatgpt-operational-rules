@@ -479,8 +479,8 @@
     },
     {
       "path": "scripts/noteri_github_review_readonly.py",
-      "sha256": "e99eeb1729c25d1fc81b5155097d92ffa23f067255919aef6ca13c38bb098e39",
-      "size": 8235
+      "sha256": "e7eb003fd4adcc4869515cb19576b4a83dd39298224ea243227bcbd2d349fb6d",
+      "size": 8234
     },
     {
       "path": "scripts/noteri_state_dir_inventory.py",
@@ -989,8 +989,8 @@
     },
     {
       "path": "tests/test_noteri_github_review_readonly.py",
-      "sha256": "d7fcae17cd675eaa6923416f402bc6d7594dfaf6d2c5ba53a4fa5a1ae377c3d9",
-      "size": 5508
+      "sha256": "b1230622701a1dc1f67aac17c90b8fd340501b94f543b5aa12b0cff012f1a3a7",
+      "size": 6325
     },
     {
       "path": "tests/test_noteri_state_dir_inventory.py",
