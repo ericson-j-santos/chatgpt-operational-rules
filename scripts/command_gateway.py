@@ -1639,21 +1639,20 @@ def noteri_inplace_maintenance_spawn_environment(
         raise GatewayError("NOTERI_APPROVAL_EXACT_COMMAND_REQUIRED")
     if not expected_script.is_file() or expected_script.is_symlink():
         raise GatewayError("NOTERI_APPROVAL_SOURCE_NOT_VERIFIED")
-    # Fixed options only; no free command, environment or alternate script.
-    try:
-        from scripts import noteri_gateway_approval_binding as binding
-    except ImportError as exc:
-        raise GatewayError("NOTERI_APPROVAL_BINDING_UNAVAILABLE") from exc
+    # The read-only plan does NOT depend on a separately deployed approval
+    # module.  Only Risk2 apply requires the additional trusted capability.
+    maintenance_sha = "fd07d0742ad345efe934c7b800145765aaba6462"
+    maintenance_confirm = "MAINTAIN-EXISTING-NOTERI-WORKER-POOL-API"
     mode = args[3] if args[2] == "--mode" else None
-    if (args[4] != "--expected-head" or args[5] != binding.MAINTENANCE_SHA
+    if (args[4] != "--expected-head" or args[5] != maintenance_sha
             or mode not in {"plan", "apply"}):
         raise GatewayError("NOTERI_APPROVAL_EXACT_ARGUMENTS_REQUIRED")
-    if (mode == "apply" and (len(args) != 8 or args[6:8] != ["--confirm", binding.CONFIRM])):
+    if (mode == "apply" and (len(args) != 8 or args[6:8] != ["--confirm", maintenance_confirm])):
         raise GatewayError("NOTERI_APPROVAL_EXPLICIT_CONFIRMATION_REQUIRED")
-    if (mode == "plan" and len(args) == 8 and args[6:8] != ["--confirm", binding.CONFIRM]):
+    if (mode == "plan" and len(args) == 8 and args[6:8] != ["--confirm", maintenance_confirm]):
         raise GatewayError("NOTERI_APPROVAL_PLAN_ARGUMENTS_INVALID")
-    if (before.head != binding.MAINTENANCE_SHA
-            or (expected_head is not None and expected_head != binding.MAINTENANCE_SHA)
+    if (before.head != maintenance_sha
+            or (expected_head is not None and expected_head != maintenance_sha)
             or before.status_count != 0
             or allow_dirty or allow_head_change):
         raise GatewayError("NOTERI_APPROVAL_GIT_STATE_MISMATCH")
@@ -1661,6 +1660,10 @@ def noteri_inplace_maintenance_spawn_environment(
         if risk != 1:
             raise GatewayError("NOTERI_PLAN_RISK1_REQUIRED")
         return child
+    try:
+        from scripts import noteri_gateway_approval_binding as binding
+    except ImportError as exc:
+        raise GatewayError("NOTERI_APPROVAL_BINDING_UNAVAILABLE") from exc
     if risk != 2 or not session_id or expected_head != binding.MAINTENANCE_SHA:
         raise GatewayError("NOTERI_APPLY_RISK2_SESSION_REQUIRED")
     if policy.get(binding.POLICY_FLAG) is not True:
@@ -1754,9 +1757,14 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
                 before=before, expected_head=expected_head,
                 allow_dirty=allow_dirty, allow_head_change=allow_head_change,
             )
+            # All Gateway subprocesses discard caller-supplied approval.
+            # Only a verified exact Risk2 maintenance call may reinsert it.
+            safe_child_env = dict(os.environ)
+            safe_child_env.pop("NOTERI_POOL_MAINTENANCE_APPROVED_SHA", None)
             if noteri_env is not None:
-                spawn_options = dict(spawn_options)
-                spawn_options["env"] = noteri_env
+                safe_child_env = noteri_env
+            spawn_options = dict(spawn_options)
+            spawn_options["env"] = safe_child_env
             try:
                 if wsl_running_status:
                     # The trusted helper only executes --list --running --quiet,
