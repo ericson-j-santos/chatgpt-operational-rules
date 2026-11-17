@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T02:23:32.488Z",
+  "generated_at": "2026-11-17T02:24:30.982Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -14,8 +14,8 @@
     },
     {
       "path": ".github/workflows/issue219-manifest-prepr.yml",
-      "sha256": "a108d03b062f05e07adb941cb60ef08dbb66ff191d2836ff421105a2169de53b",
-      "size": 2153
+      "sha256": "4ae8dfa49fca6bc46bb5b7521fe41eb5b6830fd3af72e94a3b4e5d16b238b9ca",
+      "size": 2178
     },
     {
       "path": ".github/workflows/lenovo-command-gateway-bootstrap-inventory.yml",
