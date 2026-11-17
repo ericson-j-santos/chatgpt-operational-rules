@@ -193,11 +193,13 @@ class LocalFencingTests(unittest.TestCase):
         ):
             with self.subTest(props=props):
                 with self.assertRaisesRegex(fencing.FencingBlocked, "not_current_owner"):
-                    fencing.verify_active_token(
-                        policy=self.policy, sequence=lease.sequence,
-                        nonce=lease.nonce, session_id="session-a",
-                        correlation_id="run-a", **props,
-                    )
+                    fields = {
+                        "policy": self.policy, "sequence": lease.sequence,
+                        "nonce": lease.nonce, "session_id": "session-a",
+                        "correlation_id": "run-a",
+                    }
+                    fields.update(props)
+                    fencing.verify_active_token(**fields)
 
     def test_no_cli_no_auto_repair_no_cost_attestation(self):
         import inspect
