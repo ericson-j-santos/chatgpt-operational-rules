@@ -232,6 +232,37 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
                     "REPOSITORY_GOVERNANCE_TOKEN"):
             self.assertNotIn(key, env)
 
+    def test_readonly_plan_works_without_confirmation_or_outer_head(self):
+        import os
+        with mock.patch.dict(os.environ, {
+            m.ENVIRONMENT_VARIABLE: "forged",
+            "NOTERI_APPROVAL_READ_TOKEN": "untrusted",
+        }):
+            env = self.gateway.noteri_inplace_maintenance_spawn_environment(
+                args=self.args[:6],
+                cwd=self.cwd, policy=self.policy, risk=1,
+                session_id=None, correlation_id="noteri-plan-only",
+                before=self.before, expected_head=None,
+                allow_dirty=False, allow_head_change=False,
+            )
+        self.assertNotIn(m.ENVIRONMENT_VARIABLE, env)
+        self.assertNotIn("NOTERI_APPROVAL_READ_TOKEN", env)
+
+    def test_apply_without_confirm_never_dispatches(self):
+        with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                        "EXPLICIT_CONFIRMATION_REQUIRED"):
+                self.call(args=self.args[:6])
+            lookup.assert_not_called()
+
+    def test_readonly_plan_rejects_forced_confirmation(self):
+        args = self.args.copy()
+        args[3] = "plan"
+        args[7] = "untrusted"
+        with self.assertRaisesRegex(self.gateway.GatewayError,
+                                     "PLAN_ARGUMENTS_INVALID"):
+            self.call(args=args, risk=1)
+
     def test_apply_disabled_prevents_any_external_approval_lookup(self):
         with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
             with self.assertRaisesRegex(self.gateway.GatewayError, "CAPABILITY_DISABLED"):
