@@ -133,8 +133,14 @@ def issue_local_token(*, policy: dict[str, Any], gateway_lock_path: Path,
         )
         if _read_counter(policy, counter_path, host) != next_sequence:
             raise FencingBlocked("fence_counter_readback_mismatch")
-        if json.loads(gateway.read_state_text(policy, active)) != claim:
-            raise FencingBlocked("fence_claim_changed")
+        # Bind the durable claim to the issued counter value. A separate
+        # destination must read back both objects, not trust environment flags.
+        issued_claim = {**claim, "sequence": next_sequence}
+        gateway.atomic_write_state_text(
+            policy, active, _serial(issued_claim)
+        )
+        if json.loads(gateway.read_state_text(policy, active)) != issued_claim:
+            raise FencingBlocked("fence_claim_readback_mismatch")
         return LocalFence(next_sequence, claim["nonce"])
     except (OSError, ValueError, gateway.GatewayError) as exc:
         raise FencingBlocked("fence_write_or_readback_failed") from exc
@@ -162,6 +168,8 @@ def verify_active_token(*, policy: dict[str, Any], sequence: int, nonce: str,
         or claim.get("pid") != os.getpid()
         or claim.get("session_id") != session_id
         or claim.get("correlation_id") != correlation_id
+        or type(claim.get("sequence")) is not int
+        or claim.get("sequence") != sequence
         or claim.get("nonce") != nonce or current != sequence):
         raise FencingBlocked("fence_not_current_owner")
     return True
