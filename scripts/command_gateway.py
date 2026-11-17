@@ -1629,6 +1629,11 @@ def noteri_inplace_maintenance_spawn_environment(
     child = dict(os.environ)
     for key in (
         "NOTERI_POOL_MAINTENANCE_APPROVED_SHA",
+        "NOTERI_POOL_MAINTENANCE_FENCE_SEQUENCE",
+        "NOTERI_POOL_MAINTENANCE_FENCE_NONCE",
+        "NOTERI_POOL_MAINTENANCE_SESSION_ID",
+        "NOTERI_POOL_MAINTENANCE_CORRELATION_ID",
+        "NOTERI_POOL_MAINTENANCE_SNAPSHOT_SHA256",
         "NOTERI_APPROVAL_READ_TOKEN",
         "REPOSITORY_GOVERNANCE_TOKEN",
     ):
@@ -1779,8 +1784,16 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             # All Gateway subprocesses discard caller-supplied approval.
             # Only a verified exact Risk2 maintenance call may reinsert it.
             safe_child_env = dict(os.environ)
-            safe_child_env.pop("NOTERI_POOL_MAINTENANCE_APPROVED_SHA", None)
-            safe_child_env.pop("NOTERI_APPROVAL_READ_TOKEN", None)
+            for private_key in (
+                "NOTERI_POOL_MAINTENANCE_APPROVED_SHA",
+                "NOTERI_POOL_MAINTENANCE_FENCE_SEQUENCE",
+                "NOTERI_POOL_MAINTENANCE_FENCE_NONCE",
+                "NOTERI_POOL_MAINTENANCE_SESSION_ID",
+                "NOTERI_POOL_MAINTENANCE_CORRELATION_ID",
+                "NOTERI_POOL_MAINTENANCE_SNAPSHOT_SHA256",
+                "NOTERI_APPROVAL_READ_TOKEN",
+            ):
+                safe_child_env.pop(private_key, None)
             if noteri_env is not None:
                 safe_child_env = noteri_env
             spawn_options = dict(spawn_options)
