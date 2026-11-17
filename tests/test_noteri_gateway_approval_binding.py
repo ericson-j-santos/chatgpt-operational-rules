@@ -267,7 +267,7 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
         import builtins
         importer = builtins.__import__
         def deny_binding_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if (name == "scripts" and "noteri_gateway_approval_binding" in fromlist):
+            if (name == "scripts" and "noteri_gateway_approval_binding" in (fromlist or ())):
                 raise AssertionError("Risk1 plan attempted to load Risk2 binding")
             return importer(name, globals, locals, fromlist, level)
         with mock.patch("builtins.__import__", side_effect=deny_binding_import):
