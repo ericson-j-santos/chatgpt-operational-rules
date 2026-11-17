@@ -142,7 +142,7 @@ class SessionProvenanceTests(unittest.TestCase):
 
     def test_corrupt_log_fails_closed(self):
         self.events.append("not-a-dict")
-        with self.assertRaisesRegex(p.ProvenanceBlocked, "mismatch"):
+        with self.assertRaisesRegex(p.ProvenanceBlocked, "corrupt"):
             self.prove()
 
     def test_bad_snapshot_flags_block(self):
