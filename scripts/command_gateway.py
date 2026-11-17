@@ -1637,6 +1637,7 @@ def noteri_inplace_maintenance_spawn_environment(
     if (script is None or lexical_norm(script) != lexical_norm(expected_script)
             or len(args) not in {6, 8}):
         raise GatewayError("NOTERI_APPROVAL_EXACT_COMMAND_REQUIRED")
+    assert_no_link_components(expected_script, field="Noteri fixed script")
     if not expected_script.is_file() or expected_script.is_symlink():
         raise GatewayError("NOTERI_APPROVAL_SOURCE_NOT_VERIFIED")
     # The read-only plan does NOT depend on a separately deployed approval
@@ -1761,6 +1762,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
             # Only a verified exact Risk2 maintenance call may reinsert it.
             safe_child_env = dict(os.environ)
             safe_child_env.pop("NOTERI_POOL_MAINTENANCE_APPROVED_SHA", None)
+            safe_child_env.pop("NOTERI_APPROVAL_READ_TOKEN", None)
             if noteri_env is not None:
                 safe_child_env = noteri_env
             spawn_options = dict(spawn_options)
