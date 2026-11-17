@@ -240,7 +240,7 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
             "NOTERI_APPROVAL_READ_TOKEN": "untrusted",
         }):
             env = self.gateway.noteri_inplace_maintenance_spawn_environment(
-                args=self.args[:6],
+                args=[*self.args[:3], "plan", *self.args[4:6]],
                 cwd=self.cwd, policy=self.policy, risk=1,
                 session_id=None, correlation_id="noteri-plan-only",
                 before=self.before, expected_head=None,
@@ -271,8 +271,9 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
             if (name == "scripts" and "noteri_gateway_approval_binding" in (fromlist or ())):
                 raise AssertionError("Risk1 plan attempted to load Risk2 binding")
             return importer(name, globals, locals, fromlist, level)
+        plan_args = [*self.args[:3], "plan", *self.args[4:6]]
         with mock.patch("builtins.__import__", side_effect=deny_binding_import):
-            env = self.call(args=self.args[:6], risk=1)
+            env = self.call(args=plan_args, risk=1)
         self.assertNotIn(m.ENVIRONMENT_VARIABLE, env)
 
     def test_fixed_script_parent_symlink_blocks_before_approval(self):
@@ -375,8 +376,28 @@ class GatewayIntegratedHandoffTests(unittest.TestCase):
             lookup.assert_not_called()
 
     def test_risk2_requires_launcher_lock_and_policy_digest(self):
+        # Reach the trusted-input gate only after authentic bootstrap checks.
+        with mock.patch.object(self.gateway, "enforce_session",
+                               return_value={"status": "materialized"}), \
+             mock.patch.object(self.gateway, "validate_session_snapshot",
+                               return_value={"snapshot_sha256": "a" * 64}), \
+             mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                        "NOTERI_SESSION_TRUSTED_INPUT_MISSING"):
+                self.gateway.noteri_inplace_maintenance_spawn_environment(
+                    args=self.args, cwd=self.cwd, policy=self.policy, risk=2,
+                    session_id="noteri-session-01",
+                    correlation_id="noteri-approval-01", before=self.before,
+                    expected_head=m.MAINTENANCE_SHA, allow_dirty=False,
+                    allow_head_change=False,
+                )
+            lookup.assert_not_called()
+
+    def test_risk2_rejects_missing_bootstrap_before_trusted_inputs(self):
+        # Missing preflight must fail before checking lock, policy or GitHub.
         with mock.patch.object(m.review, "consultar_evidencia_github") as lookup:
-            with self.assertRaisesRegex(self.gateway.GatewayError, "TRUSTED_INPUT_MISSING"):
+            with self.assertRaisesRegex(self.gateway.GatewayError,
+                                        "BOOTSTRAP_REQUIRED"):
                 self.gateway.noteri_inplace_maintenance_spawn_environment(
                     args=self.args, cwd=self.cwd, policy=self.policy, risk=2,
                     session_id="noteri-session-01",
