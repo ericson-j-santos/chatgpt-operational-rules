@@ -195,6 +195,20 @@ class NoteriEnvironmentGuardTests(unittest.TestCase):
             run(api)
         self.assertEqual(len(api.puts()), 1)
 
+    def test_existing_other_reviewers_must_not_be_replaced(self):
+        old = env(bypass=True, reviewer_id=999)
+        api = FakeAPI(before=old, after=env())
+        with self.assertRaisesRegex(m.Blocked, "existing_required_reviewers_must_be_preserved"):
+            run(api)
+        self.assertFalse(api.puts())
+
+    def test_existing_prevent_self_review_must_not_be_weakened(self):
+        old = env(bypass=True, self_review=True)
+        api = FakeAPI(before=old, after=env())
+        with self.assertRaisesRegex(m.Blocked, "existing_self_review_protection_must_be_preserved"):
+            run(api)
+        self.assertFalse(api.puts())
+
     def test_no_secrets_or_host_or_process_in_workflow(self):
         workflow = pathlib.Path(__file__).resolve().parents[1] / m.WORKFLOW_PATH
         raw = workflow.read_text(encoding="utf-8")
