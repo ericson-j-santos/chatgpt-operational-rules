@@ -20,6 +20,12 @@ Do not commit values. Configure them only in the authorized secret store of the 
 
 `POST /v1/events` receives `TodoEvent v1`. HTTP 202 means **persisted/accepted by the queue**, not completed.
 
+Consulta anterior à criação/continuação: `GET /v1/todos/by-key/{idempotency_key}`
+usa o Bearer token existente, procura a chave exata na fila canônica e não escreve.
+Correspondência retorna `REVIEW_EXISTING`; ausência, `REVIEW_BEFORE_CREATE`.
+Nenhuma resposta comprova equivalência semântica ou ausência em outras fontes.
+401, 422, 503 e divergência interna não autorizam criar trabalho duplicável.
+
 The gateway additionally rejects operationally invalid terminal states:
 
 - `CONCLUÍDO` requires `completion_criteria` and `evidence`;

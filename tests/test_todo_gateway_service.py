@@ -51,6 +51,7 @@ def sample_event(*, event_id: str = "evt-gateway-0001", status: str = "EM ANDAME
 class FakeGatewayQueue:
     def __init__(self) -> None:
         self.ids: set[str] = set()
+        self.by_key: dict[str, dict] = {}
         self.fail = False
 
     def ready(self) -> bool:
@@ -63,7 +64,19 @@ class FakeGatewayQueue:
             raise RuntimeError("db unavailable")
         inserted = event.event_id not in self.ids
         self.ids.add(event.event_id)
+        if inserted:
+            self.by_key[event.idempotency_key] = {
+                "event_id": event.event_id,
+                "idempotency_key": event.idempotency_key,
+                "project": event.project,
+                "todo": dict(event.todo),
+            }
         return inserted
+
+    def get_latest_todo(self, key: str) -> dict | None:
+        if self.fail:
+            raise RuntimeError("db unavailable")
+        return self.by_key.get(key)
 
 
 class GatewayTests(unittest.TestCase):
@@ -103,6 +116,57 @@ class GatewayTests(unittest.TestCase):
             headers={"Authorization": "Bearer test-secret"},
         )
         self.assertEqual(response.status_code, 422)
+
+    def test_exact_key_lookup_reuses_existing_without_writing(self) -> None:
+        event = sample_event()
+        headers = {"Authorization": "Bearer test-secret"}
+        self.client.post("/v1/events", json=event.to_dict(), headers=headers)
+        url = f"/v1/todos/by-key/{event.idempotency_key}"
+        first = self.client.get(url, headers=headers)
+        replay = self.client.get(url, headers=headers)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json(), replay.json())
+        self.assertTrue(first.json()["exact_key_match"])
+        self.assertFalse(first.json()["semantic_match_verified"])
+        self.assertEqual(first.json()["decision"], "REVIEW_EXISTING")
+        self.assertEqual(first.json()["item"]["event_id"], event.event_id)
+        self.assertEqual(self.queue.ids, {event.event_id})
+
+    def test_unknown_key_does_not_authorize_new_demand(self) -> None:
+        response = self.client.get(
+            "/v1/todos/by-key/" + "b" * 64,
+            headers={"Authorization": "Bearer test-secret"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["exact_key_match"])
+        self.assertFalse(response.json()["semantic_match_verified"])
+        self.assertEqual(response.json()["decision"], "REVIEW_BEFORE_CREATE")
+
+    def test_lookup_rejects_missing_token_and_invalid_key(self) -> None:
+        good_key = sample_event().idempotency_key
+        self.assertEqual(self.client.get("/v1/todos/by-key/" + good_key).status_code, 401)
+        self.assertEqual(self.client.get(
+            "/v1/todos/by-key/not-a-hash",
+            headers={"Authorization": "Bearer test-secret"},
+        ).status_code, 422)
+
+    def test_lookup_fails_closed_on_unavailable_storage(self) -> None:
+        self.queue.fail = True
+        response = self.client.get(
+            "/v1/todos/by-key/" + sample_event().idempotency_key,
+            headers={"Authorization": "Bearer test-secret"},
+        )
+        self.assertEqual(response.status_code, 503)
+
+    def test_lookup_fails_closed_on_inconsistent_storage(self) -> None:
+        self.queue.by_key[sample_event().idempotency_key] = {
+            "idempotency_key": "c" * 64,
+        }
+        response = self.client.get(
+            "/v1/todos/by-key/" + sample_event().idempotency_key,
+            headers={"Authorization": "Bearer test-secret"},
+        )
+        self.assertEqual(response.status_code, 503)
 
 
 def notion_page(page_id: str, event: TodoEvent) -> dict:

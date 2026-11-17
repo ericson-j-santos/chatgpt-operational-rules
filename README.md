@@ -4,6 +4,10 @@ Versão: 1.6.21
 
 Fonte canônica de regras operacionais para trabalhos executados com ChatGPT e agentes conectados aos projetos do usuário.
 
+## Gate universal ant duplicidade
+
+Antes de criar, continuar ou executar qualquer solicitação — inclusive assuntos pessoais, documentos, e-mails, pesquisas e sistemas externos — aplicar a admissão de `rules/todo-global.md`. Conferir fontes acessíveis, reutilizar trabalho existente e bloquear nova mutação potencialmente duplicada quando a equivalência não estiver esclarecida. A consulta por chave no TODO Gateway é somente leitura e não garante cobertura de aplicativos ainda não integrados.
+
 ## Regra nº 1 — custo adicional zero
 Antes de qualquer execução que possa gerar cobrança, aplicar `rules/cost-governance.md`. O custo adicional máximo autorizado é **R$ 0,00**; custo desconhecido, overage não bloqueado ou qualquer custo incremental maior que zero deve falhar fechado. Cartão cadastrado e autorização técnica genérica não autorizam gasto.
 

@@ -1,5 +1,9 @@
 # Bootstrap para novos chats
 
+## Pré-verificação de demandas em todos os assuntos
+
+Aplicar a admissão universal de `rules/todo-global.md` antes de criar, continuar ou executar solicitações, mesmo fora de engenharia: pessoas, documentos, pesquisa, mensagens, agenda, automações e integrações. Consultar fontes autorizadas disponíveis, reutilizar a referência canônica e registrar limitações de visibilidade. Suspeita não resolvida bloqueia novos efeitos externos, não leitura ou diagnóstico. Acompanhamento legítimo não é uma duplicação.
+
 ## Fluxo obrigatório
 
 Antes de trabalho técnico ou geração de artefatos, consulte o repositório `ericson-j-santos/chatgpt-operational-rules` como fonte canônica das regras operacionais. A instrução explícita do chat atual prevalece.

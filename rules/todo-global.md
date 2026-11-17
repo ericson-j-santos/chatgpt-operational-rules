@@ -47,6 +47,18 @@ A forma canônica do evento é definida por `schemas/todo-event-v1.schema.json`.
 - Reprocessar o mesmo evento não pode criar novo TODO.
 - Processar evento novo com a mesma `idempotency_key` deve atualizar o TODO existente, preservando histórico e controles de concorrência.
 
+## Admissão universal contra demandas duplicadas (todas as solicitações)
+
+Antes de **criar, retomar, despachar ou executar** qualquer solicitação do usuário, inclusive assuntos pessoais, e-mails, pesquisas, documentos, agendas, arquivos, projetos e automações, buscar demandas equivalentes nas fontes autorizadas acessíveis. Novo chat, novo título ou canal não cria uma identidade nova por si só.
+
+1. Confrontar objetivo, resultado esperado, alvo, ambiente, período, escopo, registro canônico, estado, evidência e `idempotency_key` existente. Preferir identificadores externos estáveis; nunca usar apenas palavras parecidas como chave.
+2. Identidade exata comprovada: reusar e atualizar o mesmo TODO/issue/PR/tarefa; não emitir execução ou efeito externo repetido. Demanda concluída não deve ser reexecutada; novo escopo é incremento ligado à origem.
+3. Semelhança apenas textual, conflito, busca parcial, fonte indisponível ou estado desatualizado: registrar `DUPLICIDADE_NAO_VERIFICADA`, bloquear nova mutação/execução potencialmente repetida e pesquisar sem efeito externo. Não unir automaticamente registros pessoais/profissionais nem demandas de projetos diferentes por semelhança.
+4. Solicitação distinta exige prova suficiente de identidade/escopo e leitura das fontes pertinentes. Guardar decisão, motivo, `correlation_id`, `idempotency_key` e referência canônica. Ausência na busca não comprova inexistência.
+5. Antes de consumir um TODO, preservar os leases, locks, CAS e replay idempotente já existentes. A conferência inicial não substitui proteção concorrente, readback ou validação independente.
+
+Consumidores integrados podem consultar `GET /v1/todos/by-key/{idempotency_key}`, autenticado e somente leitura. `exact_key_match=true` confirma apenas a mesma chave, não equivalência semântica; `exact_key_match=false` com `REVIEW_BEFORE_CREATE` **não é autorização de criação**. Resposta 401/503 bloqueia conclusão de ausência. A consulta não abrange outros sistemas nem aplica esta regra a aplicativos sem integração. Não executar fusão, exclusão, merge ou despacho automático a partir da busca.
+
 ## Semântica de entrega
 
 - A fila opera com entrega **pelo menos uma vez**.

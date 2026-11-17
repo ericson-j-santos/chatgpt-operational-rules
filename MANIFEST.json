@@ -59,8 +59,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "5bd4632befd56b85009b8f7968e511198c8f4a45f0e750b04d575ba741a509e3",
-      "size": 3496
+      "sha256": "0fa047a9cc22acad8d68ed324b46f8d22c189e136a5fb86fcc9eb4a7e1f7304b",
+      "size": 3830
     },
     {
       "path": "CHANGELOG.md",
@@ -69,8 +69,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "f34a659c84abea5908e3446c25c4a593aadd5edbc12bb3dde20cf1438246a338",
-      "size": 11555
+      "sha256": "88fcae293c99fa885679ef34e403d9b34bb32bc6665f19f4488225b41e65b47a",
+      "size": 12065
     },
     {
       "path": "config/command-gateway.policy.json",
@@ -214,8 +214,8 @@
     },
     {
       "path": "rules/chat-bootstrap.md",
-      "sha256": "7d42e44b30417f00ee76789159dd2fc538b187ef99535267f67659b119064a7b",
-      "size": 2045
+      "sha256": "045f2770d97263b018cbadfb7f072a47047086557de99a844b6a3fee8ada9f1f",
+      "size": 2576
     },
     {
       "path": "rules/coding-standards.md",
@@ -309,8 +309,8 @@
     },
     {
       "path": "rules/todo-global.md",
-      "sha256": "cd35178bf711315a036c20a0a05abb596c864900432675277485a8b0a020e8a2",
-      "size": 9113
+      "sha256": "7f9cdf1b7db35acfa2402ded04053b02e980a55a8a4ee3ec49011b34c9c9e942",
+      "size": 11287
     },
     {
       "path": "rules/tool-routing.md",
@@ -779,8 +779,8 @@
     },
     {
       "path": "services/todo_gateway/README.md",
-      "sha256": "20a2f2e09f21ae21fc542b38cc6dd0f52033f85757e8f02be6e3ebc00d81c820",
-      "size": 3374
+      "sha256": "66314177f191eedac0790e112d4ec4df5e1f3ecdbdfe418809a08f959fe69164",
+      "size": 3789
     },
     {
       "path": "services/todo_gateway/__init__.py",
@@ -794,8 +794,8 @@
     },
     {
       "path": "services/todo_gateway/gateway.py",
-      "sha256": "495724812ee4c1724c133cfd4226ce49e3c8aa8236f2dfc621efc2901ba3561f",
-      "size": 12206
+      "sha256": "ba3d1ae3fc934688eff8e4d8ab8771ba2660b8799e7a49d2b29f5e417f86a1ec",
+      "size": 13609
     },
     {
       "path": "services/todo_gateway/gitlab_webhook.py",
@@ -1179,8 +1179,8 @@
     },
     {
       "path": "tests/test_todo_gateway_service.py",
-      "sha256": "d18eaa0c28e402d11d64c24224ac3d060a93253641efe452a3c13a0620a07cc8",
-      "size": 10501
+      "sha256": "c79a2cdbf7a4edb10b097fe6123c42ed812a66d3a71ee324324b3baaf86999e2",
+      "size": 13431
     },
     {
       "path": "tests/test_todo_gateway_service_main.py",

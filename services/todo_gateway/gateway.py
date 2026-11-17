@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -124,6 +125,36 @@ def create_app(queue: Any, gateway_token: str, gitlab_webhook_token: str = "", g
             expected = project.strip().casefold()
             items = [item for item in items if str(item.get("project") or "").strip().casefold() == expected]
         return {"items": items, "count": len(items)}
+
+
+    @app.get("/v1/todos/by-key/{idempotency_key}")
+    def lookup_exact_todo(idempotency_key: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        """Read-only exact-key check; absence never proves semantic uniqueness."""
+        _require_authorized(gateway_token, authorization)
+        if not re.fullmatch(r"[a-f0-9]{64}", idempotency_key):
+            raise HTTPException(status_code=422, detail="invalid idempotency_key")
+        try:
+            item = queue.get_latest_todo(idempotency_key)
+        except Exception:
+            LOGGER.exception("canonical TODO lookup failed")
+            raise HTTPException(status_code=503, detail="queue unavailable")
+        if item is None:
+            return {
+                "idempotency_key": idempotency_key,
+                "exact_key_match": False,
+                "semantic_match_verified": False,
+                "decision": "REVIEW_BEFORE_CREATE",
+            }
+        if item.get("idempotency_key") != idempotency_key:
+            LOGGER.error("canonical TODO lookup returned mismatched key")
+            raise HTTPException(status_code=503, detail="canonical lookup mismatch")
+        return {
+            "idempotency_key": idempotency_key,
+            "exact_key_match": True,
+            "semantic_match_verified": False,
+            "decision": "REVIEW_EXISTING",
+            "item": item,
+        }
 
     @app.get("/v1/continuations")
     def list_continuations(authorization: str | None = Header(default=None), limit: int = Query(default=100, ge=1, le=200)) -> dict[str, Any]:

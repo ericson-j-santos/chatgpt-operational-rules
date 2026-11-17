@@ -2,6 +2,8 @@
 
 Este repositório é a fonte canônica de regras operacionais do usuário.
 
+Antes de qualquer demanda, inclusive fora da engenharia, aplicar a admissão universal ant duplicidade de `rules/todo-global.md`: confrontar fontes acessíveis, preservar a referência canônica, não repetir execução e bloquear novos efeitos quando houver equivalência não esclarecida. Consulta parcial não comprova ausência.
+
 Antes de executar trabalho técnico:
 1. leia `README.md`;
 2. identifique e leia as regras em `rules/` aplicáveis;
