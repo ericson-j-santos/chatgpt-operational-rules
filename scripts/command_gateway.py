@@ -1635,7 +1635,7 @@ def noteri_inplace_maintenance_spawn_environment(
     script = python_script_path(args, cwd)
     expected_script = cwd / "scripts" / "noteri_worker_pool_inplace_maintenance.py"
     if (script is None or lexical_norm(script) != lexical_norm(expected_script)
-            or len(args) != 8):
+            or len(args) not in {6, 8}):
         raise GatewayError("NOTERI_APPROVAL_EXACT_COMMAND_REQUIRED")
     if not expected_script.is_file() or expected_script.is_symlink():
         raise GatewayError("NOTERI_APPROVAL_SOURCE_NOT_VERIFIED")
@@ -1646,11 +1646,14 @@ def noteri_inplace_maintenance_spawn_environment(
         raise GatewayError("NOTERI_APPROVAL_BINDING_UNAVAILABLE") from exc
     mode = args[3] if args[2] == "--mode" else None
     if (args[4] != "--expected-head" or args[5] != binding.MAINTENANCE_SHA
-            or args[6] != "--confirm" or args[7] != binding.CONFIRM
             or mode not in {"plan", "apply"}):
         raise GatewayError("NOTERI_APPROVAL_EXACT_ARGUMENTS_REQUIRED")
-    if (expected_head != binding.MAINTENANCE_SHA
-            or before.head != binding.MAINTENANCE_SHA
+    if (mode == "apply" and (len(args) != 8 or args[6:8] != ["--confirm", binding.CONFIRM])):
+        raise GatewayError("NOTERI_APPROVAL_EXPLICIT_CONFIRMATION_REQUIRED")
+    if (mode == "plan" and len(args) == 8 and args[6:8] != ["--confirm", binding.CONFIRM]):
+        raise GatewayError("NOTERI_APPROVAL_PLAN_ARGUMENTS_INVALID")
+    if (before.head != binding.MAINTENANCE_SHA
+            or (expected_head is not None and expected_head != binding.MAINTENANCE_SHA)
             or before.status_count != 0
             or allow_dirty or allow_head_change):
         raise GatewayError("NOTERI_APPROVAL_GIT_STATE_MISMATCH")
@@ -1658,7 +1661,7 @@ def noteri_inplace_maintenance_spawn_environment(
         if risk != 1:
             raise GatewayError("NOTERI_PLAN_RISK1_REQUIRED")
         return child
-    if risk != 2 or not session_id:
+    if risk != 2 or not session_id or expected_head != binding.MAINTENANCE_SHA:
         raise GatewayError("NOTERI_APPLY_RISK2_SESSION_REQUIRED")
     if policy.get(binding.POLICY_FLAG) is not True:
         raise GatewayError("NOTERI_APPROVAL_CAPABILITY_DISABLED")
