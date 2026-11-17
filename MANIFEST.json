@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-17T13:35:11.275Z",
+  "generated_at": "2026-11-17T13:36:46.412Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -1144,8 +1144,8 @@
     },
     {
       "path": "tests/test_rules219_native_scripts.py",
-      "sha256": "d283c0d8ba84ce45e2d6738ad8762172d4dbf2f1b89453a7c4cabc1a8751074f",
-      "size": 10125
+      "sha256": "ba464a74c0c21610379e1b799d50bba67a3e32da7ad996842db75f4ba6d3cd98",
+      "size": 10810
     },
     {
       "path": "tests/test_runner_version_preflight.py",

@@ -108,6 +108,11 @@ class RealGitContractTests(unittest.TestCase):
         self.assertRegex(self.base, r"^[0-9a-f]{40}$")
         self.before = (self.root / propose.SOURCE).read_bytes()
         self.run_git("status", "--porcelain")
+        # Unit-test runner has argv; the production entrypoints MUST keep
+        # rejecting extra CLI args. Model that fixed no-args process here.
+        argv = mock.patch.object(sys, "argv", ["rules219-native-entrypoint"])
+        argv.start()
+        self.addCleanup(argv.stop)
         for module in (propose, apply, validate):
             patcher = mock.patch.object(module, "ROOT", self.root)
             patcher.start()
@@ -180,6 +185,13 @@ class RealGitContractTests(unittest.TestCase):
     def test_apply_requires_proposal(self):
         with self.assertRaisesRegex(SystemExit, "PROPOSAL_MISSING"):
             apply.main()
+        self.assertEqual((self.root / propose.SOURCE).read_bytes(), self.before)
+
+    def test_extra_cli_arguments_fail_closed_for_every_entrypoint(self):
+        with mock.patch.object(sys, "argv", ["fixed.py", "--unsafe"]):
+            for entry in (propose.main, apply.main, validate.main):
+                with self.assertRaisesRegex(SystemExit, "ARGUMENTS_FORBIDDEN"):
+                    entry()
         self.assertEqual((self.root / propose.SOURCE).read_bytes(), self.before)
 
     def test_model_patch_commit_manifest_and_independent_validator(self):
