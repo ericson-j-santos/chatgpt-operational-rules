@@ -120,6 +120,14 @@ class LocalFencingTests(unittest.TestCase):
         self.assertEqual(fencing._read_counter(
             self.policy, self.counter_path, HOST), 2)
 
+    def test_counter_exhausted_fails_without_claim_or_wrap(self):
+        self.provision_synthetic_counter(fencing.MAX_SEQUENCE)
+        with self.assertRaisesRegex(fencing.FencingBlocked, "exhausted"):
+            self.issue()
+        self.assertFalse(self.active_path.exists())
+        self.assertEqual(fencing._read_counter(
+            self.policy, self.counter_path, HOST), fencing.MAX_SEQUENCE)
+
     def test_corrupt_counter_is_not_reset_or_replaced(self):
         self.provision_synthetic_counter(raw="{not-json")
         with self.assertRaisesRegex(fencing.FencingBlocked, "unreadable"):
