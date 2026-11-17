@@ -1,0 +1,59 @@
+name: Issue 217 pre-PR validator (read only)
+
+on:
+  push:
+    branches:
+      - fix/issue217-github-review-evidence-20261116
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue217-prepr-validator
+  cancel-in-progress: false
+
+jobs:
+  validate-sha:
+    if: github.repository == 'ericson-j-santos/chatgpt-operational-rules'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact SHA, read-only
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify SHA, ancestry and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = 'refs/heads/fix/issue217-github-review-evidence-20261116'
+          git merge-base --is-ancestor 58dcd4200f412a866278027ba9e433439a03f3b3 "$GITHUB_SHA"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              ".github/workflows/issue217-prepr-verify.yml",
+              ".github/workflows/noteri-environment-protection.yml",
+              ".github/workflows/validate-rules.yml",
+              "MANIFEST.json",
+              "scripts/noteri_environment_admin_once.py",
+              "scripts/noteri_github_review_readonly.py",
+              "tests/test_noteri_environment_admin_once.py",
+              "tests/test_noteri_github_review_readonly.py",
+          }
+          changed = set(subprocess.check_output(
+              ["git", "diff", "--name-only", "58dcd4200f412a866278027ba9e433439a03f3b3", "HEAD"],
+              text=True,
+          ).splitlines())
+          if changed != expected:
+              raise SystemExit("ISSUE217_SCOPE_MISMATCH")
+          print("ISSUE217_SCOPE_OK", len(changed))
+          PY
+      - name: Mandatory authorisation safety tests
+        run: python3 -m unittest -v tests/test_noteri_environment_admin_once.py tests/test_noteri_github_review_readonly.py
+      - name: Manifest checks and negative controls
+        run: python3 scripts/validate_rules.py --self-test
