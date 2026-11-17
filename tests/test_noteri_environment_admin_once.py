@@ -29,7 +29,7 @@ def context(**overrides: str) -> dict[str, str]:
         "GITHUB_SHA": HEAD,
         "GITHUB_RUN_ATTEMPT": "1",
         "GITHUB_RUN_ID": "4567",
-        "GITHUB_EVENT_NAME": "push",
+        "GITHUB_EVENT_NAME": "workflow_dispatch",
     }
     values.update(overrides)
     return values
@@ -172,7 +172,7 @@ class NoteriEnvironmentGuardTests(unittest.TestCase):
             {"GITHUB_REF": "refs/heads/feature"}, {"GITHUB_SHA": "b" * 40},
             {"GITHUB_RUN_ATTEMPT": "2"}, {"GITHUB_REPOSITORY": "other/other"},
             {"GITHUB_WORKFLOW_REF": "other/workflow@refs/heads/main"},
-            {"GITHUB_EVENT_NAME": "schedule"}, {"GITHUB_RUN_ID": "not-a-number"},
+            {"GITHUB_EVENT_NAME": "schedule"}, {"GITHUB_EVENT_NAME": "push"}, {"GITHUB_RUN_ID": "not-a-number"},
         ]
         for variant in variants:
             with self.subTest(variant=variant):
@@ -209,10 +209,20 @@ class NoteriEnvironmentGuardTests(unittest.TestCase):
             run(api)
         self.assertFalse(api.puts())
 
+    def test_admin_push_rejected_before_any_github_api_operation(self):
+        api = FakeAPI(before=env(bypass=True), after=env())
+        with self.assertRaisesRegex(m.Blocked, "workflow_event_not_allowed"):
+            run(api, ctx=context(GITHUB_EVENT_NAME="push"))
+        self.assertEqual(api.calls, [])
+
     def test_no_secrets_or_host_or_process_in_workflow(self):
         workflow = pathlib.Path(__file__).resolve().parents[1] / m.WORKFLOW_PATH
         raw = workflow.read_text(encoding="utf-8")
         self.assertIn("refs/heads/main", raw)
+        self.assertIn("workflow_dispatch:", raw)
+        self.assertNotIn("\n  push:", raw)
+        self.assertNotIn("mode=\u0027apply\u0027", raw)
+        self.assertIn("NOTERI_ENV_MANUAL_DISPATCH_REQUIRED", raw)
         self.assertIn("REPOSITORY_GOVERNANCE_TOKEN: " + chr(36) + "{{ secrets.REPOSITORY_GOVERNANCE_TOKEN }}", raw)
         self.assertIn("github.triggering_actor == 'ericson-j-santos'", raw)
         self.assertIn("cancel-in-progress: false", raw)
