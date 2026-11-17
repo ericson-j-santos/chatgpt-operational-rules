@@ -1682,6 +1682,9 @@ def noteri_inplace_maintenance_spawn_environment(
         raise GatewayError("NOTERI_SESSION_TRUSTED_INPUT_MISSING")
     try:
         from scripts import noteri_session_provenance as provenance
+    except ImportError as exc:
+        raise GatewayError("NOTERI_SESSION_PROVENANCE_MODULE_UNAVAILABLE") from exc
+    try:
         session_proof = provenance.verify_launcher_and_lock(
             policy=policy, reservation=reservation, snapshot=snapshot,
             lock_path=lock_path, cwd=cwd, expected_head=before.head,
