@@ -31,6 +31,9 @@ baseline._require_chain = lambda r, t, leaf: None
 baseline._strict_json = lambda p: (json.loads(Path(p).read_bytes()), 'bad')
 bootstrap = types.ModuleType('install_command_gateway_host')
 updater = types.ModuleType('update_command_gateway_host')
+updater.runtime_map_for_profile = lambda enabled, platform, host: {
+    "config/command-gateway.policy.noteri-wsl.json": "config/policy.json"
+} if (enabled, platform, host) == (True, "nt", "Noteri") else {}
 sys.modules.update({baseline.__name__: baseline, bootstrap.__name__: bootstrap, updater.__name__: updater})
 spec = importlib.util.spec_from_file_location('recovery_candidate_under_test', BASE)
 mod = importlib.util.module_from_spec(spec)
@@ -169,7 +172,7 @@ class RecoveryCandidateTests(unittest.TestCase):
         def fake_pin(_root, _path, role):
             return fixtures[role], mod.SHA256_PINS_ATTESTED[role]
         with mock.patch.object(mod, '_read_pinned', side_effect=fake_pin), \
-             mock.patch.object(baseline, '_validate_manifest'), \
+             mock.patch.object(baseline, '_validate_manifest') as schema_check, \
              mock.patch.object(baseline, '_verified_reconciliation',
                                return_value={'previous_state': True}), \
              mock.patch.object(bootstrap, '_validate_windows_persisted_state',
@@ -178,7 +181,11 @@ class RecoveryCandidateTests(unittest.TestCase):
                                return_value={'kind': 'expected'}, create=True), \
              mock.patch.object(bootstrap, '_windows_persisted_state_equivalent',
                                return_value=windows_ok, create=True):
-            return mod._inspect(self.root, self.journal)
+            ev = mod._inspect(self.root, self.journal)
+            self.assertEqual(schema_check.call_args.kwargs["runtime_map"], {
+                "config/command-gateway.policy.noteri-wsl.json": "config/policy.json"
+            })
+            return ev
 
     def test_receipt_contract_positive_with_metadata(self):
         fixtures = self._incident_fixtures()
