@@ -221,6 +221,206 @@ def wsl_run_fixed(
         )
 
 
+
+# PASS-001: explicit, host-bound, read-only Tailscale commands.
+# Do not add tailscale.exe to allowed_executables (which permits arbitrary verbs).
+TAILSCALE_POLICY_FLAG = "noteri_tailscale_readonly_diagnostic"
+TAILSCALE_DIGEST_FLAG = "noteri_tailscale_binary_sha256"
+TAILSCALE_EXE = r"C:\Program Files\Tailscale\tailscale.exe"
+TAILSCALE_EXACT = {
+    ("status", "--json"): "STATUS",
+    ("serve", "status", "--json"): "SERVE_STATUS",
+    ("serve", "get-config", "--all"): "SERVE_ALL",
+}
+TAILSCALE_MAX_BYTES = 1048576
+
+
+class TailscaleProbeBlocked(ValueError):
+    """Constant failure reason only: never include CLI output, user or device data."""
+
+
+def tailscale_is_command(args: Sequence[str]) -> bool:
+    return bool(args and isinstance(args[0], str)
+                and ntpath.basename(args[0]).casefold() == "tailscale.exe")
+
+
+def tailscale_validate_request(
+    args: Sequence[str], risk: int, policy: dict[str, Any]
+) -> str:
+    if not tailscale_is_command(args):
+        raise TailscaleProbeBlocked("TAILSCALE_COMMAND_INVALID")
+    platform, host = wsl_host_context()
+    if (platform != "nt" or host.casefold() != "noteri"
+            or policy.get("platform") != "windows"
+            or policy.get(TAILSCALE_POLICY_FLAG) is not True):
+        raise TailscaleProbeBlocked("TAILSCALE_NOT_AUTHORIZED")
+    if risk != 1 or tuple(args[1:]) not in TAILSCALE_EXACT:
+        raise TailscaleProbeBlocked("TAILSCALE_ARGUMENTS_DENIED")
+    if (not ntpath.isabs(args[0])
+            or ntpath.normcase(ntpath.normpath(args[0]))
+               != ntpath.normcase(ntpath.normpath(TAILSCALE_EXE))):
+        raise TailscaleProbeBlocked("TAILSCALE_BINARY_UNTRUSTED")
+    expected = policy.get(TAILSCALE_DIGEST_FLAG)
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise TailscaleProbeBlocked("TAILSCALE_DIGEST_NOT_PINNED")
+    try:
+        approved = Path(TAILSCALE_EXE)
+        if (approved.is_symlink()
+                or ntpath.normcase(str(approved.resolve(strict=True)))
+                   != ntpath.normcase(TAILSCALE_EXE)
+                or sha256_file(approved).casefold() != expected):
+            raise TailscaleProbeBlocked("TAILSCALE_BINARY_DIGEST_MISMATCH")
+    except OSError:
+        raise TailscaleProbeBlocked("TAILSCALE_BINARY_UNAVAILABLE") from None
+    return TAILSCALE_EXACT[tuple(args[1:])]
+
+
+def _tailscale_parse_json(stdout: bytes) -> dict[str, Any]:
+    if type(stdout) is not bytes or len(stdout) > TAILSCALE_MAX_BYTES:
+        raise TailscaleProbeBlocked("TAILSCALE_OUTPUT_INVALID")
+    def no_duplicates(pairs):
+        obj = {}
+        for key, value in pairs:
+            if key in obj:
+                raise TailscaleProbeBlocked("TAILSCALE_OUTPUT_INVALID")
+            obj[key] = value
+        return obj
+    def bad_constant(_value):
+        raise TailscaleProbeBlocked("TAILSCALE_OUTPUT_INVALID")
+    try:
+        decoded = stdout.decode("utf-8-sig")
+        data = json.loads(decoded, object_pairs_hook=no_duplicates,
+                          parse_constant=bad_constant)
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise TailscaleProbeBlocked("TAILSCALE_OUTPUT_INVALID") from None
+    if not isinstance(data, dict):
+        raise TailscaleProbeBlocked("TAILSCALE_OUTPUT_INVALID")
+    return data
+
+
+def tailscale_sanitize_output(
+    probe: str, returncode: int, stdout: bytes, stderr: bytes
+) -> dict[str, Any]:
+    if type(returncode) is not int or returncode != 0:
+        raise TailscaleProbeBlocked("TAILSCALE_COMMAND_FAILED")
+    if type(stderr) is not bytes or stderr:
+        raise TailscaleProbeBlocked("TAILSCALE_STDERR_UNEXPECTED")
+    data = _tailscale_parse_json(stdout)
+    evidence: dict[str, Any] = {
+        "result": "NOTERI_TAILSCALE_READONLY",
+        "query": probe,
+        "contains_raw_tailscale_output": False,
+        "status_atual_nao_comprovado_por_snapshot": False,
+        "mfa_validado": False,
+        "custo_zero_validado": False,
+        "deploy_autorizado": False,
+        "pass_operacional": False,
+    }
+    if probe == "STATUS":
+        state = data.get("BackendState")
+        own = data.get("Self")
+        if (not isinstance(state, str)
+                or (own is not None and not isinstance(own, dict))):
+            raise TailscaleProbeBlocked("TAILSCALE_STATUS_INVALID")
+        online = own.get("Online") if isinstance(own, dict) else None
+        dns = own.get("DNSName", "") if isinstance(own, dict) else ""
+        if online is not None and type(online) is not bool:
+            raise TailscaleProbeBlocked("TAILSCALE_STATUS_INVALID")
+        if not isinstance(dns, str):
+            raise TailscaleProbeBlocked("TAILSCALE_STATUS_INVALID")
+        evidence.update({
+            "backend_running": state == "Running",
+            "device_online": online is True,
+            "dns_ts_net_present": bool(dns.rstrip(".").endswith(".ts.net")),
+            "login_pending": bool(data.get("AuthURL")),
+        })
+    elif probe in {"SERVE_STATUS", "SERVE_ALL"}:
+        # Unknown schema or Tailscale Services must be independently checked.
+        # Never print service paths, forwarded port targets, users or auth data.
+        allowed = {"TCP", "Web", "AllowFunnel", "Foreground"}
+        unknown = bool(set(data) - allowed)
+        port_443 = False
+        port_8443 = False
+        funnel = False
+        ambiguous = unknown
+        def visit(block, depth=0):
+            nonlocal port_443, port_8443, funnel, ambiguous
+            if depth > 4 or not isinstance(block, dict):
+                ambiguous = True
+                return
+            if set(block) - allowed:
+                ambiguous = True
+            for group in ("TCP", "Web"):
+                routes = block.get(group, {})
+                if not isinstance(routes, dict):
+                    ambiguous = True
+                    continue
+                for key in routes:
+                    if not isinstance(key, str):
+                        ambiguous = True
+                        continue
+                    suffix = key.rsplit(":", 1)[-1]
+                    if not suffix.isdecimal():
+                        ambiguous = True
+                        continue
+                    port = int(suffix)
+                    port_443 |= port == 443
+                    port_8443 |= port == 8443
+            f = block.get("AllowFunnel", {})
+            if not isinstance(f, dict):
+                ambiguous = True
+            elif any(v is not False for v in f.values()):
+                funnel = True
+            fg = block.get("Foreground", {})
+            if not isinstance(fg, dict):
+                ambiguous = True
+            else:
+                for v in fg.values():
+                    visit(v, depth + 1)
+        visit(data)
+        evidence.update({
+            "conflict_tcp443_or_web443": port_443,
+            "conflict_tcp8443_or_web8443": port_8443,
+            "funnel_active_or_unrecognized": funnel or ambiguous,
+            "schema_unknown_or_unverified_services": ambiguous or probe == "SERVE_ALL",
+            "serve_sem_conflito_comprovado": (not (port_443 or port_8443 or funnel or ambiguous)
+                                              and probe == "SERVE_STATUS"),
+        })
+    else:
+        raise TailscaleProbeBlocked("TAILSCALE_PROBE_UNKNOWN")
+    return evidence
+
+
+def tailscale_run_fixed(
+    args: Sequence[str], risk: int, policy: dict[str, Any], *,
+    cwd: str, timeout: int, spawn_options: dict[str, Any] | None = None,
+    runner=None,
+) -> subprocess.CompletedProcess[str]:
+    # Invoked inside Gateway's SHA gate, lock and session guard.
+    probe = tailscale_validate_request(args, risk, policy)
+    method = subprocess.run if runner is None else runner
+    try:
+        outcome = method(list(args), cwd=cwd, capture_output=True, check=False,
+                         shell=False, timeout=min(timeout, 12), **(spawn_options or {}))
+        sanitized = tailscale_sanitize_output(
+            probe, outcome.returncode, outcome.stdout, outcome.stderr)
+        return subprocess.CompletedProcess(
+            list(args), 0, json.dumps(sanitized, sort_keys=True), "")
+    except (TailscaleProbeBlocked, OSError, subprocess.TimeoutExpired, TypeError,
+            ValueError) as exc:
+        reason = str(exc) if isinstance(exc, TailscaleProbeBlocked) else "TAILSCALE_UNAVAILABLE"
+        if reason not in {
+            "TAILSCALE_OUTPUT_INVALID", "TAILSCALE_COMMAND_FAILED",
+            "TAILSCALE_STDERR_UNEXPECTED", "TAILSCALE_STATUS_INVALID",
+            "TAILSCALE_PROBE_UNKNOWN", "TAILSCALE_UNAVAILABLE",
+        }:
+            reason = "TAILSCALE_UNAVAILABLE"
+        return subprocess.CompletedProcess(
+            list(args), 23,
+            json.dumps({"result": "NOTERI_TAILSCALE_BLOCKED", "reason": reason,
+                        "deploy_autorizado": False}, sort_keys=True), "")
+
+
 @dataclass(frozen=True)
 class GitState:
     repo_root: str
@@ -444,6 +644,12 @@ def validate_policy(data: object, *, enforce_platform: bool = True) -> dict[str,
     if ("noteri_wsl_running_inventory" in data
             and type(data["noteri_wsl_running_inventory"]) is not bool):
         raise GatewayError("noteri_wsl_running_inventory deve ser booleano")
+    if (TAILSCALE_POLICY_FLAG in data and type(data[TAILSCALE_POLICY_FLAG]) is not bool):
+        raise GatewayError("noteri_tailscale_readonly_diagnostic deve ser booleano")
+    if TAILSCALE_DIGEST_FLAG in data:
+        value = data[TAILSCALE_DIGEST_FLAG]
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise GatewayError("noteri_tailscale_binary_sha256 deve conter hash SHA-256 válido")
     required_environment = data.get("required_path_environment")
     if required_environment is not None:
         if not isinstance(required_environment, dict):
@@ -743,6 +949,13 @@ def validate_command(args: Sequence[str], risk: int, policy: dict[str, Any], cwd
         try:
             wsl_validate_request(args, risk, policy)
         except WslStatusBlocked as exc:
+            raise GatewayError(str(exc)) from None
+        return
+
+    if tailscale_is_command(args):
+        try:
+            tailscale_validate_request(args, risk, policy)
+        except TailscaleProbeBlocked as exc:
             raise GatewayError(str(exc)) from None
         return
     exe = assert_allowed_executable(args[0], policy)
@@ -1616,6 +1829,7 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
     assert_allowed_path(cwd, policy)
     validate_command(args, risk, policy, cwd)
     wsl_running_status = wsl_is_command(args)
+    tailscale_readonly_status = tailscale_is_command(args)
     assert_safe_gui_automation(args, cwd, policy)
     max_timeout = int(policy.get("max_timeout_seconds", 900))
     if timeout < 1 or timeout > max_timeout:
@@ -1646,6 +1860,11 @@ def execute(cwd: Path, policy: dict[str, Any], args: Sequence[str], risk: int,
                     # The trusted helper only executes --list --running --quiet,
                     # never starts Ubuntu or passes through untrusted output.
                     completed = wsl_run_fixed(
+                        args, risk, policy, cwd=anchored_cwd,
+                        timeout=timeout, spawn_options=spawn_options,
+                    )
+                elif tailscale_readonly_status:
+                    completed = tailscale_run_fixed(
                         args, risk, policy, cwd=anchored_cwd,
                         timeout=timeout, spawn_options=spawn_options,
                     )
