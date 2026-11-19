@@ -226,3 +226,43 @@ O gateway está operacional somente quando:
 ## Preflight automático
 
 Antes do primeiro `inspect/run`, executar `scripts/session_preflight.py`. O preflight captura host, versão das regras, branch, SHA, digest/contagem do estado Git, reserva e worktree, grava snapshot com SHA-256 e retorna `BOOTSTRAP_OK` somente após revalidar estado estável. Quando `require_preflight_snapshot=true`, o gateway deve bloquear sessão sem snapshot íntegro.
+
+
+## PASS-001 — diagnóstico Tailscale somente leitura no Noteri
+
+Este controle é restrito ao Gateway do host Windows Noteri, sem habilitar um
+novo servidor, Tunnel, Funnel, VPN ou porta. A autorização humana específica
+da PASS-001 contempla exatamente três consultas:
+
+    C:\Program Files\Tailscale\tailscale.exe status --json
+    C:\Program Files\Tailscale\tailscale.exe serve status --json
+    C:\Program Files\Tailscale\tailscale.exe serve get-config --all
+
+A implementação é interna ao script scripts/command_gateway.py e usa
+noteri_tailscale_readonly_diagnostic=true e
+noteri_tailscale_binary_sha256=<SHA-256 real> do perfil
+config/command-gateway.policy.noteri-wsl.json. O Gateway exige host exato,
+Windows nativo, risco 1, sessão válida, worktree e lock, caminho absoluto exato
+em Program Files, hash íntegro e argumentos idênticos. Não incluir tailscale na
+lista geral de executáveis permitidos. Alterações de binário, argumentos extras,
+modo admin, risco 2/3 ou outro host bloqueiam.
+
+O Gateway lê a saída bruta em memória somente durante a execução, com limite de
+1 MiB e 12 segundos; grava/retorna exclusivamente diagnóstico sanitizado.
+Não registrar UserID, nomes/IPs de peers, endereço DNS literal, chave, AuthURL,
+token, configuração de serviço ou stdout/stderr bruto. Parsing JSON inválido,
+duplicatas, stderr, versões incompatíveis e informações não classificadas são
+falha fechada; verificações estáticas não comprovam MFA, assinatura gratuita,
+controle de acesso ou disponibilidade.
+
+A atualização do runtime deve usar o updater canônico com bundle versionado,
+MANIFEST.json atualizado, SHA do código e da política, backup e rollback
+verificados, leitura independente do receipt e testes negativos pós-instalação.
+A opção --noteri-wsl-inventory-profile reaproveita o perfil especial Noteri
+existente sem ativar o privilégio em outros hosts. Alteração manual de arquivos
+do Gateway instalado fora do updater não é autorizada. Mesmo após diagnóstico,
+Funnel, serve mutante, deploy, MFA, DNS ou certificados permanecem bloqueados
+até autorização própria e prova do custo incremental R$ 0,00.
+
+Rastreio: ericson-j-santos/cofre-senhas-api#1, correlation_id
+pass001-tailscale-readonly-20261119, status DEV sem senhas reais.
