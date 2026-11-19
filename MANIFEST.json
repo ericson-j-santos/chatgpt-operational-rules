@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-19T19:37:00.000Z",
+  "generated_at": "2026-11-19T19:42:00.000Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -754,8 +754,8 @@
     },
     {
       "path": "scripts/validate_rules.py",
-      "sha256": "30502f8358f3ed4b16607814dab2c8b2745d820deaf52fb6e6b844ef1a59724c",
-      "size": 16088
+      "sha256": "11f356bf56a2fe0c17f67ff8c87c3dc7009a3a433ea2c2f50d8a784ed63038eb",
+      "size": 16765
     },
     {
       "path": "services/__init__.py",
