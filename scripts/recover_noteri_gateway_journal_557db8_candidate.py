@@ -26,6 +26,7 @@ if _SCRIPTS not in sys.path:
 # Importar somente as primitivas oficiais já existentes na mesma árvore Git.
 import recover_noteri_gateway_journal as base
 import install_command_gateway_host as bootstrap
+import update_command_gateway_host as updater
 
 TX_ID = '557db8454c36420694ee6d74cec16a1a'
 FAILED_RULES_SHA = '289e3f6d25f8ab81127abfc0ede2cda174c5735e'
@@ -103,7 +104,11 @@ def _inspect(root: Path, journal_or_archive: Path) -> Evidence:
         raise base.RecoveryBlocked('BACKUP_NAME_INVALID')
     base._require_chain(root, backup, leaf='directory')
     manifest, manifest_sha = _read_pinned(root, backup / 'rollback-manifest.json', 'manifest')
-    base._validate_manifest(manifest, root)
+    # O snapshot foi feito com --noteri-wsl-inventory-profile. O source da
+    # política nesse perfil é específico do Noteri, mas os 7 destinos são iguais.
+    # Validar esse source REAL, nunca normalizar/modificar o manifesto.
+    profile_map = updater.runtime_map_for_profile(True, platform='nt', host='Noteri')
+    base._validate_manifest(manifest, root, runtime_map=profile_map)
 
     journal, journal_sha = _read_pinned(root, journal_or_archive, 'journal')
     if set(journal) != {'version', 'transaction_id', 'source_commit', 'backup_dir', 'prepared_at'}:
