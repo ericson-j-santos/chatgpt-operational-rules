@@ -31,11 +31,25 @@ baseline._require_chain = lambda r, t, leaf: None
 baseline._strict_json = lambda p: (json.loads(Path(p).read_bytes()), 'bad')
 bootstrap = types.ModuleType('install_command_gateway_host')
 updater = types.ModuleType('update_command_gateway_host')
+# A fixture injeta dependências simuladas somente durante a importação do
+# módulo candidato. Restaurar sys.modules antes que pytest colete outras suítes.
+_saved_modules = {
+    name: sys.modules.get(name)
+    for name in (baseline.__name__, bootstrap.__name__, updater.__name__,
+                 'recovery_candidate_under_test')
+}
 sys.modules.update({baseline.__name__: baseline, bootstrap.__name__: bootstrap, updater.__name__: updater})
 spec = importlib.util.spec_from_file_location('recovery_candidate_under_test', BASE)
 mod = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = mod
-spec.loader.exec_module(mod)
+try:
+    spec.loader.exec_module(mod)
+finally:
+    for name, previous in _saved_modules.items():
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
 
 class RecoveryCandidateTests(unittest.TestCase):
     def setUp(self):
