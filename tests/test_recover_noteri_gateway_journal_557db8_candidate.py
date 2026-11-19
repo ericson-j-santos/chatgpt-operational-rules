@@ -79,7 +79,25 @@ class RecoveryCandidateTests(unittest.TestCase):
                                               '--expected-self-sha256', digest]), \
              redirect_stdout(io.StringIO()):
             self.assertEqual(mod.main(), 0)
-        checked.assert_called_once_with(mod.EXPECTED_INSTALL, recover=False)
+        checked.assert_called_once_with(mod.EXPECTED_INSTALL, recover=False, authorized=False)
+
+    def test_cli_recover_requires_exact_confirm_before_check(self):
+        digest = hashlib.sha256(BASE.read_bytes()).hexdigest()
+        with mock.patch.object(mod, 'check') as checked, \
+             mock.patch.object(sys, 'argv', ['recover', '--mode', 'recover',
+                '--expected-self-sha256', digest, '--confirm', 'INVALIDO']), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(mod.main(), 29)
+        checked.assert_not_called()
+
+    def test_cli_recover_passes_specific_authorization(self):
+        digest = hashlib.sha256(BASE.read_bytes()).hexdigest()
+        with mock.patch.object(mod, 'check', return_value={'result':'JOURNAL_RECOVERED'}) as checked, \
+             mock.patch.object(sys, 'argv', ['recover', '--mode', 'recover',
+                '--expected-self-sha256', digest, '--confirm', mod.CONFIRMATION]), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(mod.main(), 0)
+        checked.assert_called_once_with(mod.EXPECTED_INSTALL, recover=True, authorized=True)
 
     def test_readonly_success_has_no_move(self):
         with mock.patch.object(mod, '_inspect', return_value=self.evidence), mock.patch.object(baseline, '_move_no_replace') as move:
@@ -89,9 +107,11 @@ class RecoveryCandidateTests(unittest.TestCase):
         move.assert_not_called()
 
     def test_provisional_pins_block_mutation(self):
-        with mock.patch.object(mod, '_inspect', return_value=self.evidence), mock.patch.object(baseline, '_move_no_replace') as move:
+        with mock.patch.object(mod, 'PIN_STATUS', 'HOST_ATTESTED_MUTATION_NOT_AUTHORIZED'), \
+             mock.patch.object(mod, '_inspect', return_value=self.evidence), \
+             mock.patch.object(baseline, '_move_no_replace') as move:
             with self.assertRaisesRegex(RecoveryBlocked, 'PINS_NOT_ADMITTED'):
-                mod.check(self.root, recover=True)
+                mod.check(self.root, recover=True, authorized=True)
         move.assert_not_called()
         self.assertTrue(self.journal.exists())
 
@@ -139,7 +159,7 @@ class RecoveryCandidateTests(unittest.TestCase):
             mod._read_pinned(self.root, self.journal, 'journal')
 
     def test_no_mutation_by_default(self):
-        self.assertEqual(mod.PIN_STATUS, 'HOST_ATTESTED_MUTATION_NOT_AUTHORIZED')
+        self.assertEqual(mod.PIN_STATUS, 'GATEWAY_ATTESTED_AND_APPROVED')
         self.assertEqual(mod.CONFIRMATION, 'RECOVER_NOTERI_GATEWAY_TX_557DB8_ONCE')
 
     def test_readback_move_and_idempotent_replay_in_test_only(self):
@@ -150,11 +170,11 @@ class RecoveryCandidateTests(unittest.TestCase):
         with mock.patch.object(mod, 'PIN_STATUS', 'GATEWAY_ATTESTED_AND_APPROVED'), \
              mock.patch.object(mod, '_inspect', return_value=self.evidence), \
              mock.patch.object(baseline, '_move_no_replace', side_effect=_move):
-            r = mod.check(self.root, recover=True)
+            r = mod.check(self.root, recover=True, authorized=True)
             self.assertEqual(r['result'], 'JOURNAL_RECOVERED')
             self.assertFalse(self.journal.exists())
             self.assertTrue(self.archive.exists())
-            r2 = mod.check(self.root, recover=True)
+            r2 = mod.check(self.root, recover=True, authorized=True)
             self.assertEqual(r2['result'], 'ALREADY_RECOVERED_VERIFIED')
             self.assertFalse(self.journal.exists())
 
@@ -238,7 +258,7 @@ class RecoveryCandidateTests(unittest.TestCase):
     def test_recovery_is_blocked_before_any_mutation(self):
         with mock.patch.object(mod, '_inspect', return_value=self.evidence), \
              mock.patch.object(baseline, '_move_no_replace') as move:
-            with self.assertRaisesRegex(RecoveryBlocked, 'PINS_NOT_ADMITTED_FOR_MUTATION'):
+            with self.assertRaisesRegex(RecoveryBlocked, 'RECOVERY_CONFIRMATION_REQUIRED'):
                 mod.check(self.root, recover=True)
         move.assert_not_called()
         self.assertTrue(self.journal.exists())
