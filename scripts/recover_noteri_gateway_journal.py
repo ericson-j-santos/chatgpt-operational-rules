@@ -174,7 +174,21 @@ def _exact_keys(value: dict[str, Any], expected: set[str], code: str) -> None:
         raise RecoveryBlocked(code)
 
 
-def _validate_manifest(manifest: dict[str, Any], root: Path) -> None:
+def _validate_manifest(
+    manifest: dict[str, Any],
+    root: Path,
+    *,
+    runtime_map: dict[str, str] | None = None,
+) -> None:
+    # A opção explícita preserva o perfil Windows Noteri sem mascarar o
+    # source real do snapshot. Sem opção, o contrato antigo permanece igual.
+    mapping = updater.DEFAULT_RUNTIME_MAP if runtime_map is None else runtime_map
+    if (not isinstance(mapping, dict)
+            or set(mapping.values()) != set(updater.DEFAULT_RUNTIME_MAP.values())
+            or len(mapping) != len(updater.DEFAULT_RUNTIME_MAP)
+            or any(not isinstance(k, str) or not isinstance(v, str)
+                   for k, v in mapping.items())):
+        raise RecoveryBlocked("ROLLBACK_PROFILE_MAP_INVALID")
     _exact_keys(
         manifest,
         {"version", "metadata_contract", "install_root", "created_at", "entries"},
@@ -187,7 +201,7 @@ def _validate_manifest(manifest: dict[str, Any], root: Path) -> None:
         != os.path.normcase(str(root.resolve(strict=True)))
         or not isinstance(manifest["created_at"], str)
         or not isinstance(manifest["entries"], dict)
-        or set(manifest["entries"]) != set(updater.DEFAULT_RUNTIME_MAP.values())
+        or set(manifest["entries"]) != set(mapping.values())
     ):
         raise RecoveryBlocked("ROLLBACK_MANIFEST_INVALID")
     for destination, entry in manifest["entries"].items():
@@ -203,8 +217,8 @@ def _validate_manifest(manifest: dict[str, Any], root: Path) -> None:
         _exact_keys(entry, expected, "ROLLBACK_ENTRY_SCHEMA_INVALID")
         if (
             not isinstance(existed, bool)
-            or entry["source"] not in updater.DEFAULT_RUNTIME_MAP
-            or updater.DEFAULT_RUNTIME_MAP[entry["source"]] != destination
+            or entry["source"] not in mapping
+            or mapping[entry["source"]] != destination
             or not SHA256.fullmatch(str(entry["desired_sha256"]))
             or isinstance(entry["desired_size"], bool)
             or not isinstance(entry["desired_size"], int)
