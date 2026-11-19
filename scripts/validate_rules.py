@@ -235,8 +235,17 @@ def validate(manifest: dict[str, Any], root: Path = ROOT) -> list[str]:
                 raise ValueError("policy not object")
             if windows_policy.get("noteri_wsl_running_inventory") is True:
                 errors.append("política Windows global não pode ativar WSL Noteri.")
-            if noteri_policy.pop("noteri_wsl_running_inventory", None) is not True or noteri_policy != windows_policy:
-                errors.append("perfil Noteri deve diferir da política Windows somente pelo opt-in WSL.")
+            if (windows_policy.get("noteri_tailscale_readonly_diagnostic") is True
+                    or "noteri_tailscale_binary_sha256" in windows_policy):
+                errors.append("política Windows global não pode habilitar Tailscale Noteri.")
+            optin_wsl = noteri_policy.pop("noteri_wsl_running_inventory", None)
+            optin_tailscale = noteri_policy.pop("noteri_tailscale_readonly_diagnostic", None)
+            digest_tailscale = noteri_policy.pop("noteri_tailscale_binary_sha256", None)
+            if (optin_wsl is not True or optin_tailscale is not True
+                    or not isinstance(digest_tailscale, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", digest_tailscale) is None
+                    or noteri_policy != windows_policy):
+                errors.append("perfil Noteri só pode ativar WSL e as três consultas Tailscale com digest válido.")
         except (OSError, ValueError, json.JSONDecodeError):
             errors.append("perfil Noteri não pôde ser comparado à política Windows.")
     return errors
