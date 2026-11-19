@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-10T00:19:49.639Z",
+  "generated_at": "2026-11-19T19:37:00.000Z",
   "files": [
     {
       "path": ".gitattributes",
@@ -79,8 +79,8 @@
     },
     {
       "path": "config/command-gateway.policy.noteri-wsl.json",
-      "sha256": "e08bb142f06afdb9efc8077ae6bb483a66a3cf920b5b4b942b1227dbfc403cfa",
-      "size": 3210
+      "sha256": "40c7d01220b85535fc47f16c70c5db0a9a56280f0e34f2f50f8b5aefb269a0e9",
+      "size": 3598
     },
     {
       "path": "config/command-gateway.policy.posix.json",
@@ -224,8 +224,8 @@
     },
     {
       "path": "rules/command-gateway.md",
-      "sha256": "b5bc28d3f1af687a2afdc0b8ad2675d25f1960927ffdcfccb9fe5f29825a7a8a",
-      "size": 13707
+      "sha256": "e6066783e531f9cff377edb6dc9440b0237935a58b103d791ebe81bc98e51574",
+      "size": 16007
     },
     {
       "path": "rules/control-plane-recovery.md",
@@ -334,8 +334,8 @@
     },
     {
       "path": "scripts/command_gateway.py",
-      "sha256": "805c0b4d71fec9690efa6296e9672a5be2e69287d725d15db9e7560d0e943380",
-      "size": 76092
+      "sha256": "e910a99ccf43f2bf1ceafbc597679f4d3a4f64b487821dd752c1f7749c67d6d5",
+      "size": 85929
     },
     {
       "path": "scripts/command_gateway_e2e.py",
@@ -971,6 +971,11 @@
       "path": "tests/test_noteri_state_dir_inventory.py",
       "sha256": "b7ff42fe8e559298d7e2523983a4a458435943d2c4cee8918ec12e5f2a27b292",
       "size": 6231
+    },
+    {
+      "path": "tests/test_noteri_tailscale_readonly_gateway.py",
+      "sha256": "f9b4d0c414c13b38a2dfda3a2882112574086e3941139b65641ef1d9cab9a3b3",
+      "size": 8167
     },
     {
       "path": "tests/test_noteri_transferidor_console_context.py",
