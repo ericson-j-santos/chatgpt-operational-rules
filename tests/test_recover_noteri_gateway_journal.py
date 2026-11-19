@@ -157,6 +157,27 @@ class NoteriJournalRecoveryTests(unittest.TestCase):
     def archive(self) -> Path:
         return self.backup / f"recovered-update-transaction-{self.transaction_id}.json"
 
+    def test_manifest_explicit_noteri_profile_preserves_original_source(self) -> None:
+        manifest = json.loads((self.backup / "rollback-manifest.json").read_text(encoding="utf-8"))
+        manifest["entries"]["config/b.json"]["source"] = "source/noteri-policy.json"
+        wsl_profile = {
+            "source/a.py": "bin/a.py",
+            "source/noteri-policy.json": "config/b.json",
+        }
+        recovery._validate_manifest(manifest, self.root, runtime_map=wsl_profile)
+        self.assertEqual(manifest["entries"]["config/b.json"]["source"], "source/noteri-policy.json")
+        with self.assertRaisesRegex(recovery.RecoveryBlocked, "ROLLBACK_ENTRY_INVALID"):
+            recovery._validate_manifest(manifest, self.root)
+        with self.assertRaisesRegex(recovery.RecoveryBlocked, "ROLLBACK_PROFILE_MAP_INVALID"):
+            recovery._validate_manifest(manifest, self.root, runtime_map={
+                "source/noteri-policy.json": "config/b.json"
+            })
+        with self.assertRaisesRegex(recovery.RecoveryBlocked, "ROLLBACK_ENTRY_INVALID"):
+            recovery._validate_manifest(manifest, self.root, runtime_map={
+                "source/a.py": "bin/a.py",
+                "source/other-policy.json": "config/b.json",
+            })
+
     def test_fixture_root_is_canonical_before_seeding_incident(self) -> None:
         self.assertEqual(self.root, self.root.resolve(strict=True))
         self.assertEqual(self.backup.parent, self.root)
