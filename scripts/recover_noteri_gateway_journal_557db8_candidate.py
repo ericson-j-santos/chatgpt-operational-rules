@@ -37,7 +37,11 @@ SHA256_PINS_ATTESTED = {
     'primary': 'def5a5fc7f7748a61adac626420b3305aeb174f8db6332e48f94ca362393c741',
     'manifest': '6faefbb1b03e66f3e54ae88f0510fdb3af5ebe9dcce3bb3036e65954d446e6bd',
 }
-PIN_STATUS = 'HOST_ATTESTED_MUTATION_NOT_AUTHORIZED'  # Risk2 depends on separate explicit approval/gates.
+# Autorização do proprietário: execução solicitada para a #213, recuperação
+# específica do journal PASS-001 557db8 no Noteri DEV, depois da prova física
+# FORENSIC_READONLY de 7/7 arquivos, quatro hashes e rollback íntegro.
+# Não autoriza update do Gateway, instalação, merge, Funnel ou mudanças de ACL.
+PIN_STATUS = 'GATEWAY_ATTESTED_AND_APPROVED'
 CONFIRMATION = 'RECOVER_NOTERI_GATEWAY_TX_557DB8_ONCE'
 EXPECTED_INSTALL = Path(r'C:\dev\chatgpt-command-gateway')
 
@@ -158,7 +162,7 @@ def _inspect(root: Path, journal_or_archive: Path) -> Evidence:
     )
 
 
-def check(root: Path, *, recover: bool) -> dict[str, Any]:
+def check(root: Path, *, recover: bool, authorized: bool = False) -> dict[str, Any]:
     if os.name != 'nt' or socket.gethostname().casefold() != 'noteri':
         raise base.RecoveryBlocked('NOTERI_WINDOWS_REQUIRED')
     root = base._canonical_install_root(root)
@@ -187,6 +191,8 @@ def check(root: Path, *, recover: bool) -> dict[str, Any]:
         if recover:
             if PIN_STATUS != 'GATEWAY_ATTESTED_AND_APPROVED':
                 raise base.RecoveryBlocked('PINS_NOT_ADMITTED_FOR_MUTATION')
+            if authorized is not True:
+                raise base.RecoveryBlocked('RECOVERY_CONFIRMATION_REQUIRED')
             if not exists:
                 return _public_result('ALREADY_RECOVERED_VERIFIED', first)
             base._require_chain(root, archive, leaf='absent')
@@ -230,7 +236,11 @@ def main() -> int:
             raise base.RecoveryBlocked('SELF_SHA_MISMATCH')
         if args.mode == 'recover' and args.confirm != CONFIRMATION:
             raise base.RecoveryBlocked('RECOVERY_CONFIRMATION_REQUIRED')
-        result = check(EXPECTED_INSTALL, recover=args.mode == 'recover')
+        result = check(
+            EXPECTED_INSTALL,
+            recover=args.mode == 'recover',
+            authorized=(args.mode == 'recover' and args.confirm == CONFIRMATION),
+        )
         print(json.dumps(result, sort_keys=True))
         return 0
     except Exception as exc:
