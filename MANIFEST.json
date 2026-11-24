@@ -1,6 +1,6 @@
 {
   "version": "1.6.21",
-  "generated_at": "2026-11-10T00:19:49.639Z",
+  "generated_at": "2026-11-24T02:59:37.721016+00:00",
   "files": [
     {
       "path": ".gitattributes",
@@ -639,8 +639,8 @@
     },
     {
       "path": "scripts/session_launcher.py",
-      "sha256": "06483900e3ec378c7798b98a6399ea6c8868a19cb0b00fbaf42bdf31d4a6a8d4",
-      "size": 32858
+      "sha256": "a42e94aa86eb07dba1cc7750c0248e2a8544ab11057a839a48b9dc0d7eabbae4",
+      "size": 33064
     },
     {
       "path": "scripts/session_launcher_e2e.py",
@@ -1129,8 +1129,8 @@
     },
     {
       "path": "tests/test_session_launcher.py",
-      "sha256": "253f78a9202abb871dc2eeff6fc80dd2abc64880e165ce9d9c398e112a0daa20",
-      "size": 15419
+      "sha256": "74b4acc28cb3a35f70b331907925a3b250ba411fd08bc32f68c77cb0246026f2",
+      "size": 17378
     },
     {
       "path": "tests/test_session_launcher_diagnostic.py",
